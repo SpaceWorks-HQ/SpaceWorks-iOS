@@ -3,13 +3,31 @@ import XCTest
 final class MemberActionsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<10 { if element.exists && element.isHittable { break }; app.swipeUp() }
-        XCTAssertTrue(element.waitForExistence(timeout: 5)); XCTAssertTrue(element.isHittable); element.tap()
+        for _ in 0..<12 {
+            if element.exists, element.isHittable {
+                let viewport = app.scrollViews.firstMatch
+                let frame = element.frame
+                let visible = viewport.exists ? frame.intersection(viewport.frame).intersection(app.frame) : frame.intersection(app.frame)
+                // A large-type field can be partially clipped yet reported hittable. Its
+                // geometric centre is outside the scroll viewport; tap the observed visible part.
+                if !visible.isNull, visible.width > 4, visible.height > 4 {
+                    element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap()
+                } else { element.tap() }
+                return
+            }
+            let scroll = app.scrollViews.firstMatch
+            if element.exists, scroll.exists, element.frame.midY < scroll.frame.minY { scroll.swipeDown() }
+            else if scroll.exists { scroll.swipeUp() }
+            else { app.swipeUp() }
+        }
+        capture("Unreachable action " + element.identifier)
+        XCTFail("Action must be reachable: \(element.debugDescription)")
     }
     private func demo(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launch()
         tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
-        let username = app.textFields["demo-username"]; tap(username, in: app); username.typeText("meera\n")
+        let username = app.textFields["demo-username"]; tap(username, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5)); username.typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")
         tap(app.buttons["demo-sign-in"], in: app); tap(app.buttons["demo-space-0"], in: app)
         XCTAssertTrue(app.staticTexts["Welcome back, Meera Nair."].waitForExistence(timeout: 10)); return app
@@ -17,7 +35,8 @@ final class MemberActionsFlowTests: XCTestCase {
     private func tab(_ app: XCUIApplication, _ name: String) {
         if app.tabBars.buttons[name].exists { app.tabBars.buttons[name].tap(); return }
         let item = app.descendants(matching: .any)["nav-\(name)"].firstMatch
-        if !item.isHittable {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND isHittable == true"), object: item)
+        if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
             let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
             if sidebar.exists { sidebar.tap() }
         }
@@ -68,7 +87,7 @@ final class MemberActionsFlowTests: XCTestCase {
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertGreaterThan(app.frame.width, app.frame.height); XCTAssertEqual(name.value as? String, "Meera Maker")
         tap(app.buttons["Save changes"], in: app); XCTAssertTrue(app.staticTexts["Profile saved."].waitForExistence(timeout: 5)); capture("Native profile saved landscape")
-        let back = app.navigationBars.buttons["Profile"]; XCTAssertTrue(back.exists); back.tap()
+        let back = app.navigationBars.buttons["Profile"]; XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
         tap(app.buttons["Communication preferences"], in: app)
         let email = app.switches["preference-hardware_requests-email"]; tap(email, in: app)
         XCTAssertEqual(email.value as? String, "0")

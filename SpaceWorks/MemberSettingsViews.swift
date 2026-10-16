@@ -6,6 +6,7 @@ struct ProfileEditorView: View {
     let saved: () async -> Void
     @State private var discardConfirmation = false
     @State private var wantsExit = false
+    @FocusState private var focusedField: String?
     @Environment(\.dismiss) private var dismiss
     init(repository: any MemberActionsRepository, isDemo: Bool, drafts: MemberActionDrafts? = nil, saved: @escaping () async -> Void = {}) {
         _state = State(initialValue: drafts?.profile ?? ProfileEditorState(repository: repository)); self.isDemo = isDemo; self.saved = saved
@@ -36,6 +37,7 @@ struct ProfileEditorView: View {
         }.background(Color.swBg).navigationTitle("Profile details").scrollDismissesKeyboard(.interactively)
             .navigationBarBackButtonHidden(state.dirty || state.busy).interactiveDismissDisabled(state.dirty || state.busy)
             .toolbar {
+                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } }
                 if state.dirty || state.busy { ToolbarItem(placement: .topBarLeading) { Button("Back") { wantsExit = true; discardConfirmation = true }.frame(minHeight: 48).disabled(state.busy) } }
             }
             .task { if !state.dirty { await state.load() } }
@@ -48,6 +50,7 @@ struct ProfileEditorView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label).font(.headline)
             TextField(label, text: value).textContentType(content).autocorrectionDisabled()
+                .focused($focusedField, equals: identifier).submitLabel(.done).onSubmit { focusedField = nil }
                 .keyboardType(content == .telephoneNumber ? .phonePad : .default)
                 .padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier(identifier)

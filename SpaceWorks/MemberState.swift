@@ -168,7 +168,9 @@ final class MemberState {
         catch { guard active else { return }; recordFailure(error, role: "spaces"); spacesLoad = .failed(APIError.display(error)) }
     }
     func loadCard() async {
-        guard canLoad("card"), cardLoad != .loading else { return }
+        // A newer explicit refresh must supersede an in-flight card read: a refused or
+        // revoked QR must never be replaced by an older successful response.
+        guard canLoad("card") else { return }
         cardGeneration += 1; let generation = cardGeneration
         card = nil; cardLoad = .loading
         do { let result = try await repository.card(); guard active, generation == cardGeneration else { return }; card = result; cardLoad = .ready }
