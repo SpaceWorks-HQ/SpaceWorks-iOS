@@ -3,25 +3,54 @@ import XCTest
 final class MemberActionsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<12 {
-            if element.exists, element.isHittable {
-                let viewport = app.scrollViews.firstMatch
+        for _ in 0..<20 {
+            let scroll = app.scrollViews.allElementsBoundByIndex.first(where: { $0.isHittable }) ?? app.scrollViews.firstMatch
+            if element.exists {
+                let insideScroll = scroll.exists && !element.identifier.isEmpty && scroll.descendants(matching: .any).matching(identifier: element.identifier).firstMatch.exists
+                if element.isHittable && !insideScroll { element.tap(); return }
                 let frame = element.frame
-                let visible = viewport.exists ? frame.intersection(viewport.frame).intersection(app.frame) : frame.intersection(app.frame)
-                // A large-type field can be partially clipped yet reported hittable. Its
-                // geometric centre is outside the scroll viewport; tap the observed visible part.
-                if !visible.isNull, visible.width > 4, visible.height > 4 {
-                    element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap()
-                } else { element.tap() }
-                return
-            }
-            let scroll = app.scrollViews.firstMatch
-            if element.exists, scroll.exists, element.frame.midY < scroll.frame.minY { scroll.swipeDown() }
-            else if scroll.exists { scroll.swipeUp() }
-            else { app.swipeUp() }
+                let viewport = visibleContent(scroll, app)
+                let visible = frame.intersection(viewport)
+                if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4,
+                   viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)) {
+                    // Use the native activation point. A wide Toggle's label centre is not
+                    // its switch thumb; coordinates are only needed for clipped text fields.
+                    element.tap(); return
+                }
+                if (element.elementType == .textField || element.elementType == .secureTextField),
+                   element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
+                    element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap(); return
+                }
+                drag(scroll, app, down: frame.midY < viewport.midY)
+            } else { drag(scroll, app, down: false) }
         }
         capture("Unreachable action " + element.identifier)
-        XCTFail("Action must be reachable: \(element.debugDescription)")
+        XCTFail("Action must be reachable: \(element.identifier)")
+    }
+    private func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication) -> CGRect {
+        var viewport = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
+        // SwiftUI's accessibility ScrollView frame includes content UNDER native bars.
+        // A target can be marked hittable there while its coordinate activates another tab.
+        for bar in app.navigationBars.allElementsBoundByIndex where bar.exists && bar.isHittable {
+            let frame = bar.frame
+            if frame.intersects(viewport), frame.midY < viewport.midY {
+                let bottom = viewport.maxY; viewport.origin.y = max(viewport.minY, frame.maxY); viewport.size.height = max(0, bottom - viewport.minY)
+            }
+        }
+        for bar in app.tabBars.allElementsBoundByIndex + app.keyboards.allElementsBoundByIndex where bar.exists {
+            let frame = bar.frame
+            if frame.intersects(viewport), frame.midY > viewport.minY { viewport.size.height = max(0, min(viewport.maxY, frame.minY) - viewport.minY) }
+        }
+        return viewport.insetBy(dx: 8, dy: 8)
+    }
+    private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, down: Bool) {
+        let viewport = visibleContent(scroll, app)
+        guard viewport.width > 20, viewport.height > 30 else { return }
+        // Drag entirely inside the actual visible content, never across tab/navigation bars.
+        let start = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.3 : 0.7))
+        let end = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.7 : 0.3))
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
+            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)))
     }
     private func demo(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launch()
@@ -90,7 +119,9 @@ final class MemberActionsFlowTests: XCTestCase {
         let back = app.navigationBars.buttons["Profile"]; XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
         tap(app.buttons["Communication preferences"], in: app)
         let email = app.switches["preference-hardware_requests-email"]; tap(email, in: app)
-        XCTAssertEqual(email.value as? String, "0")
+        // The displayed value changes only after the repository confirms the update.
+        let confirmedOff = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: email)
+        XCTAssertEqual(XCTWaiter.wait(for: [confirmedOff], timeout: 5), .completed)
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Always-on safety messages'")).firstMatch.exists)
         capture("Optional preference and required safety messages")
     }
