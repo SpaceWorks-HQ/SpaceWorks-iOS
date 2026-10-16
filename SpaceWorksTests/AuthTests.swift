@@ -137,4 +137,66 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
         demo.code = "123456"; demo.verify(); XCTAssertEqual(demo.stage, .recovery)
         demo.reset(); XCTAssertEqual(demo.stage, .welcome); XCTAssertTrue(demo.password.isEmpty)
     }
+    func testForegroundSuperadminChangeWipesPreviousIdentity() async throws {
+        let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        let auth = state(storage: storage, handler: response)
+        await auth.restore(); await auth.select(7)
+        StubProtocol.lock.lock()
+        StubProtocol.handler = { _ in
+            (200, self.json, Data(DebugAuthFixtures.user(memberships: [], superuser: true).utf8))
+        }
+        StubProtocol.lock.unlock()
+        await auth.foreground()
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(auth.user); XCTAssertNil(auth.selectedID)
+        XCTAssertNil(try storage.load()); XCTAssertEqual(auth.error, "Use the web console")
+    }
+    func testNativeMFAMustHaveDeviceGrantAndNonVerificationSurface() async {
+        for completion in ["{\"access\":\"test-access\",\"refresh\":\"test-refresh\",\"surface\":\"member\",\"user\":\(DebugAuthFixtures.user)}",
+                           "{\"access\":\"test-access\",\"refresh\":\"test-refresh\",\"surface\":\"verification_only\",\"device_grant\":\(DebugAuthFixtures.grant),\"user\":\(DebugAuthFixtures.user)}"] {
+            let auth = state { request in
+                if request.url!.path.hasSuffix("/login") { return (200, DebugAuthFixtures.mfa) }
+                if request.url!.path.hasSuffix("/verify") { return (200, completion) }
+                return try self.response(request)
+            }
+            await auth.restore(); auth.username = "maker"; auth.password = "sample"; await auth.signIn()
+            auth.code = "123456"; await auth.verify()
+            XCTAssertEqual(auth.stage, .mfa); XCTAssertNil(auth.user)
+        }
+    }
+    func testExpiredMFAReturnsToSignInWithoutUsingChallenge() async {
+        let auth = state { request in
+            if request.url!.path.hasSuffix("/login") { return (200, DebugAuthFixtures.mfa.replacingOccurrences(of: "\"expires_in\":300", with: "\"expires_in\":-1")) }
+            return try self.response(request)
+        }
+        await auth.restore(); auth.username = "maker"; auth.password = "sample"; await auth.signIn()
+        auth.code = "123456"; await auth.verify()
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertEqual(auth.error, "Your sign-in expired. Try again.")
+    }
+    func testTemporaryPasswordGateChangesPasswordThenWipesSession() async throws {
+        let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        let auth = state(storage: storage) { request in
+            if request.url!.path.hasSuffix("/me") { return (200, DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true")) }
+            if request.url!.path.hasSuffix("/change-password") {
+                let body = try JSONSerialization.jsonObject(with: requestBody(request)) as! [String: String]
+                XCTAssertEqual(body, ["current_password": "temporary", "new_password": "replacement"])
+                return (200, #"{"detail":"Updated."}"#)
+            }
+            return try self.response(request)
+        }
+        await auth.restore(); XCTAssertEqual(auth.stage, .passwordChange)
+        await auth.changePassword(current: "temporary", new: "replacement", confirmation: "replacement")
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(try storage.load())
+        XCTAssertEqual(auth.error, "Password updated. Sign in again.")
+    }
+    func testDemoBlockedStatesAreExplicitAndResettable() {
+        let demo = DemoSession()
+        for scenario in [DemoSession.Scenario.offline, .throttled, .expired] {
+            demo.reset(); demo.scenario = scenario; demo.username = "maker"; demo.password = "sample"; demo.stage = .signIn
+            demo.signIn(); XCTAssertEqual(demo.stage, .signIn); XCTAssertNotNil(demo.error)
+        }
+        demo.reset(); demo.scenario = .superadmin; demo.username = "maker"; demo.password = "sample"; demo.signIn()
+        XCTAssertEqual(demo.stage, .webConsole)
+        demo.reset(); demo.scenario = .updateRequired; demo.username = "maker"; demo.password = "sample"; demo.signIn()
+        XCTAssertEqual(demo.stage, .updateRequired)
+    }
 }

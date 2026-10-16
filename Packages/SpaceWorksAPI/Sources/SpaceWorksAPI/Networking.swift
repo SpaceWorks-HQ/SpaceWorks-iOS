@@ -297,4 +297,7 @@ public final class SpaceWorksService: Sendable {
     public func signOut() async throws {
         _ = try await client.api_v1_auth_device_logout_create().ok.body.json
     }
+    public func changePassword(current: String, new: String) async throws {
+        _ = try await client.api_v1_auth_change_password_create(.init(body: .json(.init(current_password: current, new_password: new)))).ok.body.json
+    }
 }

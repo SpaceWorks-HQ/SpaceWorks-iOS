@@ -16,6 +16,7 @@ struct AuthRoot: View {
             case .restoring: ProgressView("Opening your makerspace…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.swBg)
             case .signIn: SignInView(auth: auth, state: state)
             case .mfa, .recoveryCodes: MFAView(auth: auth)
+            case .passwordChange: PasswordChangeView(auth: auth)
             case .signedIn:
                 if auth.selectedID == nil { MakerspacePicker(auth: auth) }
                 else { AppShell(state: state, auth: auth) }
@@ -23,6 +24,32 @@ struct AuthRoot: View {
         }
         .task { await auth.restore() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await auth.foreground() } } }
+    }
+}
+
+struct PasswordChangeView: View {
+    let auth: AuthState
+    @State private var current = ""
+    @State private var new = ""
+    @State private var confirmation = ""
+    var body: some View {
+        ScrollView {
+            SWCard {
+                Text("Choose a new password").font(.largeTitle.bold())
+                Text("Update your temporary password before opening your makerspace.").foregroundStyle(Color.swMuted)
+                Text("Current password").font(.headline)
+                SecureField("Current password", text: $current).textContentType(.password).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
+                Text("New password").font(.headline)
+                SecureField("New password", text: $new).textContentType(.newPassword).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
+                Text("Confirm new password").font(.headline)
+                SecureField("Confirm new password", text: $confirmation).textContentType(.newPassword).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
+                if let error = auth.error { SWError(message: error) }
+                Button(auth.busy ? "Updating…" : "Update password") {
+                    Task { await auth.changePassword(current: current, new: new, confirmation: confirmation); current = ""; new = ""; confirmation = "" }
+                }.buttonStyle(SWPrimary()).disabled(auth.busy)
+                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 44).disabled(auth.busy)
+            }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
+        }.background(Color.swBg)
     }
 }
 

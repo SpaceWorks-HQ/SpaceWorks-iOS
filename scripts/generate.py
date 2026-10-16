@@ -53,12 +53,20 @@ def generate(raster=True):
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
         info["UISupportedInterfaceOrientations"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
         info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
+        schemes = ["spaceworks"]
+        google_scheme = brand.get("google_reversed_client_id")
+        if google_scheme is not None:
+            if not re.fullmatch(r"com\.googleusercontent\.apps\.[A-Za-z0-9.-]+", google_scheme):
+                raise ValueError("Invalid Google reversed client ID")
+            schemes.append(google_scheme)
+        info["CFBundleURLTypes"] = [{"CFBundleURLName": brand["ios_bundle_id"], "CFBundleURLSchemes": schemes}]
         if mode == "Debug":
             info["NSAppTransportSecurity"] = {"NSAllowsLocalNetworking": True}
         target = ROOT / f"SpaceWorks/Generated/Info-{mode}.plist"
         target.write_bytes(plistlib.dumps(info))
         (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps({
-            "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production"}))
+            "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production",
+            "com.apple.developer.applesignin": ["Default"]}))
     tokens = json.loads(inside(brand["theme_tokens"]).read_text())
     if set(tokens["light"]) != set(tokens["dark"]):
         raise ValueError("Light and dark semantic roles must match")

@@ -16,6 +16,9 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     TARGETED_DEVICE_FAMILY: '1,2'
 packages:
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS.git
+    exactVersion: 10.0.0
   SpaceWorksAPI:
     path: Packages/SpaceWorksAPI
 targets:
@@ -27,6 +30,8 @@ targets:
         excludes: [Generated/Info-Debug.plist, Generated/Info-Release.plist]
     dependencies:
       - package: SpaceWorksAPI
+      - package: GoogleSignIn
+        product: GoogleSignIn
     settings:
       configs:
         Debug:

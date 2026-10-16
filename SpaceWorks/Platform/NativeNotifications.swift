@@ -46,8 +46,11 @@ final class NativeNotifications {
     private(set) var authorization: UNAuthorizationStatus = .notDetermined
     private(set) var token: String?
     private(set) var error: String?
+    private(set) var pendingHint: NotificationHint?
     var onTokenChanged: ((String) -> Void)?
-    var onTap: ((NotificationHint) -> Void)?
+    var onTap: ((NotificationHint) -> Void)? {
+        didSet { deliverPendingHint() }
+    }
     var mayPresent: ((NotificationHint) -> Bool)?
 
     func requestPermission() async {
@@ -76,12 +79,25 @@ final class NativeNotifications {
 
     func registrationFailed() { error = "Push registration is unavailable. Your inbox is still available." }
 
+    /// Preserve a cold-launch tap until authentication and membership routing have been installed.
+    func receive(_ hint: NotificationHint) {
+        pendingHint = hint
+        deliverPendingHint()
+    }
+
+    private func deliverPendingHint() {
+        guard let hint = pendingHint, let handler = onTap else { return }
+        pendingHint = nil
+        handler(hint)
+    }
+
     /// Call after removing server registration IDs. No prior user's notification routing survives logout.
     func reset() {
         UIApplication.shared.unregisterForRemoteNotifications()
         UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         token = nil
         error = nil
+        pendingHint = nil
         onTokenChanged = nil
         onTap = nil
         mayPresent = nil
@@ -106,7 +122,7 @@ final class NativeNotificationDelegate: NSObject, UIApplicationDelegate, UNUserN
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let hint = NotificationHint(payload: response.notification.request.content.userInfo)
         Task { @MainActor in
-            if let hint { NativeNotifications.shared.onTap?(hint) }
+            if let hint { NativeNotifications.shared.receive(hint) }
             completionHandler()
         }
     }

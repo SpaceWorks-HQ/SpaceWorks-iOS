@@ -5,8 +5,11 @@ import Observation
 @MainActor @Observable
 final class DemoSession {
     enum Role: String, CaseIterable { case member = "Member", staff = "Staff" }
-    enum Scenario: String, CaseIterable { case password = "Password", mfa = "MFA", enrollment = "Enrollment" }
-    enum Stage: Equatable { case welcome, signIn, mfa, recovery, makerspace, shell }
+    enum Scenario: String, CaseIterable {
+        case password = "Password", mfa = "MFA", enrollment = "Enrollment", expired = "Expired challenge"
+        case offline = "Offline", throttled = "Too many requests", superadmin = "Superadmin", updateRequired = "Update required"
+    }
+    enum Stage: Equatable { case welcome, signIn, mfa, recovery, makerspace, shell, webConsole, updateRequired }
     var role = Role.member
     var scenario = Scenario.password
     var stage = Stage.welcome
@@ -14,18 +17,35 @@ final class DemoSession {
     var password = ""
     var code = ""
     var error: String?
+    var retryAfter: Date?
     var selectedSpace = 0
     let spaces = ["Fab Lab Kochi", "Maker Space Bengaluru"]
     var name: String { role == .member ? "Meera Nair" : "Arjun Rao" }
     func signIn() {
         guard !username.isEmpty, !password.isEmpty else { error = "Enter your email or username and password."; return }
-        error = nil; password = ""; stage = scenario == .password ? .makerspace : .mfa
+        guard (retryAfter ?? .distantPast) <= Date() else { return }
+        error = nil; password = ""
+        switch scenario {
+        case .offline: error = "Couldn't connect. Try again."
+        case .throttled: error = "Too many requests. Try again later."; retryAfter = Date().addingTimeInterval(10)
+        case .expired: error = "Your sign-in expired. Try again."
+        case .superadmin: stage = .webConsole
+        case .updateRequired: stage = .updateRequired
+        case .password: stage = .makerspace
+        case .mfa, .enrollment: stage = .mfa
+        }
     }
     func verify() {
         guard code == "123456" || code == "sample-recovery" else { error = "That code didn’t work. Try again."; return }
         code = ""; error = nil; stage = scenario == .enrollment ? .recovery : .makerspace
     }
-    func reset() { username = ""; password = ""; code = ""; error = nil; selectedSpace = 0; stage = .welcome }
+    func acceptDemoProvider() { error = nil; stage = scenario == .enrollment || scenario == .mfa ? .mfa : .makerspace }
+    func reset() { username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; stage = .welcome }
+}
+
+enum DemoProvider: String, CaseIterable, Identifiable {
+    case google = "Google", apple = "Apple", organization = "your organization", phone = "phone"
+    var id: Self { self }
 }
 
 struct DemoRoot: View {
@@ -47,6 +67,7 @@ struct DemoRoot: View {
 struct DemoAuthView: View {
     @Bindable var session: DemoSession
     @FocusState private var passwordFocused: Bool
+    @State private var provider: DemoProvider?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -63,6 +84,12 @@ struct DemoAuthView: View {
                     case .signIn:
                         Text("Welcome back.").font(.largeTitle.bold())
                         Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
+                        ForEach(DemoProvider.allCases.filter { $0 != .phone || session.role == .member }) { choice in
+                            Button("Continue with \(choice.rawValue)") { provider = choice }
+                                .frame(maxWidth: .infinity, minHeight: 48)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
+                        }
+                        Text("or with your email").font(.caption).foregroundStyle(Color.swMuted)
                         Text("Email or username").font(.headline)
                         TextField("Email or username", text: $session.username).textInputAutocapitalization(.never)
                             .autocorrectionDisabled().demoField().accessibilityIdentifier("demo-username")
@@ -72,7 +99,10 @@ struct DemoAuthView: View {
                             .demoField().accessibilityIdentifier("demo-password")
                         Text("Use any email and password in this demo.").font(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
-                        Button("Sign in") { session.signIn() }.buttonStyle(SWPrimary()).accessibilityIdentifier("demo-sign-in")
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Button("Sign in") { session.signIn() }.buttonStyle(SWPrimary()).accessibilityIdentifier("demo-sign-in")
+                                .disabled((session.retryAfter ?? .distantPast) > context.date)
+                        }
                         Button("Back") { session.reset() }.frame(minHeight: 44)
                     case .mfa:
                         Text(session.scenario == .enrollment ? "Set up two-step sign-in" : "Verify your sign-in").font(.largeTitle.bold())
@@ -100,11 +130,52 @@ struct DemoAuthView: View {
                                 Label(session.spaces[index], systemImage: "building.2").frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                             }.buttonStyle(.plain).accessibilityIdentifier("demo-space-\(index)")
                         }
+                    case .webConsole:
+                        Text("Use the web console").font(.largeTitle.bold())
+                        Text("Superadmin accounts cannot sign in on a phone or tablet.").foregroundStyle(Color.swMuted)
+                        Button("Back to demo") { session.reset() }.buttonStyle(SWPrimary())
+                    case .updateRequired:
+                        Text("Update required").font(.largeTitle.bold())
+                        Text("Update the app to keep using this server. This is a preview of the server's minimum-version gate.").foregroundStyle(Color.swMuted)
+                        Button("Back to demo") { session.reset() }.buttonStyle(SWPrimary())
                     case .shell: EmptyView()
                     }
                 }
             }.padding(24).frame(maxWidth: 600).frame(maxWidth: .infinity)
         }.background(Color.swBg).scrollDismissesKeyboard(.interactively)
+            .sheet(item: $provider) { DemoProviderView(session: session, provider: $0) }
+    }
+}
+struct DemoProviderView: View {
+    let session: DemoSession
+    let provider: DemoProvider
+    @Environment(\.dismiss) private var dismiss
+    @State private var phone = ""
+    @State private var code = ""
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                SWCard {
+                    Text("Continue with \(provider.rawValue)").font(.largeTitle.bold())
+                    Text("Demo only. No provider account is connected and no message is sent.").foregroundStyle(Color.swMuted)
+                    if provider == .phone {
+                        Text("Phone number").font(.headline)
+                        TextField("Phone number", text: $phone).textContentType(.telephoneNumber).keyboardType(.phonePad).demoField()
+                        Text("Verification code").font(.headline)
+                        TextField("Verification code", text: $code).textContentType(.oneTimeCode).demoField()
+                        Text("Use 123456 in this demo.").font(.caption).foregroundStyle(Color.swMuted)
+                    } else {
+                        Label(session.name, systemImage: "person.crop.circle").font(.title2)
+                    }
+                    if let error { SWError(message: error) }
+                    Button("Continue demo account") {
+                        if provider == .phone && (phone.isEmpty || code != "123456") { error = "Enter a phone number and the demo code 123456."; return }
+                        session.acceptDemoProvider(); dismiss()
+                    }.buttonStyle(SWPrimary())
+                }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
+            }.background(Color.swBg).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.frame(minHeight: 44) } }
+        }
     }
 }
 

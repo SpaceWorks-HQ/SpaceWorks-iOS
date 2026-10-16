@@ -72,6 +72,7 @@ final class MainFlowTests: XCTestCase {
         let app = launch(); app.buttons["explore-demo"].tap()
         XCTAssertTrue(app.staticTexts["Demo mode · sample data"].exists)
         app.buttons["Continue as member"].tap()
+        app.swipeUp()
         app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera")
         app.secureTextFields["demo-password"].tap(); app.secureTextFields["demo-password"].typeText("sample\n")
         app.swipeUp(); app.buttons["demo-sign-in"].tap()

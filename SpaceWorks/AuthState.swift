@@ -4,7 +4,7 @@ import SpaceWorksAPI
 
 @MainActor @Observable
 final class AuthState {
-    enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, signedIn }
+    enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, passwordChange, signedIn }
     private(set) var stage: Stage = .restoring
     var username = ""
     var password = ""
@@ -114,7 +114,7 @@ final class AuthState {
             if !recoveryCodes.isEmpty { stage = .recoveryCodes }
         } catch { fail(error) }
     }
-    func confirmRecoveryCodes() { recoveryCodes = []; stage = .signedIn }
+    func confirmRecoveryCodes() { recoveryCodes = []; stage = user?.must_change_password == true ? .passwordChange : .signedIn }
     func backToSignIn() {
         guard !busy else { return }
         mfa = nil; mfaExpires = nil; enrollment = nil; code = ""; error = nil; stage = .signIn
@@ -132,7 +132,8 @@ final class AuthState {
         defer { busy = false }
         do { try await loadIdentity() } catch {
             fail(error)
-            if isUnauthorized(error) { try? await service.refresh.install(nil); await clear() }
+            let hasNoCredentials = await service.refresh.current() == nil
+            if isUnauthorized(error) || hasNoCredentials { try? await service.refresh.install(nil); await clear() }
         }
     }
     func signOut() async {
@@ -146,6 +147,21 @@ final class AuthState {
             await clear()
             if revocationFailed { error = "Signed out on this device. Server revocation could not be confirmed." }
         } catch { await clear(); fail(error) }
+    }
+    func changePassword(current: String, new: String, confirmation: String) async {
+        guard !busy, (retryAfter ?? .distantPast) <= Date() else { return }
+        guard !current.isEmpty, !new.isEmpty, new == confirmation else {
+            error = "Enter your current password and matching new passwords."; return
+        }
+        busy = true; error = nil
+        defer { busy = false }
+        do {
+            try await service.changePassword(current: current, new: new)
+            try? await service.signOut()
+            try await service.refresh.install(nil)
+            await clear()
+            error = "Password updated. Sign in again."
+        } catch { fail(error) }
     }
     private func accept(_ pair: TokenPair) async throws {
         guard !pair.access.isEmpty, !pair.refresh.isEmpty else {
@@ -161,6 +177,7 @@ final class AuthState {
         let identity = try await service.me()
         guard !identity.is_superuser else {
             try? await service.refresh.install(nil)
+            await clear()
             throw APIError(status: 403, code: "device_superadmin_not_supported", detail: "Use the web console")
         }
         user = identity
@@ -169,7 +186,7 @@ final class AuthState {
         let selection = saved.flatMap { ids.contains($0) ? $0 : nil } ?? (memberships.count == 1 ? memberships.first?.id : nil)
         try await service.makerspace.select(selection, activeMemberships: ids)
         selectedID = selection
-        stage = .signedIn
+        stage = identity.must_change_password ? .passwordChange : .signedIn
     }
     private func clear() async {
         try? await service.makerspace.select(nil, activeMemberships: [])

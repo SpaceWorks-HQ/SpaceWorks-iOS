@@ -14,3 +14,4 @@ filter:
     - api_v1_auth_mfa_enroll_create
     - api_v1_auth_mfa_confirm_create
     - api_v1_config_retrieve
+    - api_v1_auth_change_password_create

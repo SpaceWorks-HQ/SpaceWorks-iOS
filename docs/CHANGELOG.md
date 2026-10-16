@@ -31,6 +31,10 @@ enrollment QR/manual secret, recovery-code acknowledgement and two-space selecti
 Keychain or server-setting writes. Add default phone/iPad CI jobs and a six-size manual matrix;
 UI flows rotate to landscape and exercise the largest Dynamic Type/dark state. The official logo
 masters are copied byte-for-byte into adaptive native image assets for the official app name.
+Add the mandatory temporary-password gate, native Google SDK/Apple authorization/ephemeral OIDC
+adapter seams, and explicit demo provider/phone, expired/offline/throttled/superadmin/update-required
+journeys. Live provider buttons stay closed pending native configuration/contracts; no web tokens
+are treated as device sessions. Provider setup is recorded in `docs/NATIVE-SDK-SETUP.md`.
 
 ## A0 Base (2026-10-16)
 

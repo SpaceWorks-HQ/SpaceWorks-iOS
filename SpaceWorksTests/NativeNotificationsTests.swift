@@ -38,4 +38,17 @@ final class NativeNotificationsTests: XCTestCase {
         XCTAssertNil(hint?.eventID)
         XCTAssertNil(hint?.relativeLink)
     }
+
+    @MainActor func testColdLaunchHintWaitsForAuthenticatedRouterAndDeliversOnce() throws {
+        let notifications = NativeNotifications()
+        let hint = try XCTUnwrap(NotificationHint(payload: ["makerspace_id": "7"]))
+        notifications.receive(hint)
+        XCTAssertEqual(notifications.pendingHint, hint)
+        var received: [NotificationHint] = []
+        notifications.onTap = { received.append($0) }
+        XCTAssertEqual(received, [hint])
+        XCTAssertNil(notifications.pendingHint)
+        notifications.onTap = { received.append($0) }
+        XCTAssertEqual(received.count, 1)
+    }
 }
