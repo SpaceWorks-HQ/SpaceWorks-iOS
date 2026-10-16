@@ -8,12 +8,25 @@ struct SpaceWorksApp: App {
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             UserDefaults.standard.removeObject(forKey: "server-origin")
             UserDefaults.standard.removeObject(forKey: "dark-mode")
-            URLProtocol.registerClass(PreviewHealthProtocol.self)
         }
         #endif
     }
     var body: some Scene {
         WindowGroup { RootView() }
+    }
+}
+
+enum DeploymentHealth {
+    static func check(_ origin: ServerOrigin) async throws {
+        let config = DeviceSession.configuration()
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            config.protocolClasses = [PreviewHealthProtocol.self]
+        }
+        #endif
+        let session = DeviceSession.make(configuration: config)
+        defer { session.finishTasksAndInvalidate() }
+        try await SpaceWorksService(origin: origin, session: session).health()
     }
 }
 

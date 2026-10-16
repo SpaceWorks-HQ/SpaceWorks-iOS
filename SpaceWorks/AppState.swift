@@ -19,7 +19,7 @@ final class AppState {
     private var attemptedRestore = false
 
     init(lockedServer: String? = Brand.serverURL, settings: UserDefaults = .standard,
-         health: @escaping @Sendable (ServerOrigin) async throws -> Void = { try await SpaceWorksService(origin: $0).health() }) {
+         health: @escaping @Sendable (ServerOrigin) async throws -> Void = { try await DeploymentHealth.check($0) }) {
         self.settings = settings
         self.health = health
         darkMode = settings.bool(forKey: "dark-mode")

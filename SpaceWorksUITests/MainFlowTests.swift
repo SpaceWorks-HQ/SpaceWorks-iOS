@@ -15,14 +15,16 @@ final class MainFlowTests: XCTestCase {
         app.textFields["server-url"].typeText("https://ui-test.spaceworks.invalid")
         app.buttons["connect"].tap()
         XCTAssertTrue(app.staticTexts["Sign-in will be available in the next phase."].waitForExistence(timeout: 10))
+        attach(app, "Home sign-in placeholder")
         for name in ["Home", "Inventory", "Activity", "Inbox", "Profile"] {
             app.tabBars.buttons[name].tap()
             XCTAssertTrue(app.staticTexts["Nothing here yet."].exists)
         }
         XCTAssertFalse(app.tabBars.buttons["Staff"].exists)
+        attach(app, "Profile and member tabs")
         app.buttons["Change server"].tap()
         XCTAssertTrue(app.textFields["server-url"].exists)
-        attach(app, "Connected shell and server settings")
+        attach(app, "Server settings")
     }
     func testInvalidURLAndServerFailureRemainReviewable() {
         let app = launch(extra: ["--health-unavailable"])
