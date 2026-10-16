@@ -31,7 +31,11 @@ The owner subsequently deferred the app backend and requested complete flow/UI c
 Unsupported planned features will have explicit DEBUG-only in-memory demo journeys and production
 integration seams; they will not invent endpoints, bypass authority or claim server verification.
 
-The owner's additional UX checkpoint implements the pinned Design `docs/mobile-auth-ux-spec.md`
+The owner's additional UX checkpoint implements the mobile-local `docs/mobile-auth-ux-spec.md`
 and `tokens/mobile-motion.json`. Master artwork stays static; sibling content honors Reduce Motion.
 Native email verification is an authenticated Profile action. `email_verified=false` alone is not
 an invented restricted-session authority; access-only `verification_only` results never enter the app.
+
+The owner requested mobile UX work stay in the mobile repositories. `docs/mobile-auth-ux-spec.md`
+and `tokens/mobile-motion.json` are versioned here; the Design submodule stays on its existing
+brand asset/token baseline. New mobile flow and motion changes must not be pushed to Design.

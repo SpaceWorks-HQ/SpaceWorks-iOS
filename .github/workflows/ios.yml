@@ -42,7 +42,7 @@ jobs:
       - name: Compile and test on simulator
         run: |
           set -o pipefail
-          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
       - name: Export UI screenshots
         if: always()
         run: |

@@ -1,4 +1,4 @@
-"""Generate native motion only from the pinned shared Design contract."""
+"""Generate native motion only from the shared mobile repository contract."""
 import json
 import pathlib
 
@@ -17,12 +17,12 @@ def render_motion(document):
         raise ValueError("Invalid motion curve")
     constants = "\n".join(f"    static let {name}: Double = {durations[key] / 1000:g}" for name, key in [
         ("color", "color"), ("expand", "expand"), ("overlayEnter", "overlay_enter"), ("overlayExit", "overlay_exit")])
-    return ("// Generated from design/tokens/mobile-motion.json. Do not edit.\nimport SwiftUI\nenum MobileMotion {\n"
+    return ("// Generated from tokens/mobile-motion.json. Do not edit.\nimport SwiftUI\nenum MobileMotion {\n"
             + constants + "\n    static let expandAnimation = Animation.timingCurve("
             + ", ".join(f"{value:g}" for value in curve) + ", duration: expand)\n}\n")
 
 
 def generate_motion(root):
     root = pathlib.Path(root)
-    document = json.loads((root / "design/tokens/mobile-motion.json").read_text())
+    document = json.loads((root / "tokens/mobile-motion.json").read_text())
     (root / "SpaceWorks/Generated/MobileMotion.swift").write_text(render_motion(document), encoding="utf-8")

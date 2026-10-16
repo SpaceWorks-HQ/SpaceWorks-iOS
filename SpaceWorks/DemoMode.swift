@@ -250,6 +250,8 @@ struct DemoShell: View {
         }
         }.onChange(of: selected) { _, _ in
             columns = geometry.size.width >= 1000 ? .all : .detailOnly
+        }.onChange(of: geometry.size.width, initial: true) { _, width in
+            columns = width >= 1000 ? .all : .detailOnly
         }
         }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
     }

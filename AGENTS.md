@@ -35,3 +35,7 @@ Phone and tablet layouts, portrait/landscape, light/dark and largest Dynamic Typ
 Use generated contract operations only. Record missing backend contracts as `backend-request`
 issues and continue independent work when prerequisites permit. Local Docker is the development API;
 development attestation and local HTTP must remain Debug-only. Store credentials only in Keychain.
+
+Mobile-specific onboarding/auth UX and motion belong in `docs/mobile-auth-ux-spec.md` and
+`tokens/mobile-motion.json` in this repository. Do not push mobile implementation/spec additions
+to the Design repository. The Design submodule supplies the existing brand masters and colors.

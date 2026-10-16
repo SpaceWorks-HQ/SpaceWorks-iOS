@@ -12,14 +12,14 @@ spec.loader.exec_module(motion)
 
 
 class MotionTests(unittest.TestCase):
-    def test_generated_native_motion_matches_pinned_contract(self):
-        document = json.loads((ROOT / "design/tokens/mobile-motion.json").read_text())
+    def test_generated_native_motion_matches_local_contract(self):
+        document = json.loads((ROOT / "tokens/mobile-motion.json").read_text())
         output = motion.render_motion(document)
         self.assertEqual(output, (ROOT / "SpaceWorks/Generated/MobileMotion.swift").read_text())
         self.assertIn(f'static let expand: Double = {document["duration_ms"]["expand"] / 1000:g}', output)
 
     def test_motion_rejects_logo_animation_and_reduced_motion_delays(self):
-        original = json.loads((ROOT / "design/tokens/mobile-motion.json").read_text())
+        original = json.loads((ROOT / "tokens/mobile-motion.json").read_text())
         for section, key, invalid in [("onboarding", "logo_motion", "scale"), ("onboarding", "blocking_delay_ms", 100),
                                       ("reduce_motion", "opacity_duration_ms", 120), ("reduce_motion", "spatial_transitions", True)]:
             document = copy.deepcopy(original)

@@ -25,6 +25,13 @@ selected destinations. Close that overlay after selection while keeping the wide
 assert real detail-control hit testing in the member journeys. Add a synchronous opaque scene
 privacy window above presented sheets before app-switcher snapshots, preserving drafts and focus
 on return, with lifecycle tests.
+The member portrait journeys now pass; keep sidebar visibility tied to the current content width
+so rotation restores the wide sidebar. The shared main journey waits for layout hit testing before
+using the system sidebar toggle. All 73 native cases, including snapshot privacy, pass on tablet;
+this focused adaptive regression awaits the follow-up CI run.
+The owner requested mobile UX work stay in this repository. Copy the auth UX spec and motion
+contract into `docs/mobile-auth-ux-spec.md` and `tokens/mobile-motion.json`; update generation and
+restore Design's existing `fd28f825086a2cac7fa297881f1860b9d332db69` brand baseline.
 Add native file/photo/scanner support for later phases with bounded transfers, credential-free signed
 storage requests, QR camera fallback and metadata-stripping JPEG preparation. These helpers do not
 claim that later staff or payment flows are wired or live verified.

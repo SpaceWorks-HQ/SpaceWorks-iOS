@@ -28,7 +28,8 @@ final class MainFlowTests: XCTestCase {
     private func tab(_ app: XCUIApplication, _ title: String) {
         if app.tabBars.buttons[title].exists { app.tabBars.buttons[title].tap(); return }
         let item = app.descendants(matching: .any)["nav-\(title)"].firstMatch
-        if !item.isHittable {
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND isHittable == true"), object: item)
+        if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
             let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
             if sidebar.exists { sidebar.tap() }
         }
