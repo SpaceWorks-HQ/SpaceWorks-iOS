@@ -5,14 +5,20 @@ import UniformTypeIdentifiers
 
 struct AuthRoot: View {
     let state: AppState
+    let linkRouter: MobileLinkRouter
+    let origin: ServerOrigin
     @State private var auth: AuthState
+    @State private var routingOwner = UUID()
     @Environment(\.scenePhase) private var scenePhase
-    init(state: AppState, origin: ServerOrigin) {
-        self.state = state
+    init(state: AppState, origin: ServerOrigin, linkRouter: MobileLinkRouter) {
+        self.state = state; self.origin = origin; self.linkRouter = linkRouter
         _auth = State(initialValue: AuthState(origin: origin))
     }
     var body: some View {
-        Group {
+        ZStack {
+            if auth.endingSession {
+                ProgressView("Signing out…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.swBg)
+            } else {
             switch auth.stage {
             case .restoring: ProgressView("Opening your makerspace…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.swBg)
             case .signIn: SignInView(auth: auth, state: state)
@@ -20,11 +26,30 @@ struct AuthRoot: View {
             case .passwordChange: PasswordChangeView(auth: auth)
             case .signedIn:
                 if auth.selectedID == nil { MakerspacePicker(auth: auth) }
-                else { AppShell(state: state, auth: auth) }
+                else { AppShell(state: state, auth: auth, linkRouter: linkRouter) }
+            }
             }
         }
-        .task { await auth.restore() }
+        .task { await auth.restore(); bindRouting() }
+        .onChange(of: auth.stage) { _, _ in bindRouting() }
+        .onChange(of: auth.user?.id) { _, _ in bindRouting() }
+        .onChange(of: auth.foregroundHintRevision) { _, _ in Task { await auth.processForegroundHint() } }
+        .onChange(of: auth.busy) { _, busy in if !busy { Task { await auth.processForegroundHint() } } }
+        .onDisappear { linkRouter.unbind(owner: routingOwner); Task { await auth.stopNotifications() } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await auth.foreground() } } }
+    }
+    private func bindRouting() {
+        NativeNotifications.shared.onTap = { hint in linkRouter.receive(hint) }
+        if auth.stage == .signedIn, let id = auth.user?.id {
+            linkRouter.bind(account: origin.url.absoluteString + ".account.\(id)", refresh: { try await auth.freshMembershipIDs() }, select: { try await auth.selectForLink($0) }, resolveLegacy: { legacy in
+                _ = try await auth.freshMembershipIDs()
+                guard let membership = auth.memberships.first(where: { $0.slug == legacy.slug }), !legacy.staffInbox || auth.staffToolsAvailable else {
+                    throw APIError(status: 403, code: "link_membership_unavailable", detail: "This update isn't available to your account.")
+                }
+                return MobileLink(makerspaceID: membership.id, destination: legacy.staffInbox ? .inbox : .home)
+            }, owner: routingOwner)
+            Task { await linkRouter.process() }
+        } else { linkRouter.unbind(owner: routingOwner) }
     }
 }
 

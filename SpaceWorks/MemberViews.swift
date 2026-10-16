@@ -11,6 +11,7 @@ struct MemberContent: View {
     var cart: RequestCartState? = nil
     var navigation: MemberNavigation? = nil
     var drafts: MemberActionDrafts? = nil
+    var openLink: ((String) -> Void)? = nil
     @State private var showCard = false
     @State private var renewal: Components.Schemas.MemberLoanActivity?
     @Environment(\.dynamicTypeSize) private var textSize
@@ -18,7 +19,7 @@ struct MemberContent: View {
         Group {
             switch tab {
             case .inventory: InventoryList(state: state, cart: cart, navigation: navigation, drafts: drafts)
-            case .inbox: MemberInbox(state: state)
+            case .inbox: MemberInbox(state: state, openLink: openLink)
             default:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -339,6 +340,7 @@ struct InventoryDetail: View {
 
 struct MemberInbox: View {
     @Bindable var state: MemberState
+    var openLink: ((String) -> Void)? = nil
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
@@ -352,6 +354,9 @@ struct MemberInbox: View {
                         HStack { Text(message.title).font(.headline); Spacer(); if message.read_at == nil { Label("Unread", systemImage: "circle.fill").font(.caption).foregroundStyle(Color.swAccentInk) } }
                         Text(message.summary).foregroundStyle(Color.swMuted)
                         Text(message.created_at.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(Color.swMuted)
+                        if let openLink, !message.link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button("Open update") { openLink(message.link) }.frame(minHeight: 48).accessibilityIdentifier("open-inbox-update-\(message.id)")
+                        }
                         if message.read_at == nil { Button("Mark as read") { Task { await state.markRead(message.id) } }.frame(minHeight: 48).disabled(state.inboxMutating) }
                     }
                 }

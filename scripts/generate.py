@@ -45,10 +45,18 @@ def generate(raster=True):
           + f"BRAND_BUNDLE_ID = {brand['ios_bundle_id']}\n"
           + f"BRAND_DISPLAY_NAME = {brand['app_name']}\n"
           + f"BRAND_TEAM_ID = {brand['ios_team_id']}\n")
+    capability_spec = importlib.util.spec_from_file_location("spaceworks_capabilities", ROOT / "scripts/mobile_capabilities.py")
+    capability_module = importlib.util.module_from_spec(capability_spec)
+    capability_spec.loader.exec_module(capability_module)
+    deployment = capability_module.capabilities(brand, "Release")
+    push_configured = "aps-environment" in deployment
     swift_literal = lambda value: "nil" if value is None else json.dumps(value, ensure_ascii=False)
     write(ROOT / "SpaceWorks/Generated/Brand.swift", "// Generated. Do not edit.\nimport Foundation\nenum Brand {\n"
           + "\n".join(f"    static let {name}: String{'?' if key in ['server_url', 'support_url', 'privacy_url'] else ''} = {swift_literal(brand[key])}"
                       for name, key in [("appName", "app_name"), ("bundleID", "ios_bundle_id"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
+          + "\n    static let pushConfigured = " + str(push_configured).lower()
+          + "\n    #if DEBUG\n    static let pushEnvironment = \"development\"\n    #else\n    static let pushEnvironment = \"production\"\n    #endif\n"
+          + "    static let associatedDomains: [String] = " + json.dumps(brand.get("associated_domains", []))
           + "\n}\n")
     for mode in ["Debug", "Release"]:
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
@@ -67,9 +75,11 @@ def generate(raster=True):
             info["NSAppTransportSecurity"] = {"NSAllowsLocalNetworking": True}
         target = ROOT / f"SpaceWorks/Generated/Info-{mode}.plist"
         target.write_bytes(plistlib.dumps(info))
-        (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps({
+        entitlements = {
             "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production",
-            "com.apple.developer.applesignin": ["Default"]}))
+            "com.apple.developer.applesignin": ["Default"]}
+        entitlements.update(capability_module.capabilities(brand, mode))
+        (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps(entitlements))
     # Simulator Keychain requires an effective signed app identity, even without an owner team.
     # This local-only identity is never used in a physical-device build or release archive.
     simulator_identity = "LOCALCI." + brand["ios_bundle_id"]

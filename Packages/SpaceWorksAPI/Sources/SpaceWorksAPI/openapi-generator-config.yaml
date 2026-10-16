@@ -46,3 +46,5 @@ filter:
     - api_v1_notifications_preferences_retrieve
     - api_v1_notifications_preferences_partial_update
     - api_v1_bootstrap_retrieve
+    - api_v1_integrations_push_devices_create
+    - api_v1_integrations_push_devices_destroy

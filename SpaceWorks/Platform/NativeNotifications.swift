@@ -51,7 +51,7 @@ final class NativeNotifications {
     var onTap: ((NotificationHint) -> Void)? {
         didSet { deliverPendingHint() }
     }
-    var mayPresent: ((NotificationHint) -> Bool)?
+    var onForegroundHint: ((NotificationHint) -> Void)?
 
     func requestPermission() async {
         error = nil
@@ -85,6 +85,9 @@ final class NativeNotifications {
         deliverPendingHint()
     }
 
+    /// Foreground content is never shown from the untrusted APNs body. The owner may refresh its current inbox.
+    func receivedInForeground(_ hint: NotificationHint) { onForegroundHint?(hint) }
+
     private func deliverPendingHint() {
         guard let hint = pendingHint, let handler = onTap else { return }
         pendingHint = nil
@@ -100,7 +103,7 @@ final class NativeNotifications {
         pendingHint = nil
         onTokenChanged = nil
         onTap = nil
-        mayPresent = nil
+        onForegroundHint = nil
     }
 }
 
@@ -131,8 +134,9 @@ final class NativeNotificationDelegate: NSObject, UIApplicationDelegate, UNUserN
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let hint = NotificationHint(payload: notification.request.content.userInfo)
         Task { @MainActor in
-            let allowed = hint.map { NativeNotifications.shared.mayPresent?($0) == true } ?? false
-            completionHandler(allowed ? [.banner, .sound] : [])
+            if let hint { NativeNotifications.shared.receivedInForeground(hint) }
+            // Backend payloads are hints, not displayable or authoritative content.
+            completionHandler([])
         }
     }
 }

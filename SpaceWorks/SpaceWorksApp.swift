@@ -3,6 +3,7 @@ import SpaceWorksAPI
 
 @main
 struct SpaceWorksApp: App {
+    @UIApplicationDelegateAdaptor(NativeNotificationDelegate.self) private var notificationDelegate
     init() {
         NativeAppearance.apply()
         if let saved = Brand.serverURL ?? UserDefaults.standard.string(forKey: "server-origin"),

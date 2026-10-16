@@ -3,6 +3,8 @@ import SpaceWorksAPI
 
 struct RootView: View {
     @State private var state = AppState()
+    @State private var linkRouter = MobileLinkRouter()
+    @State private var pendingURL: URL?
     @AppStorage("introduction-complete") private var introComplete = false
     #if DEBUG
     @State private var exploringDemo = false
@@ -33,14 +35,45 @@ struct RootView: View {
             }.background(Color.swSurface)
         }
         .nativePrivacyShield()
-        .task { await state.restore() }
+        .safeAreaInset(edge: .bottom) { MobileLinkNotice(router: linkRouter) }
+        .task {
+            installTapHandler()
+            await state.restore()
+        }
+        .onChange(of: linkRouter.revision) { _, _ in Task { await linkRouter.process() } }
+        .onOpenURL { url in
+            #if DEBUG
+            guard !exploringDemo else { return }
+            #endif
+            if NativeIdentity.handleGoogleCallback(url) || NativePayments.handleReturnURL(url) { return }
+            if let origin = state.connectedOrigin { open(url, origin: origin) }
+            else { pendingURL = url }
+        }
+        .onChange(of: state.connectedOrigin) { old, origin in
+            if old != nil { linkRouter.reset(); pendingURL = nil }
+            if let origin, let pendingURL { self.pendingURL = nil; open(pendingURL, origin: origin) }
+            installTapHandler()
+        }
+    }
+    private func installTapHandler() {
+        NativeNotifications.shared.onTap = { hint in
+            #if DEBUG
+            guard !exploringDemo else { return }
+            #endif
+            linkRouter.receive(hint)
+        }
+    }
+    private func open(_ url: URL, origin: ServerOrigin) {
+        if let link = MobileLink.url(url, origin: origin) { linkRouter.receive(link) }
+        else if let legacy = MobileLink.legacy(url.absoluteString, origin: origin) { linkRouter.receive(legacy) }
+        else { linkRouter.refuseURL() }
     }
     private var liveContent: some View {
         VStack(spacing: 0) {
             switch state.screen {
             case .connect: ConnectView(state: state)
             case .shell:
-                if let origin = state.connectedOrigin { AuthRoot(state: state, origin: origin) }
+                if let origin = state.connectedOrigin { AuthRoot(state: state, origin: origin, linkRouter: linkRouter) }
             }
             #if DEBUG
             if state.screen == .connect {
@@ -113,9 +146,10 @@ enum AppTab: String, CaseIterable, Identifiable {
 struct AppShell: View {
     let state: AppState
     let auth: AuthState
+    let linkRouter: MobileLinkRouter
     var body: some View {
         if let membership = auth.selectedMembership, let origin = state.connectedOrigin {
-            MemberWorkspace(state: state, auth: auth, origin: origin, id: membership.id, slug: membership.slug)
+            MemberWorkspace(state: state, auth: auth, origin: origin, id: membership.id, slug: membership.slug, linkRouter: linkRouter)
                 .id("\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(membership.id)")
         }
     }
@@ -124,7 +158,10 @@ struct AppShell: View {
 private struct MemberWorkspace: View {
     let state: AppState
     let auth: AuthState
+    let linkRouter: MobileLinkRouter
+    let makerspaceID: Int
     @State private var member: MemberState
+    @State private var privateHolderOwner = UUID()
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @State private var navigation = MemberNavigation()
@@ -133,8 +170,8 @@ private struct MemberWorkspace: View {
     @State private var capabilities: MemberCapabilities
     let actions: LiveMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
-    init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String) {
-        self.state = state; self.auth = auth
+    init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String, linkRouter: MobileLinkRouter) {
+        self.state = state; self.auth = auth; self.linkRouter = linkRouter; self.makerspaceID = id
         let actions = LiveMemberActionsRepository(service: auth.service, id: id, slug: slug,
             onUnauthorized: { [weak auth] message in await auth?.invalidateSession(message: message) },
             onForbidden: { [weak auth] in await auth?.foreground() })
@@ -179,15 +216,32 @@ private struct MemberWorkspace: View {
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate() }
+        }.task {
+            auth.registerPrivateHolder(privateHolderOwner) { [member, cart, drafts, capabilities, navigation] in
+                member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate()
+            }
+            async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config
+        }.onDisappear {
+            auth.unregisterPrivateHolder(privateHolderOwner)
+            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate()
+        }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await capabilities.load(); await member.loadHome(); await member.loadUnreadCount() } }
+            }
+            .task(id: linkRouter.approved?.id) {
+                if let approved = linkRouter.approved, approved.link.makerspaceID == makerspaceID {
+                    await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts)
+                }
+            }
+            .onChange(of: auth.inboxRefreshRevision) { _, _ in
+                guard auth.inboxRefreshMakerspaceID == makerspaceID else { return }
+                Task { await member.loadInbox(); await member.loadUnreadCount() }
             }
             .onChange(of: sizeClass) { _, value in if value == .compact { navigation.compactInventory() } }
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities)
+            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
                     MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false) { await auth.foreground() }
                 }
@@ -206,12 +260,18 @@ private struct MemberScreen: View {
     let drafts: MemberActionDrafts
     let navigation: MemberNavigation
     let capabilities: MemberCapabilities
+    let linkRouter: MobileLinkRouter
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
     @State private var confirmSignOut = false
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts) }
+        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, openLink: { text in
+            guard let origin = state.connectedOrigin else { linkRouter.refuseURL(); return }
+            if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
+            else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
+            else { linkRouter.refuseURL() }
+        }) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                     SWCard {
@@ -225,6 +285,9 @@ private struct MemberScreen: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        if let notifications = auth.notifications {
+                            NavigationLink("Notifications") { NotificationSettingsView(state: notifications) }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
+                        }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
@@ -244,6 +307,7 @@ private struct MemberScreen: View {
                     ForEach(auth.memberships, id: \.id) { membership in
                         Button(membership.slug) {
                             guard auth.selectedID != membership.id else { return }
+                            linkRouter.cancelIntent()
                             member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate()
                             Task { await auth.select(membership.id) }
                         }

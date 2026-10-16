@@ -39,6 +39,17 @@ final class NativeNotificationsTests: XCTestCase {
         XCTAssertNil(hint?.relativeLink)
     }
 
+    @MainActor func testForegroundReceiptRefreshesWithoutBecomingATapOrRetainingPayload() throws {
+        let notifications = NativeNotifications()
+        let hint = try XCTUnwrap(NotificationHint(payload: ["v": "2", "makerspace_id": "7", "link": "/makerspaces/7/inventory/12"]))
+        var received: [NotificationHint] = []; var taps = 0
+        notifications.onForegroundHint = { received.append($0) }; notifications.onTap = { _ in taps += 1 }
+        notifications.receivedInForeground(hint)
+        XCTAssertEqual(received, [hint]); XCTAssertEqual(taps, 0); XCTAssertNil(notifications.pendingHint)
+        notifications.reset(); notifications.receivedInForeground(hint)
+        XCTAssertEqual(received.count, 1)
+    }
+
     @MainActor func testColdLaunchHintWaitsForAuthenticatedRouterAndDeliversOnce() throws {
         let notifications = NativeNotifications()
         let hint = try XCTUnwrap(NotificationHint(payload: ["makerspace_id": "7"]))

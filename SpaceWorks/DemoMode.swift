@@ -20,6 +20,7 @@ final class DemoSession {
     var error: String?
     var retryAfter: Date?
     var selectedSpace = 0
+    var notificationState = DemoNotificationState()
     var actionScenario = DemoMemberActionsRepository.Scenario.success
     var profileDisplayName: String?
     var memberScenario = DemoMemberRepository.Scenario.populated
@@ -57,7 +58,7 @@ final class DemoSession {
         code = ""; error = nil; stage = scenario == .enrollment ? .recovery : .makerspace
     }
     func acceptDemoProvider() { error = nil; stage = scenario == .enrollment || scenario == .mfa ? .mfa : .makerspace }
-    func reset() { username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
+    func reset() { notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
 }
 
 enum DemoProvider: String, CaseIterable, Identifiable {
@@ -68,6 +69,7 @@ enum DemoProvider: String, CaseIterable, Identifiable {
 struct DemoRoot: View {
     let exit: () -> Void
     @State private var session = DemoSession()
+    @State private var linkRouter = MobileLinkRouter()
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -76,10 +78,29 @@ struct DemoRoot: View {
                 Button("Exit demo") { session.reset(); exit() }.frame(minHeight: 48)
             }.padding(.horizontal, 20).foregroundStyle(Color.swOnEmphasis).background(Color.swEmphasis)
             if session.stage == .shell {
-                DemoShell(session: session).id("\(session.role.rawValue).\(session.selectedSpace).\(session.memberScenario.rawValue)")
+                DemoShell(session: session, linkRouter: linkRouter).id("\(session.role.rawValue).\(session.selectedSpace).\(session.memberScenario.rawValue)")
             }
             else { DemoAuthView(session: session) }
         }.background(Color.swBg)
+            .safeAreaInset(edge: .bottom) { MobileLinkNotice(router: linkRouter) }
+            .onChange(of: linkRouter.revision) { _, _ in Task { await linkRouter.process() } }
+            .onChange(of: session.stage) { _, _ in bindRouting() }
+            .onDisappear { linkRouter.reset() }
+    }
+    private func bindRouting() {
+        guard session.stage == .shell else { linkRouter.unbind(); return }
+        linkRouter.bind(account: "demo." + session.role.rawValue, refresh: {
+            guard session.stage == .shell else { throw CancellationError() }
+            return [7, 8]
+        }, select: { id in
+            guard session.stage == .shell, [7, 8].contains(id) else { throw CancellationError() }
+            session.selectedSpace = id == 7 ? 0 : 1
+        }, resolveLegacy: { legacy in
+            guard session.stage == .shell, !legacy.staffInbox || session.role == .staff,
+                  let id = ["fab-lab-kochi": 7, "maker-space-bengaluru": 8][legacy.slug] else { throw CancellationError() }
+            return MobileLink(makerspaceID: id, destination: legacy.staffInbox ? .inbox : .home)
+        })
+        Task { await linkRouter.process() }
     }
 }
 
@@ -225,6 +246,7 @@ struct DemoProviderView: View {
 
 struct DemoShell: View {
     let session: DemoSession
+    let linkRouter: MobileLinkRouter
     @State private var member: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var navigation = MemberNavigation()
@@ -233,8 +255,8 @@ struct DemoShell: View {
     @State private var capabilities: MemberCapabilities
     @State private var actions: DemoMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
-    init(session: DemoSession) {
-        self.session = session
+    init(session: DemoSession, linkRouter: MobileLinkRouter) {
+        self.session = session; self.linkRouter = linkRouter
         let store = DemoMemberStore()
         let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name)
         _actions = State(initialValue: actions)
@@ -272,12 +294,17 @@ struct DemoShell: View {
             columns = width >= 1000 ? .all : .detailOnly
         }
         }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate() }
+        .task(id: linkRouter.approved?.id) {
+            if let approved = linkRouter.approved, approved.link.makerspaceID == session.selectedSpace + 7 {
+                await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts)
+            }
+        }
         .onChange(of: session.actionScenario) { _, scenario in Task { await actions.preview(scenario) } }
         .onChange(of: sizeClass) { _, value in if value == .compact { navigation.compactInventory() } }
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts)
+            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
                     MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true) {
                         if let profile = try? await actions.profile() { session.profileDisplayName = profile.display_name }
@@ -295,9 +322,15 @@ struct DemoDestination: View {
     let navigation: MemberNavigation
     let capabilities: MemberCapabilities
     let drafts: MemberActionDrafts
+    let linkRouter: MobileLinkRouter
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts) }
+        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, openLink: { text in
+            guard let origin = try? ServerOrigin("https://demo.spaceworks.invalid") else { return }
+            if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
+            else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
+            else { linkRouter.refuseURL() }
+        }) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Welcome back, \(session.name).").font(.largeTitle.bold())
@@ -308,6 +341,14 @@ struct DemoDestination: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        NavigationLink("Notifications") {
+                            DemoNotificationsView(state: session.notificationState, makerspaceID: session.selectedSpace + 7) { link in
+                                let path: String
+                                if case .product(let id) = link.destination { path = "/makerspaces/\(link.makerspaceID)/inventory/\(id)" }
+                                else { path = "/makerspaces/\(link.makerspaceID)/inbox" }
+                                if let hint = NotificationHint(payload: ["v": 2, "makerspace_id": link.makerspaceID, "link": path]) { linkRouter.receive(hint) }
+                            }
+                        }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
                         Picker("Action preview result", selection: Binding(get: { session.actionScenario }, set: { session.actionScenario = $0 })) {
                             ForEach(DemoMemberActionsRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) }
                         }.frame(minHeight: 48).accessibilityIdentifier("action-preview-result")
@@ -320,7 +361,7 @@ struct DemoDestination: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        ForEach(session.spaces.indices, id: \.self) { index in Button(session.spaces[index]) { session.selectedSpace = index } }
+                        ForEach(session.spaces.indices, id: \.self) { index in Button(session.spaces[index]) { linkRouter.cancelIntent(); session.selectedSpace = index } }
                     } label: { Label(session.spaces[session.selectedSpace], systemImage: "building.2") }
                 }
             }

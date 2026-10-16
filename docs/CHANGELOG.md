@@ -1,6 +1,46 @@
 # Phase notes
 
+## A4 Notifications and trusted routing — implementation checkpoint (2026-10-17)
+
+Wire the native notification delegate, contextual permission UI, per-account device-only Keychain
+registration metadata and generated create/delete operations. Consent differs from OS permission;
+revoked permission pauses delivery and cleans up server IDs without erasing account consent. Token
+rotation reconciles each freshly confirmed direct membership without changing the selected UI scope.
+Only the two push operations can use the background makerspace override. Logout removes protected identity, screen holders and drafts immediately, resets SDK callbacks
+synchronously with an ownership guard, awaits serialized server cleanup, then revokes/wipes credentials.
+Cleanup authentication and Retry-After errors take precedence over simultaneous Keychain write failures;
+pending server IDs remain recoverable and throttled cleanup cannot send repeated deletes.
+Offline deletion remains pending; SDK callbacks cannot prove registration or delivery. Each live push
+worker retains its credential installation epoch, so queued old-account work cannot send under a new
+account. Foreground receipt hides untrusted remote banner content and refreshes only the current
+maker's inbox after a fresh identity check, without navigation or scope changes.
+
+Hints and URLs never choose a deployment or grant access. Current-origin native paths use an explicit
+allowlist; current Inbox `/m/{slug}/member` links resolve the exact slug against fresh direct memberships.
+Staff web-inbox links remain closed without native staff authority. Unknown versions fall back to the
+freshly authorized Inbox. Conflicting slug/ID hints cannot change scope. Every push first refetches the authorized inbox. Identity, selection and actual
+resource refetch must succeed before a one-use navigation ticket opens; stale account/view responses
+cannot navigate. Read refusal, unavailable resources and Retry-After have visible recovery states.
+
+The owner can set explicit `aps_environment` and `associated_domains` brand inputs with their actual
+Apple team; prebuild regeneration preserves the validated configuration. Unconfigured builds have no
+invented APNs or universal-link domains, and simulator signing excludes APNs. The DEBUG demo has
+isolated permission/enable/token-rotation/tap previews, cross-makerspace navigation and refusal states;
+it never asks OS permission, launches push SDK setup or registers a token.
+
+Coalesce routing, token registration and foreground identity reads, releasing busy state before every
+waiter continues. Add installation-epoch checks before publishing foreground/restored identity so an old `/me` response
+cannot restore protected UI after session invalidation. Preserve privacy and draft state across app
+backgrounding, and retain scope-aware notification navigation across phone/tablet layout changes.
+
+Parity: Notifications / Enable notifications / Notifications are off for this device. / Open system
+settings / Open update. Local generation/capability/source checks pass; native state/API/UI tests and
+rendered phone/tablet evidence await the A4 compiler checkpoint. Real APNs delivery, server link files,
+provider keys and cross-deployment payload attribution remain deferred backend/release inputs.
+
 ## A3 Member actions — implementation checkpoint (2026-10-16)
+
+Completion evidence: [`e427626` CI38974366101](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38974366101) passed 109 native state/API tests and 18 native UI journeys on both phone and tablet, 14 Python generation/fixture checks, and the unsigned physical-device Release build. These are contract-fixture/compiler results; real device/provider/backend validation remains a release gate.
 
 Add thirteen generated operations for tenant bootstrap, reviewed hardware requests, loan renewal,
 space availability/booking/cancellation, event registration/cancellation/ticket QR, account contact

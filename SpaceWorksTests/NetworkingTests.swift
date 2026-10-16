@@ -162,6 +162,24 @@ final class NetworkingTests: XCTestCase {
         XCTAssertEqual(counter.value, 1)
     }
 
+    func testMissingInvalidAndNonFiniteRetryAfterUseFiniteConservativeThrottleDeadline() async throws {
+        for header in [nil, "NaN", "Infinity", "-Infinity", "not a date"] as [String?] {
+            let before = Date(); let counter = LockedCounter()
+            let client = service { _ in
+                counter.increment(); var headers = self.json
+                if let header { headers["Retry-After"] = header }
+                return (429, headers, Data(#"{"detail":"Wait before retrying."}"#.utf8))
+            }
+            do { try await client.health(); XCTFail("Expected throttling") }
+            catch {
+                let deadline = try XCTUnwrap(APIError.retryDeadline(error))
+                XCTAssertTrue(deadline.timeIntervalSinceReferenceDate.isFinite)
+                XCTAssertGreaterThan(deadline.timeIntervalSince(before), 59)
+                XCTAssertLessThan(deadline.timeIntervalSinceNow, 61)
+            }
+            XCTAssertEqual(counter.value, 1)
+        }
+    }
     func testErrorFallbacksAndSpecialCodes() async throws {
         for (status, text) in [(400, "Check the details and try again."), (401, "Please sign in again."), (403, "You do not have permission to do this."), (404, "This item wasn't found."), (409, "This changed. Refresh and try again."), (429, "Too many requests. Try again later."), (503, "The server is unavailable. Try again later.")] {
             let client = service { _ in (status, self.json, Data(#"{"detail":" ","code":"unknown"}"#.utf8)) }

@@ -103,6 +103,7 @@ public actor RefreshCoordinator {
     }
     public func current() -> TokenPair? { pair }
     public func snapshot() -> CredentialSnapshot { CredentialSnapshot(pair: pair, epoch: generation) }
+    public func isCurrent(_ snapshot: CredentialSnapshot) -> Bool { generation == snapshot.epoch && pair != nil }
     public func install(_ value: TokenPair?) throws {
         generation += 1
         flight?.cancel()
@@ -146,13 +147,16 @@ public actor RefreshCoordinator {
 
 public actor MakerspaceContext {
     private var selected: Int?
+    private var activeDirectMemberships = Set<Int>()
     public init() {}
     public func current() -> Int? { selected }
+    fileprivate func authorizesPush(_ id: Int) -> Bool { activeDirectMemberships.contains(id) }
     /// A1 supplies active membership IDs from the generated /auth/me response.
     public func select(_ id: Int?, activeMemberships: Set<Int>) throws {
         guard id == nil || activeMemberships.contains(id!) else {
             throw APIError(status: 403, code: "inactive_membership", detail: "Select an active makerspace membership.")
         }
+        activeDirectMemberships = activeMemberships
         selected = id
     }
 }
@@ -183,7 +187,7 @@ private func checked(_ result: (HTTPResponse, HTTPBody?)) async throws -> (HTTPR
     let fields = fieldMessages.joined(separator: "\n")
     var retry: Date?
     if let header = response.headerFields[.retryAfter] {
-        if let seconds = TimeInterval(header) { retry = Date().addingTimeInterval(max(0, seconds)) }
+        if let seconds = TimeInterval(header), seconds.isFinite { retry = Date().addingTimeInterval(max(0, seconds)) }
         else {
             let format = DateFormatter()
             format.locale = Locale(identifier: "en_US_POSIX")
@@ -192,6 +196,7 @@ private func checked(_ result: (HTTPResponse, HTTPBody?)) async throws -> (HTTPR
             retry = format.date(from: header)
         }
     }
+    if response.status.code == 429, retry == nil { retry = Date().addingTimeInterval(60) }
     let fallback: String
     switch response.status.code {
     case 400: fallback = "Check the details and try again."
@@ -227,6 +232,7 @@ private struct ErrorMiddleware: ClientMiddleware {
 private enum DeviceRequestScope {
     @TaskLocal static var makerspace: Int?
     @TaskLocal static var credentials: CredentialSnapshot?
+    @TaskLocal static var pushMakerspace: Int?
 }
 
 public struct SessionMiddleware: ClientMiddleware {
@@ -243,11 +249,16 @@ public struct SessionMiddleware: ClientMiddleware {
         request.headerFields[.authorization] = pair.map { "Bearer \($0.access)" }
         let selected = await makerspace.current()
         if let expected = DeviceRequestScope.makerspace, expected != selected { throw CancellationError() }
-        request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.makerspace ?? selected).map(String.init)
+        if let push = DeviceRequestScope.pushMakerspace {
+            guard ["api_v1_integrations_push_devices_create", "api_v1_integrations_push_devices_destroy"].contains(operationID),
+                  await makerspace.authorizesPush(push) else { throw CancellationError() }
+        }
+        request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.pushMakerspace ?? DeviceRequestScope.makerspace ?? selected).map(String.init)
         let result = try await next(request, body, baseURL)
-        if result.0.status.code == 401, let pair {
+        if result.0.status.code == 401, pair != nil {
             let updated = try await refresh.recover(rejected: credentials)
             if let expected = DeviceRequestScope.makerspace, await makerspace.current() != expected { throw CancellationError() }
+            if let push = DeviceRequestScope.pushMakerspace, !(await makerspace.authorizesPush(push)) { throw CancellationError() }
             guard (await refresh.snapshot()).epoch == credentials.epoch else { throw CancellationError() }
             request.headerFields[.authorization] = "Bearer \(updated.access)"
             return try await checked(next(request, body, baseURL))
@@ -308,6 +319,21 @@ public final class SpaceWorksService: Sendable {
         let credentials = await refresh.snapshot()
         return try await DeviceRequestScope.$credentials.withValue(credentials) {
             try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
+        }
+    }
+
+    /// Only push-device create/delete may use another freshly authorized direct membership.
+    /// UI selection stays unchanged; the caller's set cannot create authority absent from /me.
+    public func withPushMakerspace<T: Sendable>(_ id: Int, authorizedDirectMembershipIDs: Set<Int>, expectedCredentials: CredentialSnapshot? = nil, operation: @Sendable () async throws -> T) async throws -> T {
+        guard authorizedDirectMembershipIDs.contains(id), await makerspace.authorizesPush(id) else { throw CancellationError() }
+        let credentials: CredentialSnapshot
+        if let expectedCredentials { credentials = expectedCredentials }
+        else { credentials = await refresh.snapshot() }
+        guard await refresh.isCurrent(credentials) else { throw CancellationError() }
+        return try await DeviceRequestScope.$credentials.withValue(credentials) {
+            try await DeviceRequestScope.$pushMakerspace.withValue(id) {
+                try await DeviceRequestScope.$makerspace.withValue(nil, operation: operation)
+            }
         }
     }
 

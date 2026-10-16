@@ -10,6 +10,7 @@ final class AuthState {
     var password = ""
     var code = ""
     private(set) var busy = false
+    private(set) var endingSession = false
     private(set) var error: String?
     private(set) var retryAfter: Date?
     private(set) var user: Components.Schemas.AuthUserPayload?
@@ -23,14 +24,27 @@ final class AuthState {
     private let settings: UserDefaults
     private let storage: any TokenStorage
     private var restored = false
+    private var identityGeneration = 0
+    private var identityFlight: Task<Void, Error>?
+    private var privateHolders: [UUID: () -> Void] = [:]
     private var mfaExpires: Date?
     private let serverScope: String
+    private let origin: ServerOrigin
+    private(set) var notifications: NotificationSettingsState?
+    private(set) var foregroundHintRevision = 0
+    private(set) var inboxRefreshRevision = 0
+    private(set) var inboxRefreshMakerspaceID: Int?
+    private var pendingForegroundHint: (accountID: Int, makerspaceID: Int)?
+    private var pushAccountID: Int?
+    private let notificationOwnerID = UUID()
+    private static var notificationOwner: UUID?
 
     init(origin: ServerOrigin, session: URLSession = DeploymentSession.make(), settings: UserDefaults = .standard,
          storage: (any TokenStorage)? = nil,
          attest: @escaping @Sendable (String) async throws -> Data = { try await NativeAttestor.attest($0) }) {
         let storage = storage ?? TokenVault(origin: origin)
         self.storage = storage
+        self.origin = origin
         self.attest = attest
         self.settings = settings
         self.serverScope = origin.url.absoluteString
@@ -87,8 +101,9 @@ final class AuthState {
             guard await service.refresh.current() != nil else { stage = .signIn; return }
             try await loadIdentity()
         } catch {
+            guard !(error is CancellationError) else { return }
             self.error = APIError.display(error)
-            if isUnauthorized(error) { try? await service.refresh.install(nil) }
+            if isUnauthorized(error) { await invalidateSession(message: APIError.display(error)) }
             stage = .signIn
         }
     }
@@ -155,23 +170,33 @@ final class AuthState {
         }
     }
     func foreground() async {
-        guard stage == .signedIn, !busy else { return }
-        busy = true
-        defer { busy = false }
-        do { try await loadIdentity() } catch {
+        guard stage == .signedIn, !busy, (retryAfter ?? .distantPast) <= Date() else { return }
+        let generation = identityGeneration
+        defer { if let notifications { Task { await notifications.refresh() } } }
+        do { try await refreshedIdentity() } catch {
+            guard generation == identityGeneration else { return }
             fail(error)
             let hasNoCredentials = await service.refresh.current() == nil
-            if isUnauthorized(error) || hasNoCredentials { try? await service.refresh.install(nil); await clear() }
+            if isUnauthorized(error) || hasNoCredentials { await invalidateSession(message: APIError.display(error)) }
         }
     }
     func invalidateSession(message: String) async {
+        guard !endingSession else { return }
+        endingSession = true; busy = true; defer { busy = false; endingSession = false }
+        let cleanup = detachNotificationCleanup()
+        clearLocalIdentity()
+        await cleanup.state?.stop(authorizedDirectMembershipIDs: cleanup.ids)
         try? await service.refresh.install(nil)
-        await clear(); error = message
+        try? await service.makerspace.select(nil, activeMemberships: [])
+        error = message
     }
     func signOut() async {
-        guard !busy else { return }
-        busy = true; error = nil
-        defer { busy = false }
+        guard !busy, !endingSession else { return }
+        endingSession = true; busy = true; error = nil
+        defer { busy = false; endingSession = false }
+        let cleanup = detachNotificationCleanup()
+        clearLocalIdentity()
+        await cleanup.state?.stop(authorizedDirectMembershipIDs: cleanup.ids)
         var revocationFailed = false
         do { try await service.signOut() } catch { revocationFailed = true }
         do {
@@ -193,7 +218,7 @@ final class AuthState {
             if stage == .passwordChange { error = "Your account still requires a password update. Try again or contact your makerspace." }
         } catch {
             fail(error)
-            if isUnauthorized(error) { try? await service.refresh.install(nil); await clear() }
+            if isUnauthorized(error) { await invalidateSession(message: APIError.display(error)) }
         }
     }
     private func accept(_ pair: TokenPair) async throws {
@@ -202,30 +227,140 @@ final class AuthState {
         }
         try await service.refresh.install(pair)
         do { try await loadIdentity() } catch {
+            await stopNotifications()
             try? await service.refresh.install(nil)
             throw error
         }
     }
     private func loadIdentity() async throws {
+        let generation = identityGeneration
+        let credentials = await service.refresh.snapshot()
         let identity = try await service.me()
+        guard generation == identityGeneration, await service.refresh.isCurrent(credentials) else { throw CancellationError() }
         guard !identity.is_superuser else {
-            try? await service.refresh.install(nil)
-            await clear()
+            await invalidateSession(message: "Use the web console")
             throw APIError(status: 403, code: "device_superadmin_not_supported", detail: "Use the web console")
         }
-        user = identity
-        let ids = Set(memberships.map(\.id))
-        let saved = selectedID ?? settings.object(forKey: selectionKey) as? Int
-        let selection = saved.flatMap { ids.contains($0) ? $0 : nil } ?? (memberships.count == 1 ? memberships.first?.id : nil)
+        let direct = identity.makerspaces.filter { $0.source == .membership }
+        let ids = Set(direct.map(\.id))
+        let previous = user?.id == identity.id ? selectedID : nil
+        let saved = previous ?? settings.object(forKey: "makerspace-selection.\(serverScope).\(identity.id)") as? Int
+        let selection = saved.flatMap { ids.contains($0) ? $0 : nil } ?? (direct.count == 1 ? direct.first?.id : nil)
+        if selectedID != selection || user?.id != identity.id { clearPrivateHolders() }
         try await service.makerspace.select(selection, activeMemberships: ids)
-        selectedID = selection
+        guard generation == identityGeneration, await service.refresh.isCurrent(credentials) else { throw CancellationError() }
+        if let pushAccountID, pushAccountID != identity.id { detachNotifications() }
+        user = identity; selectedID = selection
         stage = identity.must_change_password ? .passwordChange : .signedIn
+        if stage == .signedIn { configureNotifications(accountID: identity.id, credentials: credentials) }
+    }
+    /// Push registration, foreground refresh and notification taps share one current identity read.
+    /// Publication and busy-state release happen inside the shared task before any waiter proceeds.
+    private func refreshedIdentity() async throws {
+        if let identityFlight { return try await identityFlight.value }
+        guard !busy, !endingSession else { throw CancellationError() }
+        let generation = identityGeneration; busy = true
+        let task = Task {
+            do {
+                try await self.loadIdentity()
+                guard self.identityGeneration == generation else { throw CancellationError() }
+                self.identityFlight = nil; self.busy = false
+            } catch {
+                if self.identityGeneration == generation { self.identityFlight = nil; self.busy = false }
+                throw error
+            }
+        }
+        identityFlight = task
+        try await task.value
+    }
+    /// Routing and registration require a successful current /me, never the last cached identity.
+    func freshMembershipIDs() async throws -> Set<Int> {
+        if let deadline = retryAfter, deadline > Date() { throw APIError(status: 429, code: "identity_throttled", detail: error ?? "Too many requests. Try again later.", retryAfter: deadline) }
+        guard stage == .signedIn, !endingSession, let accountID = user?.id else { throw CancellationError() }
+        let generation = identityGeneration
+        do {
+            try await refreshedIdentity()
+            guard generation == identityGeneration, stage == .signedIn, user?.id == accountID else { throw CancellationError() }
+            return Set(memberships.map(\.id))
+        } catch {
+            guard generation == identityGeneration, user?.id == accountID else { throw CancellationError() }
+            fail(error)
+            let noCredentials = await service.refresh.current() == nil
+            if isUnauthorized(error) || noCredentials { await invalidateSession(message: APIError.display(error)) }
+            throw error
+        }
+    }
+    func queueForegroundHint(_ hint: NotificationHint) {
+        guard stage == .signedIn, let accountID = user?.id, selectedID == hint.makerspaceID else { return }
+        pendingForegroundHint = (accountID, hint.makerspaceID); foregroundHintRevision += 1
+    }
+    func processForegroundHint() async {
+        guard !busy, let pending = pendingForegroundHint else { return }
+        pendingForegroundHint = nil
+        guard stage == .signedIn, user?.id == pending.accountID, selectedID == pending.makerspaceID else { return }
+        do {
+            let ids = try await freshMembershipIDs()
+            guard stage == .signedIn, user?.id == pending.accountID, selectedID == pending.makerspaceID,
+                  ids.contains(pending.makerspaceID) else { return }
+            inboxRefreshMakerspaceID = pending.makerspaceID; inboxRefreshRevision += 1
+        } catch { /* Existing identity error/cooldown is visible. A hint cannot fall back to cached authority. */ }
+    }
+    func selectForLink(_ id: Int) async throws {
+        guard stage == .signedIn, memberships.contains(where: { $0.id == id }) else { throw CancellationError() }
+        if selectedID != id { clearPrivateHolders() }
+        try await service.makerspace.select(id, activeMemberships: Set(memberships.map(\.id)))
+        selectedID = id; settings.set(id, forKey: selectionKey)
+    }
+    private func configureNotifications(accountID: Int, credentials: CredentialSnapshot) {
+        guard pushAccountID == nil, notifications == nil else { return }
+        pushAccountID = accountID
+        let registration = PushRegistrationState(repository: LivePushRegistrationRepository(service: service, expectedCredentials: credentials),
+            storage: PushRegistrationVault(origin: origin, accountID: accountID), configured: Brand.pushConfigured,
+            onUnauthorized: { [weak self] message in await self?.invalidateSession(message: message) },
+            onForbidden: { [weak self] in await self?.foreground() })
+        let notificationState = NotificationSettingsState(registration: registration, environment: Brand.pushEnvironment,
+            memberships: { [weak self] in guard let self, self.user?.id == accountID else { throw CancellationError() }; return try await self.freshMembershipIDs() })
+        notifications = notificationState
+        Self.notificationOwner = notificationOwnerID
+        NativeNotifications.shared.onTokenChanged = { [weak notificationState] token in Task { await notificationState?.tokenChanged(token) } }
+        NativeNotifications.shared.onForegroundHint = { [weak self] hint in self?.queueForegroundHint(hint) }
+        Task { await notificationState.prepare() }
+    }
+    private func detachNotifications() {
+        notifications?.detach(); notifications = nil; pushAccountID = nil; pendingForegroundHint = nil; inboxRefreshMakerspaceID = nil
+        if Self.notificationOwner == notificationOwnerID { Self.notificationOwner = nil; NativeNotifications.shared.reset() }
+    }
+    private func detachNotificationCleanup() -> (state: NotificationSettingsState?, ids: Set<Int>) {
+        let old = notifications; let ids = Set(memberships.map(\.id))
+        notifications = nil; pushAccountID = nil; pendingForegroundHint = nil; inboxRefreshMakerspaceID = nil
+        if Self.notificationOwner == notificationOwnerID {
+            Self.notificationOwner = nil
+            // Detach synchronously before a server cleanup can suspend. A later owner keeps its callbacks.
+            NativeNotifications.shared.reset()
+        }
+        return (old, ids)
+    }
+    func stopNotifications() async {
+        let cleanup = detachNotificationCleanup()
+        await cleanup.state?.stop(authorizedDirectMembershipIDs: cleanup.ids)
+    }
+    func registerPrivateHolder(_ owner: UUID, clear: @escaping () -> Void) { privateHolders[owner] = clear }
+    func unregisterPrivateHolder(_ owner: UUID) { privateHolders.removeValue(forKey: owner) }
+    private func clearPrivateHolders() {
+        let holders = privateHolders; privateHolders = [:]
+        for clear in holders.values { clear() }
+    }
+    private func clearLocalIdentity() {
+        identityGeneration += 1; identityFlight?.cancel(); identityFlight = nil; clearPrivateHolders()
+        settings.removeObject(forKey: selectionKey)
+        user = nil; selectedID = nil; mfa = nil; mfaExpires = nil; enrollment = nil; recoveryCodes = []
+        username = ""; password = ""; code = ""; stage = .signIn
     }
     private func clear() async {
+        let cleanup = detachNotificationCleanup()
+        clearLocalIdentity()
+        await cleanup.state?.stop(authorizedDirectMembershipIDs: cleanup.ids)
         try? await service.makerspace.select(nil, activeMemberships: [])
-        settings.removeObject(forKey: selectionKey)
-        user = nil; selectedID = nil; mfa = nil; enrollment = nil; recoveryCodes = []
-        password = ""; code = ""; stage = .signIn
     }
     private func fail(_ failure: Error) {
         guard !(failure is CancellationError) else { return }
