@@ -33,8 +33,9 @@ final class MemberActionsFlowTests: XCTestCase {
                 drag(scroll, app, down: attempt >= 12)
             } else { drag(scroll, app, down: attempt >= 12) }
         }
-        capture("Unreachable action " + element.identifier)
-        XCTFail("Action must be reachable: \(element.identifier)")
+        let target = element.exists ? (element.identifier.isEmpty ? element.label : element.identifier) : "missing control"
+        capture("Unreachable action " + target)
+        XCTFail("Action must be reachable: \(target)")
     }
     private func contains(_ element: XCUIElement, _ scroll: XCUIElement) -> Bool {
         guard element.exists, scroll.exists else { return false }
@@ -44,10 +45,15 @@ final class MemberActionsFlowTests: XCTestCase {
         return descendants.matching(NSPredicate(format: "label == %@", element.label)).firstMatch.exists
     }
     private func containingScroll(_ element: XCUIElement, _ app: XCUIApplication) -> XCUIElement {
-        let scrolls = app.scrollViews.allElementsBoundByIndex
-        return scrolls.first(where: { contains(element, $0) })
-            ?? scrolls.first(where: { $0.isHittable }) ?? app.scrollViews.firstMatch
+        let scrolls = app.scrollViews.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+        // Presented SwiftUI sheets may appear in a backing view's AX descendants.
+        // Its scroll cannot move the modal content. Prefer the actual review container.
+        if let review = scrolls.first(where: { $0.identifier == "request-review-scroll" }) { return review }
+        let containing = scrolls.filter { contains(element, $0) }
+        return containing.min(by: { area($0.frame.intersection(app.frame)) < area($1.frame.intersection(app.frame)) })
+            ?? scrolls.first ?? app.scrollViews.firstMatch
     }
+    private func area(_ rect: CGRect) -> CGFloat { rect.isNull ? .greatestFiniteMagnitude : rect.width * rect.height }
     private func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication) -> CGRect {
         var viewport = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
         // SwiftUI's accessibility ScrollView frame includes content UNDER native bars.
@@ -58,7 +64,10 @@ final class MemberActionsFlowTests: XCTestCase {
                 let bottom = viewport.maxY; viewport.origin.y = max(viewport.minY, frame.maxY); viewport.size.height = max(0, bottom - viewport.minY)
             }
         }
-        for bar in app.tabBars.allElementsBoundByIndex + app.keyboards.allElementsBoundByIndex where bar.exists {
+        // A tab bar hidden behind a modal is not part of the modal viewport.
+        let lowerBars = app.tabBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+            + app.keyboards.allElementsBoundByIndex.filter { $0.exists }
+        for bar in lowerBars {
             let frame = bar.frame
             if frame.intersects(viewport), frame.midY > viewport.minY { viewport.size.height = max(0, min(viewport.maxY, frame.minY) - viewport.minY) }
         }
@@ -68,10 +77,16 @@ final class MemberActionsFlowTests: XCTestCase {
         let viewport = visibleContent(scroll, app)
         guard viewport.width > 20, viewport.height > 30 else { return }
         // Drag entirely inside the actual visible content, never across tab/navigation bars.
-        let start = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.15 : 0.85))
-        let end = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.85 : 0.15))
+        // A fast released drag flung landscape content ~300pt across a 139pt
+        // viewport. Hold at a slow, bounded endpoint so the next visible target is
+        // examined before momentum can carry it under the navigation/tab bars.
+        let distance = min(200, viewport.height * 0.4)
+        let start = CGPoint(x: viewport.midX, y: viewport.midY + (down ? -distance : distance) / 2)
+        let end = CGPoint(x: viewport.midX, y: viewport.midY + (down ? distance : -distance) / 2)
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
-            .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)))
+            .press(forDuration: 0.05,
+                   thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)),
+                   withVelocity: .slow, thenHoldForDuration: 0.3)
     }
     private func demo(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launch()
