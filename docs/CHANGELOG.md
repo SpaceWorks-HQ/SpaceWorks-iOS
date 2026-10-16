@@ -1,6 +1,47 @@
 # Phase notes
 
-## A2 Member read flows — implementation checkpoint (2026-10-16)
+## A3 Member actions — implementation checkpoint (2026-10-16)
+
+Add thirteen generated operations for tenant bootstrap, reviewed hardware requests, loan renewal,
+space availability/booking/cancellation, event registration/cancellation/ticket QR, account contact
+profile and communication preferences. Hardware retries keep an idempotency key for the reviewed
+content; editing creates a new attempt. Booking and event receipts preserve server status only,
+then refetch Activity for actual booking references and registration IDs. Native QR rendering accepts
+only bounded monochrome geometry, never browser content; refusal, cancellation and account scope
+invalidation clear ticket content.
+
+Profile edits retain drafts on refusal, require explicit save/discard and survive adaptive layout
+reconstruction. Actual bootstrap modules/features gate self-service, preferences and digest controls;
+mandatory safety messages remain on while optional feature/channel updates can be disabled. Phone
+tabs and tablet sidebar use shared per-destination paths. Product, profile, booking and event drafts
+belong to one account/makerspace and are invalidated before changing context. Read and action
+Retry-After deadlines survive retries, filters, form reopening and foreground refresh.
+Authenticated requests retain an atomic credential/installation epoch: delayed 401s and queued
+makerspace operations cannot replay an old account's mutation under a newly installed session,
+even when both accounts select the same makerspace. Rotation within one session still coalesces.
+
+Debug actions mutate a separate in-memory store shared with the read repository. The UI can preview
+success/refusal/conflict/rate-limit, booking approval and event waitlist outcomes, and never creates
+real loans, bookings, tickets or SDK charges. Activate the official pinned Stripe/Razorpay SDK
+adapters now for early native compilation; payment list/intent/polling UI is still the A5 checkpoint.
+The immutable API contract remains unchanged. The mechanical build projection selects documented
+JSON formats and omits malformed optional request-body media declarations for empty POSTs only;
+all paths, response schemas and generated model fields stay intact.
+
+The owner's mobile-repository directive moves the mobile UX spec and motion contract to
+`docs/mobile-auth-ux-spec.md` and `tokens/mobile-motion.json`. Restore Design to its original
+`fd28f825086a2cac7fa297881f1860b9d332db69` brand baseline; new mobile UX work stays in this repo.
+Historical UX evidence below still identifies the exact earlier validated commit.
+
+Parity: Review your request / Submit request / Request received; Renew this loan? / Confirm renewal /
+Loan renewed; Find a space / Check availability / Submit booking request; Booking request received /
+Space booked; Register for this event / Confirm registration; Registration confirmed / Awaiting
+approval / You're on the waitlist; View bookings / View registrations; Cancel booking / Keep booking;
+Cancel registration / Keep registration; Edit profile / Profile saved.; Communication preferences.
+Local generation, immutable contract comparison and source checks pass. Native compiler, URLProtocol,
+state, SDK callback and phone/tablet action journey results are pending the A3 CI checkpoint.
+
+## A2 Member read flows — complete (2026-10-16)
 
 Add generated inventory/category/detail, activity, typed bookings, events/spaces, membership card and
 inbox operations. Scope every repository request to its selected makerspace before transport and
@@ -27,8 +68,7 @@ privacy window above presented sheets before app-switcher snapshots, preserving 
 on return, with lifecycle tests.
 The member portrait journeys now pass; keep sidebar visibility tied to the current content width
 so rotation restores the wide sidebar. The shared main journey waits for layout hit testing before
-using the system sidebar toggle. All 73 native cases, including snapshot privacy, pass on tablet;
-this focused adaptive regression awaits the follow-up CI run.
+using the system sidebar toggle. The focused adaptive regression passes on both phone and tablet, including all snapshot privacy cases.
 The owner requested mobile UX work stay in this repository. Copy the auth UX spec and motion
 contract into `docs/mobile-auth-ux-spec.md` and `tokens/mobile-motion.json`; update generation and
 restore Design's existing `fd28f825086a2cac7fa297881f1860b9d332db69` brand baseline.
@@ -40,8 +80,11 @@ Parity: Welcome back, {name}.; Active loans / Upcoming bookings / Events / Membe
 Search inventory / All categories / Borrowing terms; Requests / Loans / Bookings / Events;
 All / Unread / Mark all as read; Nothing here yet.; No items match these filters / Clear filters;
 No dues outstanding.; Dues are unavailable. Try again later. Local generation and source checks pass.
-Native generated-model, context-race, card-refusal, transfer/photo and member journey tests await
-the A2 macOS CI checkpoint before this phase is complete.
+Validation: [CI 38945606385](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38945606385)
+passes 73 native tests and 12 UI journeys on each phone and tablet, 14 Python checks, and unsigned
+physical-device Release compilation at `0405b95b84f6773832415553867acfafd1694f41`. Rendered iPad portrait,
+landscape, Home, inventory/detail and accessibility sign-in screenshots were reviewed. Production
+backend and physical camera/file flows remain deferred integration checks.
 
 ## UX/onboarding — complete (2026-10-16)
 

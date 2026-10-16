@@ -7,12 +7,17 @@ struct MemberContent: View {
     let tab: AppTab
     let name: String
     var selectTab: (AppTab) -> Void = { _ in }
+    var actions: (any MemberActionsRepository)? = nil
+    var cart: RequestCartState? = nil
+    var navigation: MemberNavigation? = nil
+    var drafts: MemberActionDrafts? = nil
     @State private var showCard = false
+    @State private var renewal: Components.Schemas.MemberLoanActivity?
     @Environment(\.dynamicTypeSize) private var textSize
     var body: some View {
         Group {
             switch tab {
-            case .inventory: InventoryList(state: state)
+            case .inventory: InventoryList(state: state, cart: cart, navigation: navigation, drafts: drafts)
             case .inbox: MemberInbox(state: state)
             default:
                 ScrollView {
@@ -29,9 +34,9 @@ struct MemberContent: View {
                                 }
                             }
                         }
-                        LazyVGrid(columns: textSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 320), spacing: 24)], alignment: .leading, spacing: 24) {
+                        LazyVGrid(columns: textSize.isAccessibilitySize ? [GridItem(.flexible(), alignment: .topLeading)] : [GridItem(.adaptive(minimum: 320), spacing: 24, alignment: .topLeading)], alignment: .leading, spacing: 24) {
                             loans
-                            if tab == .activity { requests }
+                            if tab == .activity { requests; registrations }
                             bookings
                             events
                             if tab == .home {
@@ -57,11 +62,14 @@ struct MemberContent: View {
                 }
             }
             .sheet(isPresented: $showCard) { MemberCardView(state: state) }
+            .sheet(isPresented: Binding(get: { renewal != nil }, set: { if !$0 { renewal = nil } })) {
+                if let renewal, let actions { RenewLoanView(loan: renewal, repository: actions, isDemo: state.repository.isDemo) { await state.loadActivity() } }
+            }
     }
     private var loans: some View {
         SWCard {
             Label("Active loans", systemImage: "shippingbox").font(.title2.bold())
-            LoadFeedback(load: state.activityLoad, lastUpdated: state.updated["activity"]) { await state.loadActivity() }
+            LoadFeedback(load: state.activityLoad, lastUpdated: state.updated["activity"], retryAfter: state.deadline("activity")) { await state.loadActivity() }
             if let activity = state.activity {
                 if activity.active_hardware_loans.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
                 ForEach(activity.active_hardware_loans, id: \.request_id) { loan in
@@ -70,6 +78,10 @@ struct MemberContent: View {
                         if let due = loan.due_at { Label("Due \(due.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar") }
                         if loan.overdue { Label("Overdue", systemImage: "exclamationmark.circle").foregroundStyle(Color.swDanger) }
                         else { Text("On loan").foregroundStyle(Color.swMuted) }
+                        if actions != nil {
+                            Button("Renew loan") { renewal = loan }.frame(minHeight: 48).disabled(!loan.can_renew)
+                            if !loan.can_renew { Text(loan.renewal_refusal ?? "Renewal isn't available for this loan. Ask your makerspace for help.").font(.caption).foregroundStyle(Color.swMuted) }
+                        }
                     }.padding(.vertical, 8)
                 }
             }
@@ -78,7 +90,7 @@ struct MemberContent: View {
     private var requests: some View {
         SWCard {
             Label("Requests", systemImage: "list.clipboard").font(.title2.bold())
-            LoadFeedback(load: state.activityLoad) { await state.loadActivity() }
+            LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
             if let rows = state.activity?.request_history, !rows.isEmpty {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     VStack(alignment: .leading, spacing: 8) {
@@ -92,11 +104,13 @@ struct MemberContent: View {
     private var bookings: some View {
         SWCard {
             Label("Upcoming bookings", systemImage: "calendar").font(.title2.bold())
-            LoadFeedback(load: state.bookingsLoad, lastUpdated: state.updated["bookings"]) { await state.loadBookings() }
+            if actions != nil { NavigationLink("Find a space", value: MemberRoute.spaces).frame(minHeight: 48) }
+            LoadFeedback(load: state.bookingsLoad, lastUpdated: state.updated["bookings"], retryAfter: state.deadline("bookings")) { await state.loadBookings() }
             if state.bookingsLoad == .ready && state.bookings.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
             ForEach(state.bookings, id: \.public_token) { booking in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(booking.space_name).font(.headline)
+                    if actions != nil { NavigationLink(booking.space_name, value: MemberRoute.booking(booking.public_token)).font(.headline).frame(minHeight: 48) }
+                    else { Text(booking.space_name).font(.headline) }
                     Text(memberDate(booking.starts_at, timezone: booking.timezone))
                     Text(booking.status.value1.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
@@ -107,14 +121,30 @@ struct MemberContent: View {
     private var events: some View {
         SWCard {
             Label("Events", systemImage: "ticket").font(.title2.bold())
-            LoadFeedback(load: state.eventsLoad, lastUpdated: state.updated["events"]) { await state.loadEvents() }
+            LoadFeedback(load: state.eventsLoad, lastUpdated: state.updated["events"], retryAfter: state.deadline("events")) { await state.loadEvents() }
             if state.eventsLoad == .ready && state.events.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
             ForEach(state.events, id: \.public_token) { event in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(event.title).font(.headline)
+                    if actions != nil { NavigationLink(event.title, value: MemberRoute.event(event.public_token)).font(.headline).frame(minHeight: 48) }
+                    else { Text(event.title).font(.headline) }
                     Text(memberDate(event.starts_at, timezone: TimeZone.current.identifier)).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
             }
+        }
+    }
+    private var registrations: some View {
+        SWCard {
+            Label("Event registrations", systemImage: "qrcode").font(.title2.bold())
+            LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
+            if let rows = state.activity?.event_registrations, !rows.isEmpty {
+                ForEach(rows, id: \.registration_id) { row in
+                    VStack(alignment: .leading, spacing: 8) {
+                        NavigationLink(row.event_title, value: MemberRoute.registration(row.registration_id)).font(.headline).frame(minHeight: 48).accessibilityIdentifier("registration-\(row.registration_id)")
+                        Text(row.status.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
+                        Text(row.starts_at.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.swMuted)
+                    }
+                }
+            } else if state.activityLoad == .ready { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
         }
     }
     private var notices: some View {
@@ -131,7 +161,7 @@ struct MemberContent: View {
         SWCard {
             Label("Dues", systemImage: "creditcard").font(.title2.bold())
             if state.activityLoad == .loading || state.activityLoad == .idle {
-                LoadFeedback(load: state.activityLoad) { await state.loadActivity() }
+                LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
             } else {
             if let dues = state.activity?.membership_dues, let encoded = try? JSONEncoder().encode(dues),
                let object = try? JSONSerialization.jsonObject(with: encoded) as? [String: Any],
@@ -147,6 +177,7 @@ struct MemberContent: View {
 struct LoadFeedback: View {
     let load: MemberState.Load
     var lastUpdated: Date?
+    var retryAfter: Date?
     let retry: () async -> Void
     var body: some View {
         switch load {
@@ -160,7 +191,10 @@ struct LoadFeedback: View {
             VStack(alignment: .leading) {
                 SWError(message: message)
                 if let lastUpdated { Text("Last updated \(lastUpdated.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(Color.swMuted) }
-                Button("Try again") { Task { await retry() } }.frame(minHeight: 48)
+                TimelineView(.periodic(from: .now, by: 1)) { tick in
+                    Button((retryAfter ?? .distantPast) > tick.date ? "Try again in \(max(1, Int(ceil((retryAfter ?? tick.date).timeIntervalSince(tick.date)))))s" : "Try again") { Task { await retry() } }
+                        .frame(minHeight: 48).disabled((retryAfter ?? .distantPast) > tick.date)
+                }
             }
         case .ready: EmptyView()
         }
@@ -171,7 +205,11 @@ struct InventoryList: View {
     @Bindable var state: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var textSize
-    @State private var selectedProduct: Int?
+    var cart: RequestCartState? = nil
+    var navigation: MemberNavigation? = nil
+    var drafts: MemberActionDrafts? = nil
+    @State private var localSelection: Int?
+    private var selectedProduct: Int? { navigation?.inventorySelection ?? localSelection }
     var body: some View {
         GeometryReader { geometry in
             let split = sizeClass == .regular && geometry.size.width >= 850 && !textSize.isAccessibilitySize
@@ -180,7 +218,7 @@ struct InventoryList: View {
                 if split {
                     Rectangle().fill(Color.swOutline).frame(width: 1)
                     if let selectedProduct {
-                        InventoryDetail(repository: state.repository, id: selectedProduct).id(selectedProduct)
+                        InventoryDetail(repository: state.repository, id: selectedProduct, cart: cart, drafts: drafts) { await state.loadActivity() }.id(selectedProduct)
                     } else {
                         ContentUnavailableView("Choose an item", systemImage: "shippingbox", description: Text("See availability and borrowing terms here."))
                             .foregroundStyle(Color.swMuted).frame(maxWidth: .infinity)
@@ -206,7 +244,10 @@ struct InventoryList: View {
                         Button(category.name) { state.category = category.slug; Task { await state.loadInventory() } }
                     }
                 } label: { Label(state.categories.first(where: { $0.slug == state.category })?.name ?? "All categories", systemImage: "line.3.horizontal.decrease.circle") }.frame(minHeight: 48)
-                LoadFeedback(load: state.inventoryLoad, lastUpdated: state.updated["inventory"]) { await state.loadInventory() }
+                if case .failed = state.categoriesLoad {
+                    LoadFeedback(load: state.categoriesLoad, retryAfter: state.deadline("categories")) { await state.loadCategories() }
+                }
+                LoadFeedback(load: state.inventoryLoad, lastUpdated: state.updated["inventory"], retryAfter: state.deadline("inventory")) { await state.loadInventory() }
                 if state.inventoryLoad == .ready && state.products.isEmpty {
                     SWCard {
                         Text(state.search.isEmpty && state.category == nil ? "No items yet" : "No items match these filters").font(.headline)
@@ -217,11 +258,11 @@ struct InventoryList: View {
                 }
                 ForEach(state.products, id: \.id) { product in
                     if split {
-                        Button { selectedProduct = product.id } label: { productRow(product) }
+                        Button { if let navigation { navigation.inventorySelection = product.id } else { localSelection = product.id } } label: { productRow(product) }
                             .buttonStyle(.plain).accessibilityIdentifier("product-\(product.id)")
                             .accessibilityAddTraits(selectedProduct == product.id ? .isSelected : [])
                     } else {
-                        NavigationLink { InventoryDetail(repository: state.repository, id: product.id) } label: { productRow(product) }
+                        NavigationLink(value: MemberRoute.product(product.id)) { productRow(product) }
                             .buttonStyle(.plain).accessibilityIdentifier("product-\(product.id)")
                     }
                 }
@@ -237,6 +278,7 @@ struct InventoryList: View {
                     Text(product.name).font(.headline)
                     if let category = product.category_name { Text(category).foregroundStyle(Color.swMuted) }
                     Text(availability(product)).foregroundStyle(Color.swMuted)
+
                 }
                 Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
             }
@@ -261,27 +303,37 @@ private func memberDate(_ date: Date, timezone: String) -> String {
 struct InventoryDetail: View {
     let repository: any MemberRepository
     let id: Int
-    @State private var product: Components.Schemas.PublicProduct?
-    @State private var error: String?
+    var cart: RequestCartState?
+    var completed: () async -> Void
+    @State private var state: MemberProductState
+    @State private var reviewCart = false
+    @State private var added = false
+    init(repository: any MemberRepository, id: Int, cart: RequestCartState? = nil, drafts: MemberActionDrafts? = nil, completed: @escaping () async -> Void = {}) {
+        self.repository = repository; self.id = id; self.cart = cart; self.completed = completed
+        _state = State(initialValue: drafts?.product(id, repository: repository) ?? MemberProductState(id: id) { try await repository.product(id) })
+    }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if let product {
+                if let product = state.product {
                     Text(product.name).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                     Text(availability(product)).foregroundStyle(Color.swMuted)
+                    if let cart {
+                        Button("Add to request") { cart.add(product); added = cart.lines.contains(where: { $0.id == product.id }) }.buttonStyle(SWPrimary()).disabled(cart.busy)
+                        if added { Label("Added to your request", systemImage: "checkmark.circle").foregroundStyle(Color.swAccentInk) }
+                        if let error = cart.error { SWError(message: error) }
+                        Button("Review your request") { reviewCart = true }.frame(minHeight: 48).accessibilityIdentifier("review-request")
+                    }
                     SWCard { Text("About this item").font(.title2.bold()); Text(product.description) }
                     SWCard { Text("Borrowing terms").font(.title2.bold()); Text(product.borrowing_terms.isEmpty ? "Ask your makerspace about borrowing this item." : product.borrowing_terms) }
-                } else if let error {
-                    SWCard { SWError(message: error); Button("Try again") { Task { await load() } }.frame(minHeight: 48) }
+                } else if let error = state.error {
+                    SWCard { LoadFeedback(load: .failed(error), retryAfter: state.retryAfter) { await state.load() } }
                 } else { ProgressView("Loading item…") }
             }.padding(24).frame(maxWidth: 800, alignment: .leading).frame(maxWidth: .infinity)
-        }.background(Color.swBg).navigationTitle("Item details").task { await load() }
-            .onDisappear { product = nil }
-    }
-    private func load() async {
-        product = nil; error = nil
-        do { let result = try await repository.product(id); guard !Task.isCancelled else { return }; product = result }
-        catch { self.error = APIError.display(error) }
+        }.background(Color.swBg).navigationTitle("Item details").task { await state.load() }
+            .sheet(isPresented: $reviewCart) {
+                if let cart { RequestCartView(state: cart, isDemo: repository.isDemo, completed: completed) }
+            }
     }
 }
 
@@ -293,7 +345,7 @@ struct MemberInbox: View {
                 Picker("Messages", selection: $state.unreadOnly) { Text("All").tag(false); Text("Unread").tag(true) }.pickerStyle(.segmented)
                     .onChange(of: state.unreadOnly) { _, _ in Task { await state.loadInbox() } }
                 Button("Mark all as read") { Task { await state.markAllRead() } }.frame(minHeight: 48).disabled(state.inboxMutating)
-                LoadFeedback(load: state.inboxLoad, lastUpdated: state.updated["inbox"]) { await state.loadInbox() }
+                LoadFeedback(load: state.inboxLoad, lastUpdated: state.updated["inbox"], retryAfter: state.deadline("inbox")) { await state.loadInbox() }
                 if state.inboxLoad == .ready && state.messages.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(state.messages, id: \.id) { message in
                     SWCard {
@@ -319,7 +371,7 @@ struct MemberCardView: View {
                 SWCard {
                     if state.repository.isDemo { Text("Demo mode · sample data").font(.caption.bold()).foregroundStyle(Color.swMuted) }
                     Text("Membership card").font(.largeTitle.bold())
-                    LoadFeedback(load: state.cardLoad) { await state.loadCard() }
+                    LoadFeedback(load: state.cardLoad, retryAfter: state.deadline("card")) { await state.loadCard() }
                     if let card = state.card, card.is_active {
                         Text(card.printed_name).font(.title2.bold())
                         Text("Card \(card.card_number)").monospacedDigit()

@@ -25,7 +25,9 @@ class GenerationTests(unittest.TestCase):
                 content = operation.get("requestBody", {}).get("content", {})
                 if "application/json" in content:
                     operation["requestBody"]["content"] = {"application/json": content["application/json"]}
-        self.assertEqual(staged, expected, "Only documented JSON request representations may be selected; all models remain unchanged")
+                elif content and not any("/" in media for media in content) and not operation["requestBody"].get("required", False):
+                    del operation["requestBody"]
+        self.assertEqual(staged, expected, "Only documented JSON or optional no-body representations may be selected; all models remain unchanged")
         self.assertEqual(len(json.loads(source)["paths"]), 635)
 
     def test_brand_config_drives_project_display_name_bundle_and_icon(self):

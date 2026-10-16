@@ -115,7 +115,8 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
     func testPersistenceFailurePreventsRefreshRetryAndClearsPair() async throws {
         let storage = MemoryTokens(TokenPair(access: "old", refresh: "old-refresh")); storage.failWrites = true
         let coordinator = RefreshCoordinator(pair: try storage.load(), persist: { try storage.store($0) }, rotate: { _ in TokenPair(access: "new", refresh: "new-refresh") })
-        do { _ = try await coordinator.recover(rejectedAccess: "old"); XCTFail("Expected storage failure") } catch {}
+        let credentials = await coordinator.snapshot()
+        do { _ = try await coordinator.recover(rejected: credentials); XCTFail("Expected storage failure") } catch {}
         let current = await coordinator.current(); XCTAssertNil(current)
     }
     func testOfflineSignOutStillWipesLocalCredentials() async throws {

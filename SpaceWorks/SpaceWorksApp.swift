@@ -71,6 +71,7 @@ final class PreviewHealthProtocol: URLProtocol {
         else {
             switch path {
             case "/api/v1/config": body = DebugAuthFixtures.config
+            case "/api/v1/bootstrap": body = DebugMemberFixtures.bootstrap
             case "/api/v1/auth/device/attestation-challenge": body = #"{"challenge":"fresh-test-challenge","expires_in":120}"#
             case "/api/v1/auth/device/login": body = arguments.contains("--mfa") ? DebugAuthFixtures.mfa : DebugAuthFixtures.tokens
             case "/api/v1/auth/me": body = DebugAuthFixtures.user

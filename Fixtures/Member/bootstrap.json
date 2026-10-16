@@ -1,0 +1,49 @@
+{
+  "makerspace": {
+    "id": 7,
+    "name": "Fab Lab Kochi",
+    "slug": "fab-lab-kochi",
+    "public_code": "demo-fab",
+    "location": "Kochi",
+    "timezone": "Asia/Kolkata",
+    "opening_hours": {},
+    "map_url": "",
+    "logo_url": null,
+    "cover_image_url": null,
+    "public_stats_enabled": true,
+    "public_site_enabled": true,
+    "public_inventory_enabled": true,
+    "public_landing_page": "auto",
+    "membership_policy": "invite_only"
+  },
+  "frontend": {
+    "type": "native-preview",
+    "hostname": "demo.invalid",
+    "allowed_origins": []
+  },
+  "modules": [
+    "membership",
+    "member_accounts",
+    "notifications",
+    "hardware_requests",
+    "events",
+    "bookable_spaces"
+  ],
+  "edition": "demo",
+  "features": [
+    "membership.self_service",
+    "membership.self_export",
+    "notifications.member_preferences",
+    "notifications.member_inbox",
+    "notifications.digests"
+  ],
+  "workflows": [],
+  "theme": {},
+  "branding": {},
+  "email_enabled": true,
+  "public_api": {
+    "base_url": "https://demo.invalid",
+    "publishable_key": "",
+    "inventory_path": "/api/v1/public/fab-lab-kochi/inventory/"
+  }
+}

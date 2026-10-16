@@ -16,6 +16,12 @@ settings:
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     TARGETED_DEVICE_FAMILY: '1,2'
 packages:
+  Stripe:
+    url: https://github.com/stripe/stripe-ios.git
+    exactVersion: 26.14.0
+  Razorpay:
+    url: https://github.com/razorpay/razorpay-pod.git
+    exactVersion: 1.5.8
   GoogleSignIn:
     url: https://github.com/google/GoogleSignIn-iOS.git
     exactVersion: 10.0.0
@@ -32,6 +38,12 @@ targets:
       - package: SpaceWorksAPI
       - package: GoogleSignIn
         product: GoogleSignIn
+      - package: Stripe
+        product: StripePaymentSheet
+      - package: Stripe
+        product: StripePayments
+      - package: Razorpay
+        product: RazorpayCheckout
     settings:
       configs:
         Debug:

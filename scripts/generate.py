@@ -146,6 +146,10 @@ def generate(raster=True):
             content = operation.get("requestBody", {}).get("content", {})
             if "application/json" in content:
                 operation["requestBody"]["content"] = {"application/json": content["application/json"]}
+            elif content and not any("/" in media for media in content) and not operation["requestBody"].get("required", False):
+                # A few optional empty POST bodies use schema keys instead of media types.
+                # Select their documented no-body form; preserve the immutable source and every DTO.
+                del operation["requestBody"]
     write(ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json", json.dumps(document, ensure_ascii=False, indent=2) + "\n")
 
 

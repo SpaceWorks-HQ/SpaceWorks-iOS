@@ -7,5 +7,5 @@
   "paths": 635,
   "bytes": 4063303,
   "sha256": "d5ec904eb2a52ca948ee38dae7840c8859a43e034a22f3b8dc478fd8851cbb9b",
-  "note": "Copied byte-for-byte; no backend source accessed. Operations include the API prefix, so clients use a validated deployment origin. A0 generates health and device-refresh operations plus their dependent models."
+  "note": "Copied byte-for-byte; no backend source accessed. Operations already include the API prefix, so clients use a validated deployment origin. The generator filter selects implemented operations and their generated dependencies. The mechanical build projection selects documented JSON request media or an optional no-body request where malformed content declares no media type; paths, DTO fields and response schemas are preserved."
 }

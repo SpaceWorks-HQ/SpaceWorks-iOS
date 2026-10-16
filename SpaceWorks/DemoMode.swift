@@ -1,6 +1,7 @@
 #if DEBUG
 import SwiftUI
 import Observation
+import SpaceWorksAPI
 
 @MainActor @Observable
 final class DemoSession {
@@ -19,15 +20,22 @@ final class DemoSession {
     var error: String?
     var retryAfter: Date?
     var selectedSpace = 0
+    var actionScenario = DemoMemberActionsRepository.Scenario.success
+    var profileDisplayName: String?
     var memberScenario = DemoMemberRepository.Scenario.populated
     let spaces = ["Fab Lab Kochi", "Maker Space Bengaluru"]
-    var name: String { role == .member ? "Meera Nair" : "Arjun Rao" }
+    var name: String { profileDisplayName ?? (role == .member ? "Meera Nair" : "Arjun Rao") }
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--ui-testing") {
             if arguments.contains("--demo-empty") { memberScenario = .empty }
             if arguments.contains("--demo-error") { memberScenario = .offline }
             if arguments.contains("--demo-revoked") { memberScenario = .revokedCard }
+            if arguments.contains("--demo-action-pending") { actionScenario = .pending }
+            if arguments.contains("--demo-action-waitlisted") { actionScenario = .waitlisted }
+            if arguments.contains("--demo-action-conflict") { actionScenario = .conflict }
+            if arguments.contains("--demo-action-refused") { actionScenario = .refused }
+            if arguments.contains("--demo-action-throttled") { actionScenario = .throttled }
         }
     }
     func signIn() {
@@ -49,7 +57,7 @@ final class DemoSession {
         code = ""; error = nil; stage = scenario == .enrollment ? .recovery : .makerspace
     }
     func acceptDemoProvider() { error = nil; stage = scenario == .enrollment || scenario == .mfa ? .mfa : .makerspace }
-    func reset() { username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; stage = .welcome }
+    func reset() { username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
 }
 
 enum DemoProvider: String, CaseIterable, Identifiable {
@@ -219,11 +227,21 @@ struct DemoShell: View {
     let session: DemoSession
     @State private var member: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var selected = AppTab.home
+    @State private var navigation = MemberNavigation()
+    @State private var cart: RequestCartState
+    @State private var drafts: MemberActionDrafts
+    @State private var capabilities: MemberCapabilities
+    @State private var actions: DemoMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     init(session: DemoSession) {
         self.session = session
-        _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name)))
+        let store = DemoMemberStore()
+        let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name)
+        _actions = State(initialValue: actions)
+        _cart = State(initialValue: RequestCartState(repository: actions))
+        _drafts = State(initialValue: MemberActionDrafts(repository: actions))
+        _capabilities = State(initialValue: MemberCapabilities(repository: actions, makerspaceID: 7))
+        _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name, store: store)))
     }
     var body: some View {
         GeometryReader { geometry in
@@ -232,44 +250,67 @@ struct DemoShell: View {
             NavigationSplitView(columnVisibility: $columns) {
                 List(AppTab.allCases) { tab in
                     Button(tab.rawValue) {
-                        selected = tab
+                        navigation.selected = tab
                         columns = geometry.size.width >= 1000 ? .all : .detailOnly
                     }.frame(minHeight: 48).accessibilityIdentifier("nav-\(tab.rawValue)")
-                        .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
-                        .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
+                        .listRowBackground(navigation.selected == tab ? Color.swSidebarActive : Color.swSidebar)
+                        .foregroundStyle(navigation.selected == tab ? Color.swOnAccent : Color.swInk)
                 }.scrollContentBackground(.hidden).background(Color.swSidebar).navigationTitle(Brand.appName)
-            } detail: { NavigationStack { DemoDestination(session: session, member: member, tab: selected) { selected = $0 } } }
+            } detail: { destination(navigation.selected) }
         } else {
-            TabView(selection: $selected) {
+            TabView(selection: $navigation.selected) {
                 ForEach(AppTab.allCases) { tab in
-                    NavigationStack { DemoDestination(session: session, member: member, tab: tab) { selected = $0 } }
+                    destination(tab)
                         .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
                         .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
         }
-        }.onChange(of: selected) { _, _ in
+        }.onChange(of: navigation.selected) { _, _ in
             columns = geometry.size.width >= 1000 ? .all : .detailOnly
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
+        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate() }
+        .onChange(of: session.actionScenario) { _, scenario in Task { await actions.preview(scenario) } }
+        .onChange(of: sizeClass) { _, value in if value == .compact { navigation.compactInventory() } }
+    }
+    private func destination(_ tab: AppTab) -> some View {
+        NavigationStack(path: navigation.path(tab)) {
+            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts)
+                .navigationDestination(for: MemberRoute.self) { route in
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true) {
+                        if let profile = try? await actions.profile() { session.profileDisplayName = profile.display_name }
+                    }
+                }
+        }
     }
 }
 struct DemoDestination: View {
     let session: DemoSession
     let member: MemberState
     let tab: AppTab
-    let selectTab: (AppTab) -> Void
+    let actions: DemoMemberActionsRepository
+    let cart: RequestCartState
+    let navigation: MemberNavigation
+    let capabilities: MemberCapabilities
+    let drafts: MemberActionDrafts
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: selectTab) }
+        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Welcome back, \(session.name).").font(.largeTitle.bold())
                 Text(session.spaces[session.selectedSpace]).foregroundStyle(Color.swMuted)
                 SWCard {
                         Text(session.role.rawValue).font(.headline)
+                        if capabilities.busy { ProgressView("Loading account options…") }
+                        if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
+                        if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
+                        if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        Picker("Action preview result", selection: Binding(get: { session.actionScenario }, set: { session.actionScenario = $0 })) {
+                            ForEach(DemoMemberActionsRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) }
+                        }.frame(minHeight: 48).accessibilityIdentifier("action-preview-result")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out") { session.reset() }.frame(minHeight: 48)
                 }

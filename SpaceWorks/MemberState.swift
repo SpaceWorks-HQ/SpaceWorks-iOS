@@ -36,6 +36,7 @@ final class MemberState {
     private(set) var card: Components.Schemas.OwnMemberCard?
     private(set) var messages: [Components.Schemas.Inbox] = []
     private(set) var inventoryLoad = Load.idle
+    private(set) var categoriesLoad = Load.idle
     private(set) var activityLoad = Load.idle
     private(set) var bookingsLoad = Load.idle
     private(set) var eventsLoad = Load.idle
@@ -61,19 +62,32 @@ final class MemberState {
     private var inboxGeneration = 0
     private var active = true
     private var cardGeneration = 0
+    private(set) var retryDeadlines: [String: Date] = [:]
+    private var unreadLoading = false
+    private let now: () -> Date
 
-    init(repository: any MemberRepository, settings: UserDefaults? = nil, context: String? = nil) {
+    init(repository: any MemberRepository, settings: UserDefaults? = nil, context: String? = nil, now: @escaping () -> Date = Date.init) {
         self.repository = repository; self.settings = settings
+        self.now = now
         self.guidanceKey = context.map { "guidance.member-v1." + $0 }
         self.showGuidance = context.map { settings?.object(forKey: "guidance.member-v1." + $0) as? Bool ?? true } ?? true
     }
     func dismissGuidance() { showGuidance = false; if let guidanceKey { settings?.set(false, forKey: guidanceKey) } }
     func replayGuidance() { showGuidance = true; if let guidanceKey { settings?.set(true, forKey: guidanceKey) } }
     func invalidate() {
-        active = false; inventoryGeneration += 1; inboxGeneration += 1; cardGeneration += 1
+        active = false; inventoryGeneration += 1; inboxGeneration += 1; cardGeneration += 1; bookingsGeneration += 1
         products = []; categories = []; activity = nil; bookings = []; events = []; spaces = []; card = nil; messages = []; unreadCount = nil; updated = [:]
+        retryDeadlines = [:]
+    }
+    func deadline(_ role: String) -> Date? { retryDeadlines[role] }
+    func canLoad(_ role: String) -> Bool { active && (retryDeadlines[role] ?? .distantPast) <= now() }
+    private func recordFailure(_ error: Error, role: String) {
+        if let deadline = APIError.retryDeadline(error), deadline > now() {
+            retryDeadlines[role] = max(retryDeadlines[role] ?? .distantPast, deadline)
+        }
     }
     func loadHome() async {
+        guard active else { return }
         async let activity: Void = loadActivity()
         async let bookings: Void = loadBookings()
         async let events: Void = loadEvents()
@@ -81,6 +95,7 @@ final class MemberState {
         _ = await (activity, bookings, events, card)
     }
     func loadInventory(more: Bool = false) async {
+        guard canLoad("inventory") else { return }
         if more && (inventoryLoad == .loading || !inventoryHasMore) { return }
         if more && (search.trimmingCharacters(in: .whitespacesAndNewlines) != appliedSearch || category != appliedCategory) {
             await loadInventory(); return
@@ -101,23 +116,28 @@ final class MemberState {
             nextInventoryPage = next; inventoryHasMore = next != nil; inventoryLoad = .ready
             appliedSearch = query; appliedCategory = filter
             updated["inventory"] = Date()
-            if categories.isEmpty {
-                let result = (try? await repository.categories()) ?? []
-                guard active, generation == inventoryGeneration else { return }
-                categories = result
-            }
+            if categories.isEmpty { await loadCategories() }
         } catch {
             guard active, generation == inventoryGeneration else { return }
+            recordFailure(error, role: "inventory")
             if discard(error) { products = []; updated["inventory"] = nil }
             inventoryLoad = .failed(APIError.display(error))
         }
     }
+    func loadCategories() async {
+        guard canLoad("categories"), categoriesLoad != .loading else { return }
+        categoriesLoad = .loading
+        do { let result = try await repository.categories(); guard active else { return }; categories = result; categoriesLoad = .ready }
+        catch { guard active else { return }; recordFailure(error, role: "categories"); categoriesLoad = .failed(APIError.display(error)) }
+    }
     func loadActivity() async {
+        guard canLoad("activity"), activityLoad != .loading else { return }
         activityLoad = .loading
         do { let result = try await repository.activity(); guard active else { return }; activity = result; updated["activity"] = Date(); activityLoad = .ready }
-        catch { guard active else { return }; if discard(error) { activity = nil; updated["activity"] = nil }; activityLoad = .failed(APIError.display(error)) }
+        catch { guard active else { return }; recordFailure(error, role: "activity"); if discard(error) { activity = nil; updated["activity"] = nil }; activityLoad = .failed(APIError.display(error)) }
     }
     func loadBookings(more: Bool = false) async {
+        guard canLoad("bookings") else { return }
         if more && (bookingsLoad == .loading || !bookingsHasMore) { return }
         bookingsGeneration += 1; let generation = bookingsGeneration
         let page = more ? (nextBookingsPage ?? 1) : 1
@@ -131,26 +151,31 @@ final class MemberState {
             nextBookingsPage = next; bookingsHasMore = next != nil; updated["bookings"] = Date(); bookingsLoad = .ready
         } catch {
             guard active, generation == bookingsGeneration else { return }
+            recordFailure(error, role: "bookings")
             if discard(error) { bookings = []; updated["bookings"] = nil }; bookingsLoad = .failed(APIError.display(error))
         }
     }
     func loadEvents() async {
+        guard canLoad("events"), eventsLoad != .loading else { return }
         eventsLoad = .loading
         do { let result = try await repository.events(); guard active else { return }; events = result; updated["events"] = Date(); eventsLoad = .ready }
-        catch { guard active else { return }; if discard(error) { events = []; updated["events"] = nil }; eventsLoad = .failed(APIError.display(error)) }
+        catch { guard active else { return }; recordFailure(error, role: "events"); if discard(error) { events = []; updated["events"] = nil }; eventsLoad = .failed(APIError.display(error)) }
     }
     func loadSpaces() async {
+        guard canLoad("spaces"), spacesLoad != .loading else { return }
         spacesLoad = .loading
         do { let result = try await repository.spaces(); guard active else { return }; spaces = result; spacesLoad = .ready }
-        catch { guard active else { return }; spacesLoad = .failed(APIError.display(error)) }
+        catch { guard active else { return }; recordFailure(error, role: "spaces"); spacesLoad = .failed(APIError.display(error)) }
     }
     func loadCard() async {
+        guard canLoad("card"), cardLoad != .loading else { return }
         cardGeneration += 1; let generation = cardGeneration
         card = nil; cardLoad = .loading
         do { let result = try await repository.card(); guard active, generation == cardGeneration else { return }; card = result; cardLoad = .ready }
-        catch { guard active, generation == cardGeneration else { return }; card = nil; cardLoad = .failed(APIError.display(error)) }
+        catch { guard active, generation == cardGeneration else { return }; recordFailure(error, role: "card"); card = nil; cardLoad = .failed(APIError.display(error)) }
     }
     func loadInbox(more: Bool = false) async {
+        guard canLoad("inbox") else { return }
         if more && (inboxLoad == .loading || !inboxHasMore) { return }
         inboxGeneration += 1; let generation = inboxGeneration
         let page = more ? (nextInboxPage ?? 1) : 1
@@ -164,28 +189,29 @@ final class MemberState {
             messages = (more ? messages + result.results : result.results).filter { ids.insert($0.id).inserted }
             nextInboxPage = next; inboxHasMore = next != nil; inboxLoad = .ready
             updated["inbox"] = Date()
-            let count = try? await repository.unreadCount()
-            guard active, generation == inboxGeneration else { return }
-            unreadCount = count
+            await loadUnreadCount()
         } catch {
             guard active, generation == inboxGeneration else { return }
+            recordFailure(error, role: "inbox")
             if discard(error) { messages = []; unreadCount = nil; updated["inbox"] = nil }
             inboxLoad = .failed(APIError.display(error))
         }
     }
     func loadUnreadCount() async {
-        let count = try? await repository.unreadCount()
-        guard active else { return }; unreadCount = count
+        guard canLoad("unread"), !unreadLoading else { return }
+        unreadLoading = true; defer { unreadLoading = false }
+        do { let count = try await repository.unreadCount(); guard active else { return }; unreadCount = count }
+        catch { guard active else { return }; recordFailure(error, role: "unread"); if discard(error) { unreadCount = nil } }
     }
     func markRead(_ id: Int) async {
-        guard !inboxMutating else { return }; inboxMutating = true; defer { inboxMutating = false }
+        guard canLoad("inbox"), !inboxMutating else { return }; inboxMutating = true; defer { inboxMutating = false }
         do { try await repository.markRead(id); guard active else { return }; await loadInbox() }
-        catch { if active { inboxLoad = .failed(APIError.display(error)) } }
+        catch { if active { recordFailure(error, role: "inbox"); inboxLoad = .failed(APIError.display(error)) } }
     }
     func markAllRead() async {
-        guard !inboxMutating else { return }; inboxMutating = true; defer { inboxMutating = false }
+        guard canLoad("inbox"), !inboxMutating else { return }; inboxMutating = true; defer { inboxMutating = false }
         do { try await repository.markAllRead(); guard active else { return }; await loadInbox() }
-        catch { if active { inboxLoad = .failed(APIError.display(error)) } }
+        catch { if active { recordFailure(error, role: "inbox"); inboxLoad = .failed(APIError.display(error)) } }
     }
     private func discard(_ error: Error) -> Bool { [401, 403, 404].contains(APIError.status(error) ?? 0) }
     private func nextPage(_ next: String?, after current: Int) throws -> Int? {

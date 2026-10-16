@@ -8,7 +8,8 @@ actor DemoMemberRepository: MemberRepository {
     let scenario: Scenario
     let name: String
     private var readIDs = Set<Int>()
-    init(scenario: Scenario = .populated, name: String = "Meera Nair") { self.scenario = scenario; self.name = name }
+    let store: DemoMemberStore?
+    init(scenario: Scenario = .populated, name: String = "Meera Nair", store: DemoMemberStore? = nil) { self.scenario = scenario; self.name = name; self.store = store }
     private func decode<T: Decodable>(_ type: T.Type, _ json: String) throws -> T {
         if scenario == .offline { throw URLError(.notConnectedToInternet) }
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
@@ -33,7 +34,8 @@ actor DemoMemberRepository: MemberRepository {
     }
     func categories() async throws -> [Components.Schemas.PublicCategory] { try decode([Components.Schemas.PublicCategory].self, DebugMemberFixtures.categories) }
     func activity() async throws -> Components.Schemas.MemberActivity {
-        var object = try JSONSerialization.jsonObject(with: Data(DebugMemberFixtures.activity.utf8)) as! [String: Any]
+        let source = await store?.activity() ?? DebugMemberFixtures.activity
+        var object = try JSONSerialization.jsonObject(with: Data(source.utf8)) as! [String: Any]
         if scenario == .empty {
             for key in ["active_hardware_loans", "request_history", "loan_history", "event_registrations", "notices"] { object[key] = [] }
             object["membership_dues"] = ["dues_amount": "0", "outstanding_by_currency": [String: String]()] as [String: Any]
@@ -41,7 +43,7 @@ actor DemoMemberRepository: MemberRepository {
         return try decode(Components.Schemas.MemberActivity.self, String(decoding: JSONSerialization.data(withJSONObject: object), as: UTF8.self))
     }
     func bookings(page: Int) async throws -> Components.Schemas.MemberBookingList {
-        try decode(Components.Schemas.MemberBookingList.self, scenario == .empty ? #"{"count":0,"next":null,"previous":null,"results":[]}"# : DebugMemberFixtures.bookings)
+        try decode(Components.Schemas.MemberBookingList.self, scenario == .empty ? #"{"count":0,"next":null,"previous":null,"results":[]}"# : (await store?.bookings() ?? DebugMemberFixtures.bookings))
     }
     func events() async throws -> [Components.Schemas.PublicEvent] { try decode([Components.Schemas.PublicEvent].self, scenario == .empty ? "[]" : DebugMemberFixtures.events) }
     func spaces() async throws -> [Components.Schemas.PublicBookableSpace] { try decode([Components.Schemas.PublicBookableSpace].self, scenario == .empty ? "[]" : DebugMemberFixtures.spaces) }

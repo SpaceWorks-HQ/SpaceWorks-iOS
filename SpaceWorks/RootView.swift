@@ -127,10 +127,21 @@ private struct MemberWorkspace: View {
     @State private var member: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selected = AppTab.home
+    @State private var navigation = MemberNavigation()
+    @State private var cart: RequestCartState
+    @State private var drafts: MemberActionDrafts
+    @State private var capabilities: MemberCapabilities
+    let actions: LiveMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String) {
         self.state = state; self.auth = auth
+        let actions = LiveMemberActionsRepository(service: auth.service, id: id, slug: slug,
+            onUnauthorized: { [weak auth] message in await auth?.invalidateSession(message: message) },
+            onForbidden: { [weak auth] in await auth?.foreground() })
+        self.actions = actions
+        _cart = State(initialValue: RequestCartState(repository: actions))
+        _drafts = State(initialValue: MemberActionDrafts(repository: actions))
+        _capabilities = State(initialValue: MemberCapabilities(repository: actions, makerspaceID: id))
         _member = State(initialValue: MemberState(repository: LiveMemberRepository(service: auth.service, origin: origin, id: id, slug: slug,
             onUnauthorized: { [weak auth] message in await auth?.invalidateSession(message: message) },
             onForbidden: { [weak auth] in await auth?.foreground() }),
@@ -143,36 +154,46 @@ private struct MemberWorkspace: View {
             NavigationSplitView(columnVisibility: $columns) {
                 List(AppTab.allCases) { tab in
                     Button {
-                        selected = tab
+                        navigation.selected = tab
                         columns = geometry.size.width >= 1000 ? .all : .detailOnly
                     } label: {
                         Text(tab.rawValue).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                     }.buttonStyle(.plain).accessibilityIdentifier("nav-\(tab.rawValue)")
-                        .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
-                        .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
+                        .foregroundStyle(navigation.selected == tab ? Color.swOnAccent : Color.swInk)
+                        .listRowBackground(navigation.selected == tab ? Color.swSidebarActive : Color.swSidebar)
                 }
                 .scrollContentBackground(.hidden).background(Color.swSidebar)
                 .navigationTitle(Brand.appName)
-            } detail: { NavigationStack { MemberScreen(state: state, auth: auth, member: member, tab: selected) { selected = $0 } } }
+            } detail: { destination(navigation.selected) }
         } else {
-            TabView(selection: $selected) {
+            TabView(selection: $navigation.selected) {
                 ForEach(AppTab.allCases) { tab in
-                    NavigationStack { MemberScreen(state: state, auth: auth, member: member, tab: tab) { selected = $0 } }
+                    destination(tab)
                         .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
                         .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
         }
-        }.onChange(of: selected) { _, _ in
+        }.onChange(of: navigation.selected) { _, _ in
             columns = geometry.size.width >= 1000 ? .all : .detailOnly
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
+        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate() }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { Task { await member.loadHome(); await member.loadUnreadCount() } }
+                if phase == .active { Task { await capabilities.load(); await member.loadHome(); await member.loadUnreadCount() } }
             }
+            .onChange(of: sizeClass) { _, value in if value == .compact { navigation.compactInventory() } }
     }
+    private func destination(_ tab: AppTab) -> some View {
+        NavigationStack(path: navigation.path(tab)) {
+            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities)
+                .navigationDestination(for: MemberRoute.self) { route in
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false) { await auth.foreground() }
+                }
+        }
+    }
+
 }
 
 private struct MemberScreen: View {
@@ -180,13 +201,17 @@ private struct MemberScreen: View {
     let auth: AuthState
     let member: MemberState
     let tab: AppTab
-    let selectTab: (AppTab) -> Void
+    let actions: any MemberActionsRepository
+    let cart: RequestCartState
+    let drafts: MemberActionDrafts
+    let navigation: MemberNavigation
+    let capabilities: MemberCapabilities
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
     @State private var confirmSignOut = false
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: selectTab) }
+        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                     SWCard {
@@ -196,6 +221,10 @@ private struct MemberScreen: View {
                         if auth.user?.email_verified == false {
                             Button("Confirm email") { accountForm = auth.accountForm(.emailVerification) }.frame(minHeight: 48)
                         }
+                        if capabilities.busy { ProgressView("Loading account options…") }
+                        if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
+                        if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
+                        if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
@@ -206,7 +235,7 @@ private struct MemberScreen: View {
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { accountForm = nil } }
         .sheet(isPresented: $replayIntro) { IntroductionView { replayIntro = false } }
         .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Sign out", role: .destructive) { Task { await auth.signOut() } }
+            Button("Sign out", role: .destructive) { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); Task { await auth.signOut() } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("You'll need to sign in again to use this account.") }
         .toolbar {
@@ -215,7 +244,7 @@ private struct MemberScreen: View {
                     ForEach(auth.memberships, id: \.id) { membership in
                         Button(membership.slug) {
                             guard auth.selectedID != membership.id else { return }
-                            member.invalidate()
+                            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate()
                             Task { await auth.select(membership.id) }
                         }
                     }

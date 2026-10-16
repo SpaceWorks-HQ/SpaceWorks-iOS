@@ -84,7 +84,13 @@ public struct TokenPair: Sendable, Equatable, Codable {
     public init(access: String, refresh: String) { self.access = access; self.refresh = refresh }
 }
 
-/// One actor owns the pair and the in-flight task. Late 401s from the old generation reuse the new pair.
+/// Credentials and installation epoch are captured atomically for each request.
+public struct CredentialSnapshot: Sendable {
+    public let pair: TokenPair?
+    fileprivate let epoch: Int
+}
+
+/// Late 401s may reuse a rotated pair only within the same installed session.
 public actor RefreshCoordinator {
     private var pair: TokenPair?
     private var flight: Task<TokenPair, Error>?
@@ -96,6 +102,7 @@ public actor RefreshCoordinator {
         self.pair = pair; self.rotate = rotate; self.persist = persist
     }
     public func current() -> TokenPair? { pair }
+    public func snapshot() -> CredentialSnapshot { CredentialSnapshot(pair: pair, epoch: generation) }
     public func install(_ value: TokenPair?) throws {
         generation += 1
         flight?.cancel()
@@ -104,7 +111,8 @@ public actor RefreshCoordinator {
         try persist(value)
         pair = value
     }
-    public func recover(rejectedAccess: String) async throws -> TokenPair {
+    public func recover(rejected snapshot: CredentialSnapshot) async throws -> TokenPair {
+        guard generation == snapshot.epoch, let rejectedAccess = snapshot.pair?.access else { throw CancellationError() }
         guard let current = pair else { throw APIError(status: 401, code: "signed_out", detail: "Sign in to continue.") }
         if current.access != rejectedAccess { return current }
         if let flight { return try await flight.value }
@@ -158,10 +166,21 @@ private func checked(_ result: (HTTPResponse, HTTPBody?)) async throws -> (HTTPR
     let object = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
     let code = envelope?.code ?? object?["code"] as? String
     let detail = envelope?.detail ?? object?["detail"] as? String
-    let fields = object?.keys.sorted().filter { !["detail", "code"].contains($0) }.compactMap { key -> String? in
-        guard let messages = object?[key] as? [String], !messages.isEmpty else { return nil }
-        return "\(key): \(messages.joined(separator: " "))"
-    }.joined(separator: "\n")
+    var fieldMessages: [String] = []
+    func collect(_ value: Any, path: String, depth: Int) {
+        guard depth <= 8, fieldMessages.count < 50 else { return }
+        if let text = value as? String, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            fieldMessages.append("\(path): \(text.prefix(1000))")
+        } else if let strings = value as? [String], !strings.isEmpty {
+            fieldMessages.append("\(path): \(strings.joined(separator: " ").prefix(1000))")
+        } else if let dictionary = value as? [String: Any] {
+            for key in dictionary.keys.sorted() { collect(dictionary[key]!, path: path.isEmpty ? key : path + "." + key, depth: depth + 1) }
+        } else if let array = value as? [Any] {
+            for (index, item) in array.prefix(50).enumerated() { collect(item, path: path + "." + String(index), depth: depth + 1) }
+        }
+    }
+    for key in object?.keys.sorted() ?? [] where !["detail", "code"].contains(key) { collect(object![key]!, path: key, depth: 0) }
+    let fields = fieldMessages.joined(separator: "\n")
     var retry: Date?
     if let header = response.headerFields[.retryAfter] {
         if let seconds = TimeInterval(header) { retry = Date().addingTimeInterval(max(0, seconds)) }
@@ -186,7 +205,7 @@ private func checked(_ result: (HTTPResponse, HTTPBody?)) async throws -> (HTTPR
     }
     let message: String
     if let detail, !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { message = detail }
-    else if response.status.code == 400, let fields, !fields.isEmpty { message = fields }
+    else if response.status.code == 400, !fields.isEmpty { message = fields }
     else { message = fallback }
     throw APIError(status: response.status.code, code: code ?? "http_\(response.status.code)", detail: message, retryAfter: retry)
 }
@@ -207,6 +226,7 @@ private struct ErrorMiddleware: ClientMiddleware {
 
 private enum DeviceRequestScope {
     @TaskLocal static var makerspace: Int?
+    @TaskLocal static var credentials: CredentialSnapshot?
 }
 
 public struct SessionMiddleware: ClientMiddleware {
@@ -217,15 +237,18 @@ public struct SessionMiddleware: ClientMiddleware {
                           next: @Sendable (HTTPRequest, HTTPBody?, URL) async throws -> (HTTPResponse, HTTPBody?)) async throws -> (HTTPResponse, HTTPBody?) {
         var request = request
         for name in ["Cookie", "Origin", "Referer"] { request.headerFields[HTTPField.Name(name)!] = nil }
-        let pair = await refresh.current()
+        let credentials = await refresh.snapshot()
+        if let expected = DeviceRequestScope.credentials, credentials.epoch != expected.epoch { throw CancellationError() }
+        let pair = credentials.pair
         request.headerFields[.authorization] = pair.map { "Bearer \($0.access)" }
         let selected = await makerspace.current()
         if let expected = DeviceRequestScope.makerspace, expected != selected { throw CancellationError() }
         request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.makerspace ?? selected).map(String.init)
         let result = try await next(request, body, baseURL)
         if result.0.status.code == 401, let pair {
-            let updated = try await refresh.recover(rejectedAccess: pair.access)
+            let updated = try await refresh.recover(rejected: credentials)
             if let expected = DeviceRequestScope.makerspace, await makerspace.current() != expected { throw CancellationError() }
+            guard (await refresh.snapshot()).epoch == credentials.epoch else { throw CancellationError() }
             request.headerFields[.authorization] = "Bearer \(updated.access)"
             return try await checked(next(request, body, baseURL))
         }
@@ -282,7 +305,10 @@ public final class SpaceWorksService: Sendable {
     }
     /// A task's makerspace header stays bound to its original repository across actor suspension.
     public func withMakerspace<T: Sendable>(_ id: Int, operation: @Sendable () async throws -> T) async throws -> T {
-        try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
+        let credentials = await refresh.snapshot()
+        return try await DeviceRequestScope.$credentials.withValue(credentials) {
+            try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
+        }
     }
 
     public func configuration() async throws -> Components.Schemas.PublicConfig {
