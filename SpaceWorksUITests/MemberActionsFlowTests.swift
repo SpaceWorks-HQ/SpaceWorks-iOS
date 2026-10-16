@@ -21,7 +21,11 @@ final class MemberActionsFlowTests: XCTestCase {
                    element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
                     element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap(); return
                 }
-                drag(scroll, app, down: frame.midY < viewport.midY)
+                // An off-screen SwiftUI switch can exist with an empty accessibility
+                // rect. Its zero midpoint is not evidence that the control is ABOVE us.
+                // Search down the content until UIKit publishes usable visible geometry.
+                let meaningfulFrame = !frame.isEmpty && frame.minX.isFinite && frame.minY.isFinite && frame.maxX.isFinite && frame.maxY.isFinite
+                drag(scroll, app, down: meaningfulFrame && frame.intersects(app.frame) && frame.midY < viewport.midY)
             } else { drag(scroll, app, down: false) }
         }
         capture("Unreachable action " + element.identifier)
