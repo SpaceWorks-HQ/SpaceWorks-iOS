@@ -9,6 +9,7 @@ struct SpaceWorksApp: App {
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             UserDefaults.standard.removeObject(forKey: "server-origin")
             UserDefaults.standard.removeObject(forKey: "dark-mode")
+            UserDefaults.standard.removeObject(forKey: "makerspace-selection")
             if let origin = try? ServerOrigin("https://ui-test.spaceworks.invalid") { try? TokenVault(origin: origin).store(nil) }
         }
         #endif
