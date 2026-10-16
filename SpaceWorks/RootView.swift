@@ -105,12 +105,9 @@ private struct AppShell: View {
                         .background(Color.swBg)
                     }
                         .navigationTitle(tab.rawValue)
-                        .toolbarBackground(Color.swSurface, for: .navigationBar)
                 }.tabItem { Label(tab.rawValue, systemImage: tab.symbol) }
             }
         }
-        .toolbarBackground(Color.swSurface, for: .tabBar)
-        .toolbarBackground(.visible, for: .tabBar)
         .tint(Color.swAccentInk)
         // There is no Staff tab until A1 provides server-backed membership actions.
     }
