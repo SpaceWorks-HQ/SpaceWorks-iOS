@@ -37,7 +37,7 @@ private struct ConnectView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Server URL").font(.headline)
                         TextField("Server URL", text: $state.serverInput,
-                                  prompt: Text("https://spaceworks.example").foregroundColor(Color.swMuted))
+                                  prompt: Text(verbatim: "https://spaceworks.example").foregroundColor(Color.swMuted))
                             .foregroundStyle(Color.swInk)
                             .textContentType(.URL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 12))
