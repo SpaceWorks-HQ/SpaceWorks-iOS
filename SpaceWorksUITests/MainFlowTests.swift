@@ -44,6 +44,16 @@ final class MainFlowTests: XCTestCase {
         app.swipeUp()
         XCTAssertTrue(app.buttons["connect"].isHittable)
         attach(app, "Dark mode and large text")
+        app.textFields["server-url"].tap()
+        app.textFields["server-url"].typeText("https://ui-test.spaceworks.invalid\n")
+        XCTAssertTrue(app.staticTexts["Sign in"].waitForExistence(timeout: 10))
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Nothing here yet."].isHittable)
+        attach(app, "Home with largest text")
+        for name in ["Inventory", "Activity", "Inbox", "Profile"] {
+            app.tabBars.buttons[name].tap()
+            XCTAssertTrue(app.staticTexts["Nothing here yet."].isHittable)
+        }
     }
     private func attach(_ app: XCUIApplication, _ name: String) {
         let item = XCTAttachment(screenshot: app.screenshot())

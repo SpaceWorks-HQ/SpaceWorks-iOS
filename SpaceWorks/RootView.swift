@@ -88,17 +88,22 @@ private struct AppShell: View {
         TabView {
             ForEach(AppTab.allCases) { tab in
                 NavigationStack {
-                    VStack(spacing: 16) {
-                        if tab == .home {
-                            Text("Sign in").font(.title.bold()).accessibilityAddTraits(.isHeader)
-                            Text("Sign-in will be available in the next phase.").foregroundStyle(Color.swMuted)
+                    GeometryReader { geometry in
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                if tab == .home {
+                                    Text("Sign in").font(.title.bold()).accessibilityAddTraits(.isHeader)
+                                    Text("Sign-in will be available in the next phase.").foregroundStyle(Color.swMuted)
+                                }
+                                Image(systemName: tab.symbol).font(.largeTitle).accessibilityHidden(true)
+                                Text("Nothing here yet.").font(.body)
+                                if tab == .profile && !state.locked {
+                                    Button("Change server") { state.changeServer() }.frame(minHeight: 44)
+                                }
+                            }.padding(24).frame(maxWidth: .infinity, minHeight: geometry.size.height)
                         }
-                        Image(systemName: tab.symbol).font(.largeTitle).accessibilityHidden(true)
-                        Text("Nothing here yet.").font(.body)
-                        if tab == .profile && !state.locked {
-                            Button("Change server") { state.changeServer() }.frame(minHeight: 44)
-                        }
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.swBg)
+                        .background(Color.swBg)
+                    }
                         .navigationTitle(tab.rawValue)
                         .toolbarBackground(Color.swSurface, for: .navigationBar)
                 }.tabItem { Label(tab.rawValue, systemImage: tab.symbol) }
