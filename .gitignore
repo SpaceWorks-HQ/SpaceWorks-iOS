@@ -1,0 +1,16 @@
+.DS_Store
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/
+Brand.xcconfig
+SpaceWorks/Generated/
+SpaceWorks/Assets.xcassets/
+Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json
+google-services.json
+*.p8
+*.p12
+*.mobileprovision
+*.xcresult/
+__pycache__/

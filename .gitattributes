@@ -1,0 +1,6 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.swift text eol=lf
+api/openapi.json -text
+docs/PRD.md -text
