@@ -81,8 +81,11 @@ final class MemberActionsFlowTests: XCTestCase {
         // viewport. Hold at a slow, bounded endpoint so the next visible target is
         // examined before momentum can carry it under the navigation/tab bars.
         let distance = min(200, viewport.height * 0.4)
-        let start = CGPoint(x: viewport.midX, y: viewport.midY + (down ? -distance : distance) / 2)
-        let end = CGPoint(x: viewport.midX, y: viewport.midY + (down ? distance : -distance) / 2)
+        // Multiline fields have their own scroll view. Drag in the page gutter so
+        // the parent moves even when a tall field occupies the viewport centre.
+        let x = viewport.minX + min(12, viewport.width * 0.1)
+        let start = CGPoint(x: x, y: viewport.midY + (down ? -distance : distance) / 2)
+        let end = CGPoint(x: x, y: viewport.midY + (down ? distance : -distance) / 2)
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
             .press(forDuration: 0.05,
                    thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)),
