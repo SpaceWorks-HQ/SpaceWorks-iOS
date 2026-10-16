@@ -45,7 +45,8 @@ final class MainFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["Sign out"].waitForExistence(timeout: 5))
         attach(app, "Profile landscape")
         app.buttons["Sign out"].tap()
-        app.buttons["Sign out"].lastMatch.tap()
+        let confirmation = app.buttons.matching(identifier: "Sign out").allElementsBoundByIndex.first { $0.isHittable }
+        XCTAssertNotNil(confirmation); confirmation?.tap()
         XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))
     }
     func testMFAContinuesToMakerspaceSelection() {
