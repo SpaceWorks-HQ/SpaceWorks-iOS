@@ -9,7 +9,7 @@ struct GoogleProviderButton: UIViewRepresentable {
     func makeUIView(context: Context) -> GIDSignInButton {
         let button = GIDSignInButton()
         button.colorScheme = .light
-        button.addTarget(context.coordinator, action: #selector(Coordinator.perform), for: .touchUpInside)
+        button.addTarget(context.coordinator, action: #selector(Coordinator.buttonPressed), for: .touchUpInside)
         return button
     }
     func updateUIView(_ view: GIDSignInButton, context: Context) {
@@ -21,7 +21,7 @@ struct GoogleProviderButton: UIViewRepresentable {
     final class Coordinator: NSObject {
         var action: () -> Void
         init(action: @escaping () -> Void) { self.action = action }
-        @objc func perform() { action() }
+        @objc func buttonPressed() { action() }
     }
 }
 
@@ -30,7 +30,7 @@ struct AppleProviderButton: UIViewRepresentable {
     func makeUIView(context: Context) -> ASAuthorizationAppleIDButton {
         let button = ASAuthorizationAppleIDButton(type: .continue, style: .whiteOutline)
         button.cornerRadius = 10
-        button.addTarget(context.coordinator, action: #selector(Coordinator.perform), for: .touchUpInside)
+        button.addTarget(context.coordinator, action: #selector(Coordinator.buttonPressed), for: .touchUpInside)
         return button
     }
     func updateUIView(_ view: ASAuthorizationAppleIDButton, context: Context) { context.coordinator.action = action }
@@ -38,6 +38,6 @@ struct AppleProviderButton: UIViewRepresentable {
     final class Coordinator: NSObject {
         var action: () -> Void
         init(action: @escaping () -> Void) { self.action = action }
-        @objc func perform() { action() }
+        @objc func buttonPressed() { action() }
     }
 }
