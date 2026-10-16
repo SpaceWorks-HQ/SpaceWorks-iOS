@@ -9,6 +9,7 @@ import json
 import pathlib
 import plistlib
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -79,6 +80,13 @@ def generate(raster=True):
             colors.append(entry)
         write(assets / f"{role}.colorset/Contents.json", json.dumps({"colors": colors, "info": {"author": "xcode", "version": 1}}, indent=2))
     write(ROOT / "SpaceWorks/Generated/Theme.swift", "// Generated from semantic tokens, both appearances.\nimport SwiftUI\nextension Color {\n" + "\n".join(declarations) + "\n}\n")
+    wordmark = assets / "Wordmark.imageset"
+    wordmark.mkdir(parents=True, exist_ok=True)
+    for name, master in [("light.png", "lockup-horizontal-one-colour-ink.png"), ("dark.png", "lockup-horizontal-reversed.png")]:
+        shutil.copyfile(ROOT / "design/logo" / master, wordmark / name)
+    write(wordmark / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
+        {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
+        "info": {"author": "xcode", "version": 1}}))
     icon = assets / "AppIcon.appiconset"
     icon.mkdir(parents=True, exist_ok=True)
     if raster:

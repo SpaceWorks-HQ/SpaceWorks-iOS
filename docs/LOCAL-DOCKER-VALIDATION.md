@@ -1,6 +1,9 @@
 # Local Docker integration evidence
 
 The owner selected local Docker as the integration environment on 2026-10-16.
+The owner subsequently directed: complete the apps according to the flow and supply the app backend
+later. Backend connectivity is therefore deferred; it does not gate UI, local flow, SDK adapter or
+device-layout work. Debug preview fixtures must be visibly labeled and isolated from real sessions.
 The existing development stack was restarted without deleting volumes, changing backend source,
 or replacing its database. Its API is published on port 8000; the web flow is on port 5000.
 

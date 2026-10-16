@@ -132,7 +132,7 @@ final class AuthState {
         defer { busy = false }
         do { try await loadIdentity() } catch {
             fail(error)
-            if isUnauthorized(error) { try? await service.refresh.install(nil); clear() }
+            if isUnauthorized(error) { try? await service.refresh.install(nil); await clear() }
         }
     }
     func signOut() async {
@@ -143,9 +143,9 @@ final class AuthState {
         do { try await service.signOut() } catch { revocationFailed = true }
         do {
             try await service.refresh.install(nil)
-            clear()
+            await clear()
             if revocationFailed { error = "Signed out on this device. Server revocation could not be confirmed." }
-        } catch { clear(); fail(error) }
+        } catch { await clear(); fail(error) }
     }
     private func accept(_ pair: TokenPair) async throws {
         guard !pair.access.isEmpty, !pair.refresh.isEmpty else {
@@ -171,7 +171,8 @@ final class AuthState {
         selectedID = selection
         stage = .signedIn
     }
-    private func clear() {
+    private func clear() async {
+        try? await service.makerspace.select(nil, activeMemberships: [])
         user = nil; selectedID = nil; mfa = nil; enrollment = nil; recoveryCodes = []
         password = ""; code = ""; settings.removeObject(forKey: "makerspace-selection"); stage = .signIn
     }

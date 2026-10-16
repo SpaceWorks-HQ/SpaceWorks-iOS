@@ -2,13 +2,17 @@ import SwiftUI
 
 struct RootView: View {
     @State private var state = AppState()
+    #if DEBUG
+    @State private var exploringDemo = false
+    #endif
     var body: some View {
         Group {
-            switch state.screen {
-            case .connect: ConnectView(state: state)
-            case .shell:
-                if let origin = state.connectedOrigin { AuthRoot(state: state, origin: origin) }
-            }
+            #if DEBUG
+            if exploringDemo { DemoRoot { exploringDemo = false } }
+            else { liveContent }
+            #else
+            liveContent
+            #endif
         }
         .tint(Color.swAccentInk)
         .foregroundStyle(Color.swInk)
@@ -23,6 +27,21 @@ struct RootView: View {
             }.background(Color.swSurface)
         }
         .task { await state.restore() }
+    }
+    private var liveContent: some View {
+        VStack(spacing: 0) {
+            switch state.screen {
+            case .connect: ConnectView(state: state)
+            case .shell:
+                if let origin = state.connectedOrigin { AuthRoot(state: state, origin: origin) }
+            }
+            #if DEBUG
+            if state.screen == .connect {
+                Button("Explore demo") { exploringDemo = true }.frame(minHeight: 48).accessibilityIdentifier("explore-demo")
+                    .frame(maxWidth: .infinity).background(Color.swSurface)
+            }
+            #endif
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import XCTest
+import Foundation
 import SpaceWorksAPI
 @testable import SpaceWorks
 
@@ -116,5 +117,24 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
         let coordinator = RefreshCoordinator(pair: try storage.load(), persist: { try storage.store($0) }, rotate: { _ in TokenPair(access: "new", refresh: "new-refresh") })
         do { _ = try await coordinator.recover(rejectedAccess: "old"); XCTFail("Expected storage failure") } catch {}
         let current = await coordinator.current(); XCTAssertNil(current)
+    }
+    func testOfflineSignOutStillWipesLocalCredentials() async throws {
+        let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        let auth = state(storage: storage) { request in
+            if request.url!.path.hasSuffix("/logout") { throw URLError(.notConnectedToInternet) }
+            return try self.response(request)
+        }
+        await auth.restore(); await auth.signOut()
+        XCTAssertNil(try storage.load()); XCTAssertNil(auth.user); XCTAssertEqual(auth.stage, .signIn)
+        XCTAssertEqual(auth.error, "Signed out on this device. Server revocation could not be confirmed.")
+        let makerspace = await auth.service.makerspace.current(); XCTAssertNil(makerspace)
+    }
+    func testIsolatedDemoAuthRequiresCredentialsAndRecoveryAcknowledgement() {
+        let demo = DemoSession(); demo.role = .staff; demo.scenario = .enrollment; demo.stage = .signIn
+        demo.signIn(); XCTAssertEqual(demo.stage, .signIn); XCTAssertNotNil(demo.error)
+        demo.username = "arjun"; demo.password = "sample"; demo.signIn(); XCTAssertEqual(demo.stage, .mfa)
+        demo.code = "000000"; demo.verify(); XCTAssertEqual(demo.stage, .mfa)
+        demo.code = "123456"; demo.verify(); XCTAssertEqual(demo.stage, .recovery)
+        demo.reset(); XCTAssertEqual(demo.stage, .welcome); XCTAssertTrue(demo.password.isEmpty)
     }
 }

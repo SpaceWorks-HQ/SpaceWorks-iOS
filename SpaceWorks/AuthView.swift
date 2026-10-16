@@ -54,13 +54,14 @@ struct SignInView: View {
     @Bindable var auth: AuthState
     let state: AppState
     @State private var showPassword = false
+    @FocusState private var passwordFocused: Bool
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 HStack(alignment: .center, spacing: 40) {
                     VStack(alignment: .leading, spacing: 24) {
-                        Text(Brand.appName).font(.headline).foregroundStyle(Color.swAccentInk)
+                        BrandWordmark()
                         Text("Welcome back.").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                         Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
                         SWCard {
@@ -78,7 +79,8 @@ struct SignInView: View {
                                     Group {
                                         if showPassword { TextField("Password", text: $auth.password) }
                                         else { SecureField("Password", text: $auth.password) }
-                                    }.textContentType(.password).accessibilityIdentifier("password")
+                                    }.textContentType(.password).focused($passwordFocused).submitLabel(.done)
+                                        .onSubmit { passwordFocused = false }.accessibilityIdentifier("password")
                                     Button { showPassword.toggle() } label: { Image(systemName: showPassword ? "eye.slash" : "eye") }
                                         .accessibilityLabel(showPassword ? "Hide password" : "Show password").frame(minWidth: 44, minHeight: 44)
                                 }
@@ -113,6 +115,15 @@ struct SignInView: View {
                 .background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
         }
+    }
+}
+
+struct BrandWordmark: View {
+    var body: some View {
+        if Brand.appName == "Space Works" {
+            Image("Wordmark").resizable().scaledToFit().frame(maxWidth: 180, maxHeight: 64)
+                .padding(.vertical, 16).accessibilityLabel("Space Works")
+        } else { Text(Brand.appName).font(.headline).foregroundStyle(Color.swAccentInk) }
     }
 }
 

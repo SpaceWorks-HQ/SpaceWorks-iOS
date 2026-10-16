@@ -181,7 +181,7 @@ private final class LockedCounter: @unchecked Sendable {
     var value: Int { lock.lock(); defer { lock.unlock() }; return count }
 }
 
-private func requestBody(_ request: URLRequest) -> Data {
+func requestBody(_ request: URLRequest) -> Data {
     if let data = request.httpBody { return data }
     guard let stream = request.httpBodyStream else { return Data() }
     stream.open(); defer { stream.close() }

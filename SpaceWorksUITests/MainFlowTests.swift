@@ -68,6 +68,21 @@ final class MainFlowTests: XCTestCase {
         app.swipeUp(); XCTAssertTrue(app.buttons["sign-in"].exists)
         attach(app, "Sign in largest text dark landscape")
     }
+    func testExploreDemoIsIsolatedAndExitsToServerSetup() {
+        let app = launch(); app.buttons["explore-demo"].tap()
+        XCTAssertTrue(app.staticTexts["Demo mode · sample data"].exists)
+        app.buttons["Continue as member"].tap()
+        app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera")
+        app.secureTextFields["demo-password"].tap(); app.secureTextFields["demo-password"].typeText("sample\n")
+        app.swipeUp(); app.buttons["demo-sign-in"].tap()
+        app.buttons["demo-space-0"].tap()
+        XCTAssertTrue(app.staticTexts["Welcome back, Meera Nair."].waitForExistence(timeout: 5))
+        attach(app, "Isolated member demo")
+        app.buttons["Exit demo"].tap()
+        XCTAssertTrue(app.textFields["server-url"].exists)
+        let value = app.textFields["server-url"].value as? String ?? ""
+        XCTAssertTrue(value.isEmpty || value == "https://spaceworks.example")
+    }
     private func attach(_ app: XCUIApplication, _ name: String) {
         let item = XCTAttachment(screenshot: app.screenshot()); item.name = name; item.lifetime = .keepAlways; add(item)
     }

@@ -25,6 +25,13 @@ the backend and requested isolated Debug demo flows for planned features; see th
 and local Docker evidence. All documented JSON request variants are mechanically selected for the
 build projection; every source path, schema, field and response stays unchanged.
 
+The Debug-only “Explore demo” entry has a persistent “Demo mode · sample data” banner and exit/reset.
+Its member Meera Nair and staff Arjun Rao journeys cover password validation, MFA rejection/success,
+enrollment QR/manual secret, recovery-code acknowledgement and two-space selection, with no API,
+Keychain or server-setting writes. Add default phone/iPad CI jobs and a six-size manual matrix;
+UI flows rotate to landscape and exercise the largest Dynamic Type/dark state. The official logo
+masters are copied byte-for-byte into adaptive native image assets for the official app name.
+
 ## A0 Base (2026-10-16)
 
 Scaffold iOS 17+ SwiftUI app from XcodeGen and a local SPM API package. Pin the public design submodule to `fd28f825086a2cac7fa297881f1860b9d332db69`. Generate all light/dark semantic color assets, Swift color accessors, branding config and opaque icon from `branding/brand.json`. Keep the owner-supplied contract unchanged and generate only A0 health/refresh operations and dependent types at build time.
