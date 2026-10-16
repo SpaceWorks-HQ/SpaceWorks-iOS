@@ -112,6 +112,34 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(try color("accent", .light), [0, 110, 99])
         XCTAssertEqual(try color("ink", .dark), [255, 244, 232])
     }
+    func testNativeNavigationAndEveryTabLayoutMeetTextContrastInBothModes() throws {
+        func luminance(_ color: UIColor, _ traits: UITraitCollection) -> Double {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            color.resolvedColor(with: traits).getRed(&r, green: &g, blue: &b, alpha: &a)
+            let values = [r, g, b].map { value -> Double in
+                let value = Double(value)
+                return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+            }
+            return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722
+        }
+        func check(_ ink: UIColor?, on background: UIColor?, traits: UITraitCollection) throws {
+            let values = try [luminance(XCTUnwrap(ink), traits), luminance(XCTUnwrap(background), traits)].sorted()
+            XCTAssertGreaterThanOrEqual((values[1] + 0.05) / (values[0] + 0.05), 4.5)
+        }
+        let navigation = NativeAppearance.navigation()
+        let tabs = NativeAppearance.tabs()
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let traits = UITraitCollection(userInterfaceStyle: style)
+            try check(navigation.titleTextAttributes[.foregroundColor] as? UIColor, on: navigation.backgroundColor, traits: traits)
+            try check(navigation.largeTitleTextAttributes[.foregroundColor] as? UIColor, on: navigation.backgroundColor, traits: traits)
+            for layout in [tabs.stackedLayoutAppearance, tabs.inlineLayoutAppearance, tabs.compactInlineLayoutAppearance] {
+                for state in [layout.normal, layout.selected] {
+                    try check(state.titleTextAttributes[.foregroundColor] as? UIColor, on: tabs.backgroundColor, traits: traits)
+                    try check(state.iconColor, on: tabs.backgroundColor, traits: traits)
+                }
+            }
+        }
+    }
 }
 
 private actor HealthGate {

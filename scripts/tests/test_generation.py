@@ -64,7 +64,7 @@ class GenerationTests(unittest.TestCase):
             return sum(a * b for a, b in zip(linear, [.2126, .7152, .0722]))
         tokens = json.loads((ROOT / "design/tokens/tokens.json").read_text())
         for mode in ["light", "dark"]:
-            for ink, bg in [("ink", "bg"), ("muted", "bg"), ("accent-ink", "surface"), ("on-accent", "accent")]:
+            for ink, bg in [("ink", "bg"), ("muted", "bg"), ("ink", "surface"), ("muted", "surface"), ("accent-ink", "surface"), ("on-accent", "accent")]:
                 values = sorted([luminance(tokens[mode][ink]), luminance(tokens[mode][bg])])
                 self.assertGreaterEqual((values[1] + .05) / (values[0] + .05), 4.5)
 

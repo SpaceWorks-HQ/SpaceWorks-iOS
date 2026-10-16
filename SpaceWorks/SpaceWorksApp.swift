@@ -4,6 +4,7 @@ import SpaceWorksAPI
 @main
 struct SpaceWorksApp: App {
     init() {
+        NativeAppearance.apply()
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             UserDefaults.standard.removeObject(forKey: "server-origin")
