@@ -15,7 +15,11 @@ class GenerationTests(unittest.TestCase):
     def test_authoritative_contract_is_unchanged_and_staged_for_plugin(self):
         source = (ROOT / "api/openapi.json").read_bytes()
         self.assertEqual(hashlib.sha256(source).hexdigest(), json.loads((ROOT / "api/provenance.json").read_text())["sha256"])
-        self.assertEqual(source, (ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json").read_bytes())
+        staged = json.loads((ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json").read_bytes())
+        expected = json.loads(source)
+        content = expected["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"]
+        expected["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"] = {"application/json": content["application/json"]}
+        self.assertEqual(staged, expected, "Only refresh's documented JSON representation may be selected; all models must remain unchanged")
         self.assertEqual(len(json.loads(source)["paths"]), 635)
 
     def test_brand_config_drives_project_display_name_bundle_and_icon(self):

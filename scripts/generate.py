@@ -47,7 +47,7 @@ def generate(raster=True):
     swift_literal = lambda value: "nil" if value is None else json.dumps(value, ensure_ascii=False)
     write(ROOT / "SpaceWorks/Generated/Brand.swift", "// Generated. Do not edit.\nimport Foundation\nenum Brand {\n"
           + "\n".join(f"    static let {name}: String{'?' if brand[key] is None else ''} = {swift_literal(brand[key])}"
-                      for name, key in [("appName", "app_name"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
+                      for name, key in [("appName", "app_name"), ("bundleID", "ios_bundle_id"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
           + "\n}\n")
     for mode in ["Debug", "Release"]:
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
@@ -90,7 +90,14 @@ def generate(raster=True):
     expected = json.loads((ROOT / "api/provenance.json").read_text())["sha256"]
     if hashlib.sha256(schema.read_bytes()).hexdigest() != expected:
         raise ValueError("API contract hash differs from its recorded provenance")
-    shutil.copyfile(schema, ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json")
+    # Apple's generator models any multipart root component as a multipart enum. The supplied
+    # refresh schema references the SAME component for JSON and multipart; select its documented
+    # JSON representation so that DeviceRefresh remains a generated Codable object. No fields,
+    # operations or response schemas are changed, and the authoritative source stays untouched.
+    document = json.loads(schema.read_bytes())
+    content = document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"]
+    document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"] = {"application/json": content["application/json"]}
+    write(ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json", json.dumps(document, ensure_ascii=False, indent=2) + "\n")
 
 
 if __name__ == "__main__":

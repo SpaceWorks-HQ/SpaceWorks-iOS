@@ -71,7 +71,7 @@ final class AppStateTests: XCTestCase {
     }
     func testGeneratedBrandIsConsumedByBuiltApp() {
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, Brand.appName)
-        XCTAssertEqual(Bundle.main.bundleIdentifier, "org.spaceworks.app")
+        XCTAssertEqual(Bundle.main.bundleIdentifier, Brand.bundleID)
         let icons = Bundle.main.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any]
         XCTAssertNotNil(icons?["CFBundlePrimaryIcon"])
     }

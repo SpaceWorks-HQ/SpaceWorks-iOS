@@ -39,4 +39,6 @@ jobs:
           path: |
             TestResults.xcresult
             build.log
+            DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
+            SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7

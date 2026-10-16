@@ -224,7 +224,9 @@ public struct SpaceWorksService: Sendable {
     public let makerspace: MakerspaceContext
     public init(origin: ServerOrigin, session: URLSession = DeviceSession.make(), initialTokens: TokenPair? = nil,
                 makerspace: MakerspaceContext = MakerspaceContext()) {
-        let transport = URLSessionTransport(configuration: .init(session: session))
+        // Buffered mode keeps URLSession's session delegate in control of redirects. Streaming
+        // transport installs its own task delegate and would bypass that guarantee.
+        let transport = URLSessionTransport(configuration: .init(session: session, httpBodyProcessingMode: .buffered))
         let raw = Client(serverURL: origin.url, transport: transport, middlewares: [ErrorMiddleware()])
         let coordinator = RefreshCoordinator(pair: initialTokens) { token in
             let response = try await raw.api_v1_auth_device_refresh_create(.init(body: .json(.init(refresh: token))))

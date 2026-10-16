@@ -8,7 +8,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.10.0"),
         .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.8.2"),
-        .package(url: "https://github.com/apple/swift-openapi-urlsession", exact: "1.0.2"),
+        .package(url: "https://github.com/apple/swift-openapi-urlsession", exact: "1.1.0"),
         .package(url: "https://github.com/apple/swift-http-types", exact: "1.3.1")
     ],
     targets: [.target(
