@@ -1,0 +1,8 @@
+generate:
+  - types
+  - client
+accessModifier: public
+filter:
+  operations:
+    - api_v1_health_retrieve
+    - api_v1_auth_device_refresh_create

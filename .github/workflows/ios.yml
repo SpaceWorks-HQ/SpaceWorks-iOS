@@ -1,0 +1,51 @@
+name: iOS
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install project and icon generators
+        run: brew install xcodegen librsvg
+      - name: Generate and validate source inputs
+        run: |
+          python3 scripts/generate.py
+          python3 -m unittest discover -s scripts/tests -v
+          python3 scripts/lint.py
+          xcodegen generate
+      - name: Select available iPhone simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r,v in d["devices"].items() if "iOS" in r for x in v if "iPhone" in x["name"]))')
+          echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
+      - name: Compile and test on simulator
+        run: |
+          set -o pipefail
+          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee build.log
+      - name: Export UI screenshots
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
+          fi
+      - name: Archive validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-validation
+          path: |
+            TestResults.xcresult
+            TestAttachments
+            build.log
+            DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
+            SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          retention-days: 7
