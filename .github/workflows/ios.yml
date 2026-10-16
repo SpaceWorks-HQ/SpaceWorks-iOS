@@ -31,6 +31,12 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee build.log
+      - name: Export UI screenshots
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
+          fi
       - name: Archive validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,6 +44,7 @@ jobs:
           name: ios-validation
           path: |
             TestResults.xcresult
+            TestAttachments
             build.log
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
