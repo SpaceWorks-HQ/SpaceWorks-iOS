@@ -3,14 +3,19 @@ import XCTest
 final class MemberActionsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<20 {
-            let scroll = app.scrollViews.allElementsBoundByIndex.first(where: { $0.isHittable }) ?? app.scrollViews.firstMatch
+        for attempt in 0..<24 {
+            let scroll = containingScroll(element, app)
             if element.exists {
-                let insideScroll = scroll.exists && !element.identifier.isEmpty && scroll.descendants(matching: .any).matching(identifier: element.identifier).firstMatch.exists
+                let insideScroll = contains(element, scroll)
                 if element.isHittable && !insideScroll { element.tap(); return }
                 let frame = element.frame
                 let viewport = visibleContent(scroll, app)
                 let visible = frame.intersection(viewport)
+                print("Native action \(element.identifier.isEmpty ? element.label : element.identifier), attempt \(attempt), frame \(frame), viewport \(viewport), hittable \(element.isHittable)")
+                // A SwiftUI Toggle can expose a label rectangle that differs from its
+                // native UISwitch activation point. Let XCTest activate a visible switch.
+                if element.elementType == .switch, element.isHittable,
+                   !visible.isNull, visible.width > 4, visible.height > 4 { element.tap(); return }
                 if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4,
                    viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)) {
                     // Use the native activation point. A wide Toggle's label centre is not
@@ -21,15 +26,27 @@ final class MemberActionsFlowTests: XCTestCase {
                    element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
                     element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap(); return
                 }
-                // An off-screen SwiftUI switch can exist with an empty accessibility
-                // rect. Its zero midpoint is not evidence that the control is ABOVE us.
-                // Search down the content until UIKit publishes usable visible geometry.
-                let meaningfulFrame = !frame.isEmpty && frame.minX.isFinite && frame.minY.isFinite && frame.maxX.isFinite && frame.maxY.isFinite
-                drag(scroll, app, down: meaningfulFrame && frame.intersects(app.frame) && frame.midY < viewport.midY)
-            } else { drag(scroll, app, down: false) }
+                // Off-screen accessibility frames can jump across the viewport after
+                // rotation. Reversing on their midpoint oscillated around hidden controls.
+                // Sweep consistently in each direction; activation still requires a real
+                // visible, hittable target. New screens normally start near their top.
+                drag(scroll, app, down: attempt >= 12)
+            } else { drag(scroll, app, down: attempt >= 12) }
         }
         capture("Unreachable action " + element.identifier)
         XCTFail("Action must be reachable: \(element.identifier)")
+    }
+    private func contains(_ element: XCUIElement, _ scroll: XCUIElement) -> Bool {
+        guard element.exists, scroll.exists else { return false }
+        let descendants = scroll.descendants(matching: element.elementType)
+        if !element.identifier.isEmpty { return descendants.matching(identifier: element.identifier).firstMatch.exists }
+        guard !element.label.isEmpty else { return false }
+        return descendants.matching(NSPredicate(format: "label == %@", element.label)).firstMatch.exists
+    }
+    private func containingScroll(_ element: XCUIElement, _ app: XCUIApplication) -> XCUIElement {
+        let scrolls = app.scrollViews.allElementsBoundByIndex
+        return scrolls.first(where: { contains(element, $0) })
+            ?? scrolls.first(where: { $0.isHittable }) ?? app.scrollViews.firstMatch
     }
     private func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication) -> CGRect {
         var viewport = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
@@ -51,8 +68,8 @@ final class MemberActionsFlowTests: XCTestCase {
         let viewport = visibleContent(scroll, app)
         guard viewport.width > 20, viewport.height > 30 else { return }
         // Drag entirely inside the actual visible content, never across tab/navigation bars.
-        let start = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.3 : 0.7))
-        let end = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.7 : 0.3))
+        let start = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.15 : 0.85))
+        let end = CGPoint(x: viewport.midX, y: viewport.minY + viewport.height * (down ? 0.85 : 0.15))
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
             .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)))
     }
