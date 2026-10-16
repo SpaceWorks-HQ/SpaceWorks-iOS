@@ -70,6 +70,11 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
         if let error = error as? ClientError { return status(error.underlyingError) }
         return nil
     }
+    public static func code(_ error: Error) -> String? {
+        if let error = error as? APIError { return error.code }
+        if let error = error as? ClientError { return code(error.underlyingError) }
+        return nil
+    }
 }
 
 /// Local credentials, not a hand-written API payload. Persist together in Keychain in A1.
@@ -299,5 +304,22 @@ public final class SpaceWorksService: Sendable {
     }
     public func changePassword(current: String, new: String) async throws {
         _ = try await client.api_v1_auth_change_password_create(.init(body: .json(.init(current_password: current, new_password: new)))).ok.body.json
+    }
+    public func createAccount(name: String, email: String, password: String, phone: String) async throws {
+        let input = Components.Schemas.MemberSignUp(display_name: name, email: email, phone: phone, password: password, website: "")
+        _ = try await publicClient.api_v1_auth_member_sign_up_create(.init(body: .json(input))).ok.body.json
+    }
+    public func requestPasswordReset(email: String) async throws {
+        _ = try await publicClient.api_v1_auth_forgot_password_create(.init(body: .json(.init(email: email)))).ok.body.json
+    }
+    public func resetPassword(email: String, code: String, new: String) async throws {
+        let input = Components.Schemas.ResetPasswordConfirmRequest.OtpResetPasswordConfirm(.init(email: email, code: code, new_password: new))
+        _ = try await publicClient.api_v1_auth_reset_password_create(.init(body: .json(input))).ok.body.json
+    }
+    public func confirmEmail(code: String) async throws {
+        _ = try await client.api_v1_auth_email_verification_confirm_create(.init(body: .json(.init(code: code)))).ok.body.json
+    }
+    public func resendEmailVerification() async throws {
+        _ = try await client.api_v1_auth_email_verification_resend_create().ok.body.json
     }
 }

@@ -1,6 +1,18 @@
 # Phase notes
 
-## A1 Sign-in — implementation checkpoint (2026-10-16)
+## UX/onboarding — implementation checkpoint (2026-10-16)
+
+Pin Design `3c615991b40204b74b66f34605ae9364837fbc35`. Add a short optional introduction, installation-scoped skip/completion and Profile replay, static exact stacked/symbol masters at their minimum sizes, native motion generated from the shared JSON, zero custom motion under Reduce Motion, and one licensed Unbounded accent phrase. Body text remains native system type; include the accent font's SIL license and conversion provenance.
+
+Use one native password text input so visibility retains value, selection, focus and autofill. Give current/new/confirmation fields distinct VoiceOver labels, semantic placeholders, multiline announced errors, 48pt actions and bounded phone/tablet forms. Config failures offer retry without guessed methods. Add sign-out confirmation and account/server-scoped makerspace selection preferences.
+
+Add generated account signup, forgot/reset password and authenticated email confirm/resend. Signup/reset acknowledgements never create a session. Reset rejects every server failure with the same copy, with independent local password validation. Shared server/task deadlines survive form dismissal, email editing and reopen; resend waits at least60s or longer Retry-After. Temporary-password completion re-fetches account authority before opening tabs. Unverified email alone does not invent a restricted native session; Profile offers actual verification actions.
+
+Debug provider previews use official Google/Apple controls with injected local actions; no provider credentials/checkout/push/API calls occur. Phone preview has send/code steps, country selection, resend/cooldown, change number, invalid/expired codes and cancellation. Account creation/recovery preview shares the same native form state with isolated closures.
+
+Parity: Make room. / Borrow with confidence. / One place for your making.; Skip introduction, Next, Get started; Connect to your makerspace / Server address / Connect; Welcome back. / Sign in to your makerspace account.; Create your account / Account created; Reset password / Enter your recovery code / Password updated; Confirm your email; Check your authenticator / Add extra security; all five member destinations. Backend-deferred native providers remain closed in production. Local14 Python checks/lint pass; new native/network/UI tests remain gated on macOS CI before this checkpoint is complete. Landscape evidence uses full-screen capture plus a real landscape frame assertion to avoid cropped app-screenshot orientation artifacts.
+
+## A1 Sign-in — complete (2026-10-16)
 
 Add generated password/attestation, `/auth/me`, configuration, native MFA verify/enroll/confirm and
 logout operations. Store the whole token pair in a server-scoped, non-synchronizing, device-only
@@ -14,6 +26,8 @@ The native flow includes password visibility, MFA enrollment QR/manual secret, r
 acknowledgement, makerspace selection, profile/sign-out, constrained forms, iPad sidebar and phone
 tabs, portrait/landscape and semantic light/dark styling. CI is the compiler; this phase is not
 complete until its new auth/network/UI tests pass. Local generation's six tests and source lint pass.
+
+Completion evidence: [`f7f414e` CI38927362309](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38927362309) passed phone and iPad simulator builds with40 XCTest cases and5 main UI journeys each,10 Python generation/matrix checks, and the unsigned physical-device Release build. The actual Keychain round trip remains enabled and passes. These are contract-fixture/compiler results; real App Attest/provider/APNs/payment and owner-backend verification remain release gates.
 
 Parity: Email or username, Password, Sign in; Verify your sign-in / Set up two-step sign-in;
 Authenticator or recovery code, Verify, Back to sign in; I saved my codes. Continue;

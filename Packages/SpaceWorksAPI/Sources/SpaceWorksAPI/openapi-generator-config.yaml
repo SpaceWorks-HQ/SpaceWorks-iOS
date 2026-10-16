@@ -15,3 +15,8 @@ filter:
     - api_v1_auth_mfa_confirm_create
     - api_v1_config_retrieve
     - api_v1_auth_change_password_create
+    - api_v1_auth_member_sign_up_create
+    - api_v1_auth_forgot_password_create
+    - api_v1_auth_reset_password_create
+    - api_v1_auth_email_verification_confirm_create
+    - api_v1_auth_email_verification_resend_create

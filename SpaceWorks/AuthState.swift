@@ -24,6 +24,7 @@ final class AuthState {
     private let storage: any TokenStorage
     private var restored = false
     private var mfaExpires: Date?
+    private let serverScope: String
 
     init(origin: ServerOrigin, session: URLSession = DeploymentSession.make(), settings: UserDefaults = .standard,
          storage: (any TokenStorage)? = nil,
@@ -32,6 +33,7 @@ final class AuthState {
         self.storage = storage
         self.attest = attest
         self.settings = settings
+        self.serverScope = origin.url.absoluteString
         var pair: TokenPair?
         var storageError: String?
         do { pair = try storage.load() } catch { storageError = APIError.display(error) }
@@ -45,14 +47,37 @@ final class AuthState {
     var selectedMembership: Components.Schemas.AuthMembership? { memberships.first { $0.id == selectedID } }
     var displayName: String { user?.display_name.isEmpty == false ? user!.display_name : user?.username ?? "" }
     var passwordEnabled: Bool {
+        guard configuration != nil else { return false }
+        return configFlag("password_login")
+    }
+    var signupEnabled: Bool { configuration != nil && configFlag("member_accounts") && configFlag("self_registration") }
+    private func configFlag(_ key: String) -> Bool {
         guard let configuration, let data = try? JSONEncoder().encode(configuration),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let login = object["password_login"] as? [String: Any] else { return true }
+              let login = object[key] as? [String: Any] else { return true }
         // PublicConfig's extensible object; same documented switch consumed by MemberAuthPanel.
         return login["enabled"] as? Bool != false
     }
     // Fail closed until the schema supplies native_staff authority (backend 1a).
     var staffToolsAvailable: Bool { false }
+    private var selectionKey: String { "makerspace-selection.\(serverScope).\(user?.id ?? 0)" }
+    func retryRestore() async {
+        guard !busy else { return }
+        busy = true; defer { busy = false }
+        restored = false; error = nil; await restore()
+    }
+    func accountForm(_ step: AccountAccessState.Step) -> AccountAccessState {
+        let service = service
+        let task = step == .signUp ? "signup" : step == .emailVerification ? "email" : "password-recovery"
+        let form = AccountAccessState(step: step, cooldown: AccountAccessCooldown.scoped(serverScope + "." + task),
+            create: { try await service.createAccount(name: $0, email: $1, password: $2, phone: $3) },
+            request: { try await service.requestPasswordReset(email: $0) },
+            reset: { try await service.resetPassword(email: $0, code: $1, new: $2) },
+            verify: { [weak self] code in try await service.confirmEmail(code: code); await self?.foreground() },
+            resendVerification: { try await service.resendEmailVerification() })
+        form.email = user?.email ?? username
+        return form
+    }
 
     func restore() async {
         guard !restored else { return }
@@ -123,7 +148,7 @@ final class AuthState {
         do {
             try await service.makerspace.select(id, activeMemberships: Set(memberships.map(\.id)))
             selectedID = id
-            settings.set(id, forKey: "makerspace-selection")
+            settings.set(id, forKey: selectionKey)
         } catch { fail(error) }
     }
     func foreground() async {
@@ -157,11 +182,12 @@ final class AuthState {
         defer { busy = false }
         do {
             try await service.changePassword(current: current, new: new)
-            try? await service.signOut()
-            try await service.refresh.install(nil)
-            await clear()
-            error = "Password updated. Sign in again."
-        } catch { fail(error) }
+            try await loadIdentity()
+            if stage == .passwordChange { error = "Your account still requires a password update. Try again or contact your makerspace." }
+        } catch {
+            fail(error)
+            if isUnauthorized(error) { try? await service.refresh.install(nil); await clear() }
+        }
     }
     private func accept(_ pair: TokenPair) async throws {
         guard !pair.access.isEmpty, !pair.refresh.isEmpty else {
@@ -182,7 +208,7 @@ final class AuthState {
         }
         user = identity
         let ids = Set(memberships.map(\.id))
-        let saved = selectedID ?? settings.object(forKey: "makerspace-selection") as? Int
+        let saved = selectedID ?? settings.object(forKey: selectionKey) as? Int
         let selection = saved.flatMap { ids.contains($0) ? $0 : nil } ?? (memberships.count == 1 ? memberships.first?.id : nil)
         try await service.makerspace.select(selection, activeMemberships: ids)
         selectedID = selection
@@ -190,8 +216,9 @@ final class AuthState {
     }
     private func clear() async {
         try? await service.makerspace.select(nil, activeMemberships: [])
+        settings.removeObject(forKey: selectionKey)
         user = nil; selectedID = nil; mfa = nil; enrollment = nil; recoveryCodes = []
-        password = ""; code = ""; settings.removeObject(forKey: "makerspace-selection"); stage = .signIn
+        password = ""; code = ""; stage = .signIn
     }
     private func fail(_ failure: Error) {
         guard !(failure is CancellationError) else { return }

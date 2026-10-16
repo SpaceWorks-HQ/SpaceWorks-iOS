@@ -8,6 +8,7 @@ next independent phase. The owner merges the final `dev` → `main` PR.
 | Phase | Deliverable | Gate |
 |---|---|---|
 | A1 | Device password/attestation, MFA, atomic Keychain rotation, restore/logout, direct-membership switcher | Native provider configuration, authority and missing social contracts become backend requests |
+| UX/onboarding | Optional introduction/replay, shared motion, native password focus/autofill, signup/recovery/email, all provider demo branches | A1 green; generated supported operations and real phone/tablet screenshots |
 | A2 | Dashboard, inventory/search/detail, requests/loans, bookings/events, card, inbox | Authenticated generated client and validated makerspace |
 | A3 | Hardware requests, renewal, booking, registration/ticket, profile/preferences | Server-confirmed write results; no local availability or permission calculation |
 | A4 | APNs registration and validated in-app routing | Push v2 contract/server link files and owner APNs provisioning |
@@ -29,3 +30,8 @@ on a simulator.
 The owner subsequently deferred the app backend and requested complete flow/UI coverage now.
 Unsupported planned features will have explicit DEBUG-only in-memory demo journeys and production
 integration seams; they will not invent endpoints, bypass authority or claim server verification.
+
+The owner's additional UX checkpoint implements the pinned Design `docs/mobile-auth-ux-spec.md`
+and `tokens/mobile-motion.json`. Master artwork stays static; sibling content honors Reduce Motion.
+Native email verification is an authenticated Profile action. `email_verified=false` alone is not
+an invented restricted-session authority; access-only `verification_only` results never enter the app.

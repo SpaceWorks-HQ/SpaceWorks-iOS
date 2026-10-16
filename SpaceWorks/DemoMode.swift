@@ -56,7 +56,7 @@ struct DemoRoot: View {
             HStack {
                 Text("Demo mode · sample data").font(.caption.bold())
                 Spacer()
-                Button("Exit demo") { session.reset(); exit() }.frame(minHeight: 44)
+                Button("Exit demo") { session.reset(); exit() }.frame(minHeight: 48)
             }.padding(.horizontal, 20).foregroundStyle(Color.swOnEmphasis).background(Color.swEmphasis)
             if session.stage == .shell { DemoShell(session: session) }
             else { DemoAuthView(session: session) }
@@ -66,8 +66,9 @@ struct DemoRoot: View {
 
 struct DemoAuthView: View {
     @Bindable var session: DemoSession
-    @FocusState private var passwordFocused: Bool
+    @State private var passwordFocused = false
     @State private var provider: DemoProvider?
+    @State private var accountForm: AccountAccessState?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -84,27 +85,30 @@ struct DemoAuthView: View {
                     case .signIn:
                         Text("Welcome back.").font(.largeTitle.bold())
                         Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
-                        ForEach(DemoProvider.allCases.filter { $0 != .phone || session.role == .member }) { choice in
+                        GeometryReader { geometry in
+                            GoogleProviderButton(wide: geometry.size.width >= 312) { provider = .google }
+                        }.frame(height: 48)
+                        AppleProviderButton { provider = .apple }.frame(height: 48)
+                        ForEach(DemoProvider.allCases.filter { $0 == .organization || ($0 == .phone && session.role == .member) }) { choice in
                             Button("Continue with \(choice.rawValue)") { provider = choice }
                                 .frame(maxWidth: .infinity, minHeight: 48)
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
                         }
                         Text("or with your email").font(.caption).foregroundStyle(Color.swMuted)
                         Text("Email or username").font(.headline)
-                        TextField("Email or username", text: $session.username).textInputAutocapitalization(.never)
+                        TextField("Email or username", text: $session.username, prompt: Text("Email or username").foregroundColor(Color.swMuted)).textInputAutocapitalization(.never)
                             .autocorrectionDisabled().submitLabel(.next).onSubmit { passwordFocused = true }
                             .demoField().accessibilityIdentifier("demo-username")
-                        Text("Password").font(.headline)
-                        SecureField("Password", text: $session.password).focused($passwordFocused)
-                            .submitLabel(.done).onSubmit { passwordFocused = false }
-                            .demoField().accessibilityIdentifier("demo-password")
+                        PasswordControl(title: "Password", text: $session.password, identifier: "demo-password", focus: $passwordFocused)
                         Text("Use any email and password in this demo.").font(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Button("Sign in") { session.signIn() }.buttonStyle(SWPrimary()).accessibilityIdentifier("demo-sign-in")
                                 .disabled((session.retryAfter ?? .distantPast) > context.date)
                         }
-                        Button("Back") { session.reset() }.frame(minHeight: 44)
+                        Button("Forgot password?") { accountForm = demoAccountForm(.requestReset) }.frame(minHeight: 48)
+                        Button("Create account") { accountForm = demoAccountForm(.signUp) }.frame(minHeight: 48)
+                        Button("Back") { session.reset() }.frame(minHeight: 48)
                     case .mfa:
                         Text(session.scenario == .enrollment ? "Set up two-step sign-in" : "Verify your sign-in").font(.largeTitle.bold())
                         if session.scenario == .enrollment {
@@ -118,7 +122,7 @@ struct DemoAuthView: View {
                         Text("Use 123456 or sample-recovery in this demo.").font(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
                         Button("Verify") { session.verify() }.buttonStyle(SWPrimary())
-                        Button("Back to sign in") { session.stage = .signIn; session.error = nil }.frame(minHeight: 44)
+                        Button("Back to sign in") { session.stage = .signIn; session.error = nil }.frame(minHeight: 48)
                     case .recovery:
                         Text("Save your recovery codes").font(.largeTitle.bold())
                         Text("Sample codes for this demo. Real codes appear once after enrollment.").foregroundStyle(Color.swMuted)
@@ -145,15 +149,19 @@ struct DemoAuthView: View {
             }.padding(24).frame(maxWidth: 600).frame(maxWidth: .infinity)
         }.background(Color.swBg).scrollDismissesKeyboard(.interactively)
             .sheet(item: $provider) { DemoProviderView(session: session, provider: $0) }
+            .sheet(item: $accountForm) { form in AccountAccessView(form: form) { session.username = form.email; accountForm = nil } }
+    }
+    private func demoAccountForm(_ step: AccountAccessState.Step) -> AccountAccessState {
+        AccountAccessState(step: step, create: { _, _, _, _ in }, request: { _ in }, reset: { _, code, _ in
+            if code != "123456" { throw NSError(domain: "DemoReset", code: 1) }
+        })
     }
 }
 struct DemoProviderView: View {
     let session: DemoSession
     let provider: DemoProvider
     @Environment(\.dismiss) private var dismiss
-    @State private var phone = ""
-    @State private var code = ""
-    @State private var error: String?
+    @State private var state = DemoProviderState()
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -161,21 +169,36 @@ struct DemoProviderView: View {
                     Text("Continue with \(provider.rawValue)").font(.largeTitle.bold())
                     Text("Demo only. No provider account is connected and no message is sent.").foregroundStyle(Color.swMuted)
                     if provider == .phone {
-                        Text("Phone number").font(.headline)
-                        TextField("Phone number", text: $phone).textContentType(.telephoneNumber).keyboardType(.phonePad).demoField()
-                        Text("Verification code").font(.headline)
-                        TextField("Verification code", text: $code).textContentType(.oneTimeCode).demoField()
-                        Text("Use 123456 in this demo.").font(.caption).foregroundStyle(Color.swMuted)
+                        if state.step == .phone {
+                            Text("We'll send a verification code.").foregroundStyle(Color.swMuted)
+                            Picker("Country code", selection: $state.country) { Text("India +91").tag("+91"); Text("United States +1").tag("+1"); Text("United Kingdom +44").tag("+44") }.frame(minHeight: 48)
+                            Text("Phone number").font(.headline)
+                            TextField("Phone number", text: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad).demoField()
+                            Button("Send verification code") { state.sendCode() }.buttonStyle(SWPrimary())
+                                .disabled(state.resendAfter > Date())
+                        } else {
+                            Text("Enter your verification code").font(.title2.bold())
+                            Text(state.country + " " + state.phone).foregroundStyle(Color.swMuted)
+                            TextField("Verification code", text: $state.code).textContentType(.oneTimeCode).demoField()
+                            Text("Use 123456 in this demo. No message was sent.").font(.caption).foregroundStyle(Color.swMuted)
+                            TimelineView(.periodic(from: .now, by: 1)) { tick in
+                                Button(tick.date < state.resendAfter ? "Resend in \(max(1, Int(ceil(state.resendAfter.timeIntervalSince(tick.date)))))s" : "Send another code") { state.sendCode() }
+                                    .frame(minHeight: 48).disabled(tick.date < state.resendAfter)
+                            }
+                            Button("Change number") { state.changeNumber() }.frame(minHeight: 48)
+                        }
                     } else {
                         Label(session.name, systemImage: "person.crop.circle").font(.title2)
                     }
-                    if let error { SWError(message: error) }
-                    Button("Continue demo account") {
-                        if provider == .phone && (phone.isEmpty || code != "123456") { error = "Enter a phone number and the demo code 123456."; return }
-                        session.acceptDemoProvider(); dismiss()
-                    }.buttonStyle(SWPrimary())
+                    Picker("Preview result", selection: $state.outcome) { ForEach(DemoProviderState.Outcome.allCases, id: \.self) { Text($0.rawValue) } }
+                    if let error = state.error { SWError(message: error) }
+                    if provider != .phone || state.step == .code {
+                        Button(provider == .phone ? "Verify" : "Continue demo account") {
+                            if state.complete(phone: provider == .phone) { session.acceptDemoProvider(); dismiss() }
+                        }.buttonStyle(SWPrimary())
+                    }
                 }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
-            }.background(Color.swBg).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.frame(minHeight: 44) } }
+            }.background(Color.swBg).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.frame(minHeight: 48) } }
         }
     }
 }
@@ -188,7 +211,7 @@ struct DemoShell: View {
         if sizeClass == .regular {
             NavigationSplitView {
                 List(AppTab.allCases) { tab in
-                    Button(tab.rawValue) { selected = tab }.frame(minHeight: 44).accessibilityIdentifier("nav-\(tab.rawValue)")
+                    Button(tab.rawValue) { selected = tab }.frame(minHeight: 48).accessibilityIdentifier("nav-\(tab.rawValue)")
                         .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
                         .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
                 }.scrollContentBackground(.hidden).background(Color.swSidebar).navigationTitle(Brand.appName)
@@ -214,7 +237,7 @@ struct DemoDestination: View {
                 SWCard {
                     if tab == .profile {
                         Text(session.role.rawValue).font(.headline)
-                        Button("Sign out") { session.reset() }.frame(minHeight: 44)
+                        Button("Sign out") { session.reset() }.frame(minHeight: 48)
                     } else { Text("Nothing here yet.") }
                 }
             }.padding(24).frame(maxWidth: 960).frame(maxWidth: .infinity)

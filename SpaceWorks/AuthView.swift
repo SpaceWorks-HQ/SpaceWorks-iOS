@@ -1,6 +1,7 @@
 import SwiftUI
 import SpaceWorksAPI
 import CoreImage.CIFilterBuiltins
+import UniformTypeIdentifiers
 
 struct AuthRoot: View {
     let state: AppState
@@ -36,18 +37,15 @@ struct PasswordChangeView: View {
         ScrollView {
             SWCard {
                 Text("Choose a new password").font(.largeTitle.bold())
-                Text("Update your temporary password before opening your makerspace.").foregroundStyle(Color.swMuted)
-                Text("Current password").font(.headline)
-                SecureField("Current password", text: $current).textContentType(.password).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
-                Text("New password").font(.headline)
-                SecureField("New password", text: $new).textContentType(.newPassword).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
-                Text("Confirm new password").font(.headline)
-                SecureField("Confirm new password", text: $confirmation).textContentType(.newPassword).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
+                Text("Replace your temporary password to continue.").foregroundStyle(Color.swMuted)
+                PasswordControl(title: "Current password", text: $current, identifier: "current-password")
+                PasswordControl(title: "New password", text: $new, newPassword: true, identifier: "new-password")
+                PasswordControl(title: "Confirm password", text: $confirmation, newPassword: true, identifier: "confirm-password")
                 if let error = auth.error { SWError(message: error) }
                 Button(auth.busy ? "Updating…" : "Update password") {
                     Task { await auth.changePassword(current: current, new: new, confirmation: confirmation); current = ""; new = ""; confirmation = "" }
                 }.buttonStyle(SWPrimary()).disabled(auth.busy)
-                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 44).disabled(auth.busy)
+                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 48).disabled(auth.busy)
             }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
         }.background(Color.swBg)
     }
@@ -65,9 +63,11 @@ struct SWCard<Content: View>: View {
 struct SWError: View {
     let message: String
     var body: some View {
-        Label(message, systemImage: "exclamationmark.circle.fill")
+        Label { Text(message).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "exclamationmark.circle.fill") }
             .foregroundStyle(Color.swDanger).accessibilityIdentifier("auth-error")
             .accessibilityAddTraits(.updatesFrequently)
+            .onAppear { UIAccessibility.post(notification: .announcement, argument: message) }
+            .onChange(of: message) { _, value in UIAccessibility.post(notification: .announcement, argument: value) }
     }
 }
 struct SWPrimary: ButtonStyle {
@@ -81,52 +81,58 @@ struct SignInView: View {
     @Bindable var auth: AuthState
     let state: AppState
     @State private var showPassword = false
-    @FocusState private var passwordFocused: Bool
+    @State private var passwordFocused = false
+    @State private var accountForm: AccountAccessState?
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
                 HStack(alignment: .center, spacing: 40) {
                     VStack(alignment: .leading, spacing: 24) {
-                        BrandWordmark()
+                        BrandWordmark(compact: geometry.size.height < 600)
                         Text("Welcome back.").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                        Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
+                        Text("Sign in to your makerspace account.").foregroundStyle(Color.swMuted)
                         SWCard {
                             Text("Sign in").font(.title2.bold())
-                            if !auth.passwordEnabled {
-                                Text("This deployment signs in through an identity provider. Ask your makerspace to enable native sign-in.")
-                                    .foregroundStyle(Color.swMuted)
+                            if auth.configuration == nil {
+                                Text("Couldn't load sign-in options. Try again.").foregroundStyle(Color.swMuted)
+                                if let error = auth.error { SWError(message: error) }
+                                Button("Try again") { Task { await auth.retryRestore() } }.buttonStyle(SWPrimary())
+                            } else if !auth.passwordEnabled {
+                                Text("Sign-in isn't available here").font(.headline)
+                                Text("Ask your makerspace for help, or check the server address.").foregroundStyle(Color.swMuted)
                             } else {
                             field("Email or username") {
-                                TextField("Email or username", text: $auth.username).textContentType(.username)
+                                TextField("Email or username", text: $auth.username,
+                                          prompt: Text("Email or username").foregroundColor(Color.swMuted)).textContentType(.username)
                                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                                     .submitLabel(.next).onSubmit { passwordFocused = true }.accessibilityIdentifier("username")
                             }
                             field("Password") {
                                 HStack {
-                                    Group {
-                                        if showPassword { TextField("Password", text: $auth.password) }
-                                        else { SecureField("Password", text: $auth.password) }
-                                    }.textContentType(.password).focused($passwordFocused).submitLabel(.done)
-                                        .onSubmit { passwordFocused = false }.accessibilityIdentifier("password")
+                                    PasswordEntry(text: $auth.password, visible: showPassword, identifier: "password", focus: $passwordFocused)
                                     Button { showPassword.toggle() } label: { Image(systemName: showPassword ? "eye.slash" : "eye") }
-                                        .accessibilityLabel(showPassword ? "Hide password" : "Show password").frame(minWidth: 44, minHeight: 44)
+                                        .accessibilityLabel(showPassword ? "Hide password" : "Show password").frame(minWidth: 48, minHeight: 48)
                                 }
                             }
+                            Button("Forgot password?") { accountForm = auth.accountForm(.requestReset) }.frame(minHeight: 48)
                             if let error = auth.error { SWError(message: error) }
                             TimelineView(.periodic(from: .now, by: 1)) { context in
                                 Button(auth.busy ? "Signing in…" : "Sign in") { Task { await auth.signIn() } }
                                     .buttonStyle(SWPrimary()).disabled(auth.busy || (auth.retryAfter ?? .distantPast) > context.date)
                                     .accessibilityIdentifier("sign-in")
                             }
+                            if auth.signupEnabled {
+                                HStack { Text("New here?").foregroundStyle(Color.swMuted); Button("Create account") { accountForm = auth.accountForm(.signUp) }.frame(minHeight: 48) }
+                            }
                             }
                         }.disabled(auth.busy)
-                        if !state.locked { Button("Change server") { state.changeServer() }.frame(minHeight: 44).disabled(auth.busy) }
+                        if !state.locked { Button("Change server") { state.changeServer() }.frame(minHeight: 48).disabled(auth.busy) }
                     }.frame(maxWidth: 460)
-                    if geometry.size.width >= 900 && !typeSize.isAccessibilitySize {
+                    if geometry.size.width >= 960 && geometry.size.height >= 600 && !typeSize.isAccessibilitySize {
                         VStack(alignment: .leading, spacing: 24) {
-                            Image(systemName: "wrench.and.screwdriver").font(.system(size: 64)).foregroundStyle(Color.swInk)
-                            Text("Less searching.\nMore making.").font(.largeTitle.bold())
+                            BrandWordmark(spacious: true)
+                            Text("Less searching.\nMore making.").font(.custom("Unbounded-Regular", size: 24, relativeTo: .title2).weight(.medium))
                             Text("Borrow hardware. Make room for your next idea.").font(.title3)
                         }.padding(40).frame(maxWidth: 460, minHeight: 460, alignment: .leading)
                             .background(Color.swSuccess, in: RoundedRectangle(cornerRadius: 28)).foregroundStyle(Color.swOnSuccess)
@@ -135,6 +141,7 @@ struct SignInView: View {
                 }.padding(24).frame(maxWidth: .infinity, minHeight: geometry.size.height)
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively)
         }
+        .sheet(item: $accountForm) { form in AccountAccessView(form: form) { auth.username = form.email; accountForm = nil } }
     }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -147,16 +154,27 @@ struct SignInView: View {
 }
 
 struct BrandWordmark: View {
+    var compact = false
+    var spacious = false
+    @Environment(\.verticalSizeClass) private var verticalSize
+    @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         if Brand.appName == "Space Works" {
-            Image("Wordmark").resizable().scaledToFit().frame(maxWidth: 180, maxHeight: 64)
-                .padding(.vertical, 16).accessibilityLabel("Space Works")
+            if compact || verticalSize == .compact || typeSize.isAccessibilitySize {
+                Image("BrandSymbol").resizable().scaledToFit().frame(width: 52, height: 48)
+                    .padding(12).accessibilityLabel("Space Works")
+            } else {
+                Image("BrandStacked").resizable().scaledToFit().frame(width: spacious ? 280 : 180, height: spacious ? 100 : 64)
+                    .padding(16).accessibilityLabel("Space Works")
+            }
         } else { Text(Brand.appName).font(.headline).foregroundStyle(Color.swAccentInk) }
     }
 }
 
 struct MFAView: View {
     @Bindable var auth: AuthState
+    @State private var recoveryEntry = false
+    @State private var codesSaved = false
     var body: some View {
         ScrollView {
             SWCard {
@@ -164,25 +182,34 @@ struct MFAView: View {
                 if auth.stage == .recoveryCodes {
                     Text("Save your recovery codes").font(.largeTitle.bold())
                     Text("Keep these somewhere safe. Each code works once.").foregroundStyle(Color.swMuted)
-                    ForEach(auth.recoveryCodes, id: \.self) { Text($0).font(.body.monospaced()).textSelection(.enabled) }
-                    Button("I saved my codes. Continue") { auth.confirmRecoveryCodes() }.buttonStyle(SWPrimary())
+                    ForEach(auth.recoveryCodes, id: \.self) { Text($0).monospacedDigit().textSelection(.enabled) }
+                    Toggle("I've saved my recovery codes", isOn: $codesSaved).frame(minHeight: 48)
+                    Button("Continue") { auth.confirmRecoveryCodes() }.buttonStyle(SWPrimary()).disabled(!codesSaved)
                 } else {
-                    Text(auth.mfa?.enrollment_required == true ? "Set up two-step sign-in" : "Verify your sign-in").font(.largeTitle.bold())
+                    Text(auth.mfa?.enrollment_required == true ? "Add extra security" : "Check your authenticator").font(.largeTitle.bold())
                     if let enrollment = auth.enrollment {
-                        Text("Add this account to your authenticator app.").foregroundStyle(Color.swMuted)
+                        Text("Add this account to your authenticator app, then enter its six-digit code.").foregroundStyle(Color.swMuted)
                         QRCodeView(value: enrollment.provisioning_uri)
-                        Text("Can't scan? Enter this key").font(.headline)
-                        Text(enrollment.secret).font(.body.monospaced()).textSelection(.enabled)
+                        DisclosureGroup("Can't scan the code?") {
+                            Text(enrollment.secret).monospacedDigit().textSelection(.enabled)
+                            Button("Copy setup key") { UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: enrollment.secret]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)]) }.frame(minHeight: 48)
+                        }
+                    } else {
+                        Text(recoveryEntry ? "Enter one of your saved recovery codes." : "Enter the six-digit code from your authenticator app.").foregroundStyle(Color.swMuted)
                     }
-                    Text("Authenticator or recovery code").font(.headline)
-                    TextField("Authenticator or recovery code", text: $auth.code).textContentType(.oneTimeCode)
+                    Text(recoveryEntry ? "Recovery code" : "Authentication code").font(.headline)
+                    TextField(recoveryEntry ? "Recovery code" : "Authentication code", text: $auth.code,
+                              prompt: Text(recoveryEntry ? "Recovery code" : "Authentication code").foregroundColor(Color.swMuted))
                         .textInputAutocapitalization(.never).autocorrectionDisabled().padding(16)
                         .background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier("mfa-code")
                     if let error = auth.error { SWError(message: error) }
                     Button(auth.busy ? "Verifying…" : "Verify") { Task { await auth.verify() } }
                         .buttonStyle(SWPrimary()).disabled(auth.busy).accessibilityIdentifier("verify")
-                    Button("Back to sign in") { auth.backToSignIn() }.frame(minHeight: 44).disabled(auth.busy)
+                    if auth.enrollment == nil {
+                        Button(recoveryEntry ? "Use authenticator code" : "Use a recovery code") { recoveryEntry.toggle(); auth.code = "" }.frame(minHeight: 48).disabled(auth.busy)
+                    }
+                    Button("Back to sign in") { auth.backToSignIn() }.frame(minHeight: 48).disabled(auth.busy)
                 }
             }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
         }.background(Color.swBg)
@@ -222,7 +249,7 @@ struct MakerspacePicker: View {
                     }.buttonStyle(.plain).accessibilityIdentifier("makerspace-\(membership.id)")
                 }
                 if let error = auth.error { SWError(message: error) }
-                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 44)
+                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 48)
             }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg)
     }

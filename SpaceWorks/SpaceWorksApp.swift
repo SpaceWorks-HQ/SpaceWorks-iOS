@@ -5,11 +5,24 @@ import SpaceWorksAPI
 struct SpaceWorksApp: App {
     init() {
         NativeAppearance.apply()
+        if let saved = Brand.serverURL ?? UserDefaults.standard.string(forKey: "server-origin"),
+           let origin = try? ServerOrigin(saved), (try? TokenVault(origin: origin).load()) != nil {
+            // Upgrade an existing signed-in installation without inserting a tour into restoration.
+            UserDefaults.standard.set(true, forKey: "introduction-complete")
+        }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             UserDefaults.standard.removeObject(forKey: "server-origin")
             UserDefaults.standard.removeObject(forKey: "dark-mode")
             UserDefaults.standard.removeObject(forKey: "makerspace-selection")
+            for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix("makerspace-selection.") {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+            if ProcessInfo.processInfo.arguments.contains("--reset-introduction") {
+                UserDefaults.standard.set(false, forKey: "introduction-complete")
+            } else if !ProcessInfo.processInfo.arguments.contains("--introduction") {
+                UserDefaults.standard.set(true, forKey: "introduction-complete")
+            }
             if let origin = try? ServerOrigin("https://ui-test.spaceworks.invalid") { try? TokenVault(origin: origin).store(nil) }
         }
         #endif
@@ -61,6 +74,8 @@ final class PreviewHealthProtocol: URLProtocol {
             case "/api/v1/auth/me": body = DebugAuthFixtures.user
             case "/api/v1/auth/mfa/verify": body = "{\"access\":\"test-access\",\"refresh\":\"test-refresh\",\"device_grant\":\(DebugAuthFixtures.grant),\"surface\":\"member\",\"user\":\(DebugAuthFixtures.user)}"
             case "/api/v1/auth/device/logout": body = #"{"detail":"Signed out."}"#
+            case "/api/v1/auth/member-sign-up", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
+                 "/api/v1/auth/email-verification/confirm", "/api/v1/auth/email-verification/resend": body = #"{"detail":"Check your email."}"#
             default: body = #"{"status":"ok"}"#
             }
         }

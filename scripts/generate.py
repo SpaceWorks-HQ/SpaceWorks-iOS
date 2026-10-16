@@ -5,6 +5,7 @@ Run before xcodegen generate, and again automatically before app builds.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import pathlib
 import plistlib
@@ -53,6 +54,7 @@ def generate(raster=True):
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
         info["UISupportedInterfaceOrientations"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
         info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
+        info["UIAppFonts"] = ["Unbounded-Variable.ttf"]
         schemes = ["spaceworks"]
         google_scheme = brand.get("google_reversed_client_id")
         if google_scheme is not None:
@@ -94,6 +96,10 @@ def generate(raster=True):
             colors.append(entry)
         write(assets / f"{role}.colorset/Contents.json", json.dumps({"colors": colors, "info": {"author": "xcode", "version": 1}}, indent=2))
     write(ROOT / "SpaceWorks/Generated/Theme.swift", "// Generated from semantic tokens, both appearances.\nimport SwiftUI\nextension Color {\n" + "\n".join(declarations) + "\n}\n")
+    motion_spec = importlib.util.spec_from_file_location("spaceworks_motion", ROOT / "scripts/generate_motion.py")
+    motion_module = importlib.util.module_from_spec(motion_spec)
+    motion_spec.loader.exec_module(motion_module)
+    motion_module.generate_motion(ROOT)
     wordmark = assets / "Wordmark.imageset"
     wordmark.mkdir(parents=True, exist_ok=True)
     for name, master in [("light.png", "lockup-horizontal-one-colour-ink.png"), ("dark.png", "lockup-horizontal-reversed.png")]:
@@ -101,6 +107,14 @@ def generate(raster=True):
     write(wordmark / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
         {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
         "info": {"author": "xcode", "version": 1}}))
+    for asset, master in [("BrandStacked", "lockup-stacked"), ("BrandSymbol", "symbol")]:
+        target = assets / f"{asset}.imageset"
+        target.mkdir(parents=True, exist_ok=True)
+        for name, suffix in [("light.png", ""), ("dark.png", "-reversed")]:
+            shutil.copyfile(ROOT / "design/logo" / f"{master}{suffix}.png", target / name)
+        write(target / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
+            {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
+            "info": {"author": "xcode", "version": 1}}))
     icon = assets / "AppIcon.appiconset"
     icon.mkdir(parents=True, exist_ok=True)
     if raster:

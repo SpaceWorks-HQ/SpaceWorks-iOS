@@ -2,17 +2,22 @@ import SwiftUI
 
 struct RootView: View {
     @State private var state = AppState()
+    @AppStorage("introduction-complete") private var introComplete = false
     #if DEBUG
     @State private var exploringDemo = false
     #endif
     var body: some View {
         Group {
+            if !introComplete {
+                IntroductionView { introComplete = true }
+            } else {
             #if DEBUG
             if exploringDemo { DemoRoot { exploringDemo = false } }
             else { liveContent }
             #else
             liveContent
             #endif
+            }
         }
         .tint(Color.swAccentInk)
         .foregroundStyle(Color.swInk)
@@ -22,7 +27,7 @@ struct RootView: View {
                 Spacer()
                 Button(state.darkMode ? "Light mode" : "Dark mode") { state.toggleAppearance() }
                     .buttonStyle(.plain).foregroundStyle(Color.swAccentInk)
-                    .font(.body).frame(minHeight: 44).padding(.horizontal, 24)
+                    .font(.body).frame(minHeight: 48).padding(.horizontal, 24)
                     .accessibilityIdentifier("appearance")
             }.background(Color.swSurface)
         }
@@ -52,17 +57,18 @@ private struct ConnectView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Text(Brand.appName).font(.headline).foregroundStyle(Color.swMuted)
-                    Text("Connect to your Space Works server").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                    Text("Your makerspace will share its server URL with you.").foregroundStyle(Color.swMuted)
+                    BrandWordmark()
+                    Text("Connect to your makerspace").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("Enter the server address provided by your makerspace.").foregroundStyle(Color.swMuted)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Server URL").font(.headline)
-                        TextField("Server URL", text: $state.serverInput,
+                        Text("Server address").font(.headline)
+                        TextField("Server address", text: $state.serverInput,
                                   prompt: Text(verbatim: "https://spaceworks.example").foregroundColor(Color.swMuted))
                             .foregroundStyle(Color.swInk)
                             .textContentType(.URL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.swOutline))
-                            .accessibilityLabel("Server URL").accessibilityIdentifier("server-url")
+                            .accessibilityLabel("Server address").accessibilityIdentifier("server-url")
                             .disabled(state.locked || state.connecting)
                             .submitLabel(.go).onSubmit { Task { await state.connect() } }
                     }
@@ -112,7 +118,7 @@ struct AppShell: View {
             NavigationSplitView {
                 List(AppTab.allCases) { tab in
                     Button { selected = tab } label: {
-                        Text(tab.rawValue).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        Text(tab.rawValue).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                     }.buttonStyle(.plain).accessibilityIdentifier("nav-\(tab.rawValue)")
                         .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
                         .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
@@ -135,6 +141,9 @@ private struct MemberScreen: View {
     let state: AppState
     let auth: AuthState
     let tab: AppTab
+    @State private var accountForm: AccountAccessState?
+    @State private var replayIntro = false
+    @State private var confirmSignOut = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -147,7 +156,11 @@ private struct MemberScreen: View {
                         Text(auth.displayName).font(.title2.bold())
                         Text(auth.user?.email ?? "").foregroundStyle(Color.swMuted).textSelection(.enabled)
                         if let error = auth.error { SWError(message: error) }
-                        Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 44).disabled(auth.busy)
+                        if auth.user?.email_verified == false {
+                            Button("Confirm email") { accountForm = auth.accountForm(.emailVerification) }.frame(minHeight: 48)
+                        }
+                        Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
+                        Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
                     }
                 } else {
                     SWCard {
@@ -157,6 +170,12 @@ private struct MemberScreen: View {
                 }
             }.padding(24).frame(maxWidth: 960, alignment: .leading).frame(maxWidth: .infinity)
         }.background(Color.swBg).navigationTitle(tab.rawValue)
+        .sheet(item: $accountForm) { form in AccountAccessView(form: form) { accountForm = nil } }
+        .sheet(isPresented: $replayIntro) { IntroductionView { replayIntro = false } }
+        .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive) { Task { await auth.signOut() } }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("You'll need to sign in again to use this account.") }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

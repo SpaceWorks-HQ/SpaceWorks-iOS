@@ -172,21 +172,23 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
         auth.code = "123456"; await auth.verify()
         XCTAssertEqual(auth.stage, .signIn); XCTAssertEqual(auth.error, "Your sign-in expired. Try again.")
     }
-    func testTemporaryPasswordGateChangesPasswordThenWipesSession() async throws {
+    func testTemporaryPasswordGateRefetchesAuthorityBeforeOpeningApp() async throws {
         let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        var changed = false
         let auth = state(storage: storage) { request in
-            if request.url!.path.hasSuffix("/me") { return (200, DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true")) }
+            if request.url!.path.hasSuffix("/me") { return (200, changed ? DebugAuthFixtures.user : DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true")) }
             if request.url!.path.hasSuffix("/change-password") {
                 let body = try JSONSerialization.jsonObject(with: requestBody(request)) as! [String: String]
                 XCTAssertEqual(body, ["current_password": "temporary", "new_password": "replacement"])
+                changed = true
                 return (200, #"{"detail":"Updated."}"#)
             }
             return try self.response(request)
         }
         await auth.restore(); XCTAssertEqual(auth.stage, .passwordChange)
         await auth.changePassword(current: "temporary", new: "replacement", confirmation: "replacement")
-        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(try storage.load())
-        XCTAssertEqual(auth.error, "Password updated. Sign in again.")
+        XCTAssertEqual(auth.stage, .signedIn); XCTAssertNotNil(try storage.load())
+        XCTAssertNil(auth.error)
     }
     func testDemoBlockedStatesAreExplicitAndResettable() {
         let demo = DemoSession()
