@@ -1,0 +1,17 @@
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "public_token": "00000000-0000-0000-0000-000000000011",
+      "space_name": "Electronics workbench",
+      "timezone": "Asia/Kolkata",
+      "starts_at": "2026-10-20T09:00:00Z",
+      "ends_at": "2026-10-20T11:00:00Z",
+      "status": "confirmed",
+      "cancellation_cutoff_at": "2026-10-19T09:00:00Z",
+      "can_cancel": true
+    }
+  ]
+}

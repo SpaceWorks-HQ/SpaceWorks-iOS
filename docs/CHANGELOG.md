@@ -1,6 +1,37 @@
 # Phase notes
 
-## UX/onboarding — implementation checkpoint (2026-10-16)
+## A2 Member read flows — implementation checkpoint (2026-10-16)
+
+Add generated inventory/category/detail, activity, typed bookings, events/spaces, membership card and
+inbox operations. Scope every repository request to its selected makerspace before transport and
+again before a refresh retry; invalidate protected screen state before changing scope. Pagination
+validates origin and API namespace, follows the returned page number and deduplicates results.
+
+Home has loan/due/overdue summaries, bookings, events, notices and currency-preserving dues. Missing
+dues remain unavailable, never a fabricated zero. Inventory has search, category filters, pagination,
+borrowing terms and a regular-width list/detail layout. Phone tabs and iPad sidebar share the same
+destinations; readable dashboard cards adapt to width and accessibility text size. Inbox read actions
+refetch confirmed server state and unread badges. Cards clear QR content before loading and on any
+refusal; invalidation and request generations prevent late responses from restoring a revoked QR.
+
+The isolated Debug member repository uses synthetic generated DTO fixtures, with populated, empty,
+error and revoked-card scenarios. It has no network, token or server-setting writes. Contextual Home
+tips can be dismissed and replayed; live preference scope includes server, account and makerspace.
+Rendered tablet review also found a UIKit single-line password field stretching into spare vertical
+space. Give it an intrinsic fitting height that follows Dynamic Type, and assert its normal-size
+height in the existing focus/visibility journey.
+Add native file/photo/scanner support for later phases with bounded transfers, credential-free signed
+storage requests, QR camera fallback and metadata-stripping JPEG preparation. These helpers do not
+claim that later staff or payment flows are wired or live verified.
+
+Parity: Welcome back, {name}.; Active loans / Upcoming bookings / Events / Membership card / Notices;
+Search inventory / All categories / Borrowing terms; Requests / Loans / Bookings / Events;
+All / Unread / Mark all as read; Nothing here yet.; No items match these filters / Clear filters;
+No dues outstanding.; Dues are unavailable. Try again later. Local generation and source checks pass.
+Native generated-model, context-race, card-refusal, transfer/photo and member journey tests await
+the A2 macOS CI checkpoint before this phase is complete.
+
+## UX/onboarding — complete (2026-10-16)
 
 Pin Design `3c615991b40204b74b66f34605ae9364837fbc35`. Add a short optional introduction, installation-scoped skip/completion and Profile replay, static exact stacked/symbol masters at their minimum sizes, native motion generated from the shared JSON, zero custom motion under Reduce Motion, and one licensed Unbounded accent phrase. Body text remains native system type; include the accent font's SIL license and conversion provenance.
 
@@ -10,7 +41,9 @@ Add generated account signup, forgot/reset password and authenticated email conf
 
 Debug provider previews use official Google/Apple controls with injected local actions; no provider credentials/checkout/push/API calls occur. Phone preview has send/code steps, country selection, resend/cooldown, change number, invalid/expired codes and cancellation. Account creation/recovery preview shares the same native form state with isolated closures.
 
-Parity: Make room. / Borrow with confidence. / One place for your making.; Skip introduction, Next, Get started; Connect to your makerspace / Server address / Connect; Welcome back. / Sign in to your makerspace account.; Create your account / Account created; Reset password / Enter your recovery code / Password updated; Confirm your email; Check your authenticator / Add extra security; all five member destinations. Backend-deferred native providers remain closed in production. Local14 Python checks/lint pass; new native/network/UI tests remain gated on macOS CI before this checkpoint is complete. Landscape evidence uses full-screen capture plus a real landscape frame assertion to avoid cropped app-screenshot orientation artifacts.
+Parity: Make room. / Borrow with confidence. / One place for your making.; Skip introduction, Next, Get started; Connect to your makerspace / Server address / Connect; Welcome back. / Sign in to your makerspace account.; Create your account / Account created; Reset password / Enter your recovery code / Password updated; Confirm your email; Check your authenticator / Add extra security; all five member destinations. Backend-deferred native providers remain closed in production.
+
+Completion evidence: [`4b5dbff` CI38933144741](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38933144741) passes50 native XCTest cases and8 UI journeys on both phone and iPad,14 Python checks/lint, and the unsigned physical-device Release build. Tablet introduction, recovery, normal sign-in and largest-text dark landscape screenshots were rendered and reviewed. Landscape evidence uses full-screen capture plus a real landscape frame assertion to avoid cropped app-screenshot orientation artifacts. Review found the single-line password-height correction recorded in A2 above; its new regression assertion runs in that checkpoint.
 
 ## A1 Sign-in — complete (2026-10-16)
 
@@ -24,8 +57,8 @@ Debug simulators use the PRD's development proof. Apple provisioning remains an 
 
 The native flow includes password visibility, MFA enrollment QR/manual secret, recovery-code
 acknowledgement, makerspace selection, profile/sign-out, constrained forms, iPad sidebar and phone
-tabs, portrait/landscape and semantic light/dark styling. CI is the compiler; this phase is not
-complete until its new auth/network/UI tests pass. Local generation's six tests and source lint pass.
+tabs, portrait/landscape and semantic light/dark styling. CI supplies the native compiler and
+runtime evidence below.
 
 Completion evidence: [`f7f414e` CI38927362309](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38927362309) passed phone and iPad simulator builds with40 XCTest cases and5 main UI journeys each,10 Python generation/matrix checks, and the unsigned physical-device Release build. The actual Keychain round trip remains enabled and passes. These are contract-fixture/compiler results; real App Attest/provider/APNs/payment and owner-backend verification remain release gates.
 

@@ -12,6 +12,7 @@ struct SpaceWorksApp: App {
         }
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
+            PreviewMemberResponses.reset()
             UserDefaults.standard.removeObject(forKey: "server-origin")
             UserDefaults.standard.removeObject(forKey: "dark-mode")
             UserDefaults.standard.removeObject(forKey: "makerspace-selection")
@@ -66,6 +67,7 @@ final class PreviewHealthProtocol: URLProtocol {
         let code = failure ? 503 : 200
         let body: String
         if failure { body = #"{"detail":"Try again later.","code":"service_unavailable"}"# }
+        else if let member = PreviewMemberResponses.response(for: request) { body = member }
         else {
             switch path {
             case "/api/v1/config": body = DebugAuthFixtures.config
@@ -85,5 +87,51 @@ final class PreviewHealthProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
     override func stopLoading() {}
+}
+
+/// Test-only server state, separated from the interactive demo and absent from Release.
+private enum PreviewMemberResponses {
+    static let lock = NSLock()
+    static var readIDs = Set<Int>()
+    static func reset() { lock.lock(); readIDs = []; lock.unlock() }
+    static func response(for request: URLRequest) -> String? {
+        guard let url = request.url else { return nil }
+        let path = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if path.hasSuffix("inventory/categories") { return DebugMemberFixtures.categories }
+        if path.contains("/inventory/") {
+            return first(DebugMemberFixtures.inventory, id: Int(path.split(separator: "/").last ?? ""))
+        }
+        if path.hasSuffix("inventory") { return DebugMemberFixtures.inventory }
+        if path.hasSuffix("activity") { return DebugMemberFixtures.activity }
+        if path.hasSuffix("my-bookings") { return DebugMemberFixtures.bookings }
+        if path.hasSuffix("events") { return DebugMemberFixtures.events }
+        if path.contains("/events/") { return first(DebugMemberFixtures.events) }
+        if path.hasSuffix("spaces") { return DebugMemberFixtures.spaces }
+        if path.hasSuffix("member-card") { return DebugMemberFixtures.card }
+        guard path.contains("notifications/inbox/") else { return nil }
+        lock.lock(); defer { lock.unlock() }
+        var object = (try? JSONSerialization.jsonObject(with: Data(DebugMemberFixtures.inbox.utf8))) as? [String: Any] ?? [:]
+        var rows = object["results"] as? [[String: Any]] ?? []
+        if path.hasSuffix("read-all") {
+            readIDs.formUnion(rows.compactMap { $0["id"] as? Int }); return #"{"updated":2}"#
+        }
+        if path.hasSuffix("read"), let id = Int(path.split(separator: "/").dropLast().last ?? "") {
+            readIDs.insert(id)
+            var row = rows.first { $0["id"] as? Int == id } ?? [:]
+            row["read_at"] = "2026-10-16T10:00:00Z"; return json(row)
+        }
+        for index in rows.indices where readIDs.contains(rows[index]["id"] as? Int ?? 0) { rows[index]["read_at"] = "2026-10-16T10:00:00Z" }
+        let unread = rows.filter { $0["read_at"] is NSNull }
+        if path.hasSuffix("unread-count") { return json(["count": unread.count]) }
+        if URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.contains(where: { $0.name == "unread" && $0.value == "true" }) == true { rows = unread }
+        object["results"] = rows; object["count"] = rows.count
+        return json(object)
+    }
+    private static func first(_ fixture: String, id: Int? = nil) -> String {
+        let object = try? JSONSerialization.jsonObject(with: Data(fixture.utf8))
+        let rows = (object as? [[String: Any]]) ?? ((object as? [String: Any])?["results"] as? [[String: Any]]) ?? []
+        return json(rows.first(where: { id == nil || $0["id"] as? Int == id }) ?? [:])
+    }
+    private static func json(_ object: Any) -> String { String(decoding: (try? JSONSerialization.data(withJSONObject: object)) ?? Data("{}".utf8), as: UTF8.self) }
 }
 #endif

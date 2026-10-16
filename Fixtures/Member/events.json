@@ -1,0 +1,31 @@
+[
+  {
+    "registration_audience": "members",
+    "category": null,
+    "tags": [
+      "Workshop"
+    ],
+    "ticket_types": [],
+    "promo_codes_enabled": false,
+    "ticket_selection_required": false,
+    "public_token": "00000000-0000-0000-0000-000000000021",
+    "title": "Make your first circuit",
+    "description": "A friendly introduction to circuits, sensors and making things together. All materials included.",
+    "starts_at": "2026-10-20T09:00:00Z",
+    "ends_at": "2026-10-20T12:00:00Z",
+    "location": "Electronics studio",
+    "location_kind": "indoor",
+    "custom_form": null,
+    "capacity": 12,
+    "payment_amount": "0.00",
+    "currency": "INR",
+    "availability": "Available",
+    "registration_requires_approval": false,
+    "effective_registration_cutoff_at": null,
+    "registration_open": true,
+    "image_url": null,
+    "status": "published",
+    "organizers": [],
+    "series": null
+  }
+]

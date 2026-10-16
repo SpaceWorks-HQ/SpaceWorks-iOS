@@ -217,10 +217,11 @@ struct MFAView: View {
 }
 struct QRCodeView: View {
     let value: String
+    var label = "Authenticator setup QR code"
     var body: some View {
         if let image = image {
             Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxWidth: 240, maxHeight: 240)
-                .accessibilityLabel("Authenticator setup QR code")
+                .padding(12).background(Color.white).accessibilityLabel(label)
         }
     }
     private var image: UIImage? {

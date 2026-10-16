@@ -20,3 +20,16 @@ filter:
     - api_v1_auth_reset_password_create
     - api_v1_auth_email_verification_confirm_create
     - api_v1_auth_email_verification_resend_create
+    - api_v1_member_makerspaces_activity_retrieve
+    - api_v1_member_makerspaces_member_card_retrieve
+    - api_v1_notifications_inbox_retrieve
+    - api_v1_notifications_inbox_read_create
+    - api_v1_notifications_inbox_read_all_create
+    - api_v1_notifications_inbox_unread_count_retrieve
+    - api_v1_public_events_list
+    - api_v1_public_events_retrieve
+    - api_v1_public_inventory_list
+    - api_v1_public_inventory_retrieve
+    - api_v1_public_inventory_categories_list
+    - api_v1_public_my_bookings_retrieve
+    - api_v1_public_spaces_list

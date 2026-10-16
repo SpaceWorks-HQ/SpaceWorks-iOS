@@ -136,6 +136,7 @@ final class AppStateTests: XCTestCase {
                 for state in [layout.normal, layout.selected] {
                     try check(state.titleTextAttributes[.foregroundColor] as? UIColor, on: tabs.backgroundColor, traits: traits)
                     try check(state.iconColor, on: tabs.backgroundColor, traits: traits)
+                    try check(state.badgeTextAttributes[.foregroundColor] as? UIColor, on: state.badgeBackgroundColor, traits: traits)
                 }
             }
         }

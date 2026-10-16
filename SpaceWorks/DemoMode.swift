@@ -19,8 +19,17 @@ final class DemoSession {
     var error: String?
     var retryAfter: Date?
     var selectedSpace = 0
+    var memberScenario = DemoMemberRepository.Scenario.populated
     let spaces = ["Fab Lab Kochi", "Maker Space Bengaluru"]
     var name: String { role == .member ? "Meera Nair" : "Arjun Rao" }
+    init() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-testing") {
+            if arguments.contains("--demo-empty") { memberScenario = .empty }
+            if arguments.contains("--demo-error") { memberScenario = .offline }
+            if arguments.contains("--demo-revoked") { memberScenario = .revokedCard }
+        }
+    }
     func signIn() {
         guard !username.isEmpty, !password.isEmpty else { error = "Enter your email or username and password."; return }
         guard (retryAfter ?? .distantPast) <= Date() else { return }
@@ -58,7 +67,9 @@ struct DemoRoot: View {
                 Spacer()
                 Button("Exit demo") { session.reset(); exit() }.frame(minHeight: 48)
             }.padding(.horizontal, 20).foregroundStyle(Color.swOnEmphasis).background(Color.swEmphasis)
-            if session.stage == .shell { DemoShell(session: session) }
+            if session.stage == .shell {
+                DemoShell(session: session).id("\(session.role.rawValue).\(session.selectedSpace).\(session.memberScenario.rawValue)")
+            }
             else { DemoAuthView(session: session) }
         }.background(Color.swBg)
     }
@@ -81,6 +92,7 @@ struct DemoAuthView: View {
                         Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text($0.rawValue) } }
                             .pickerStyle(.segmented).accessibilityIdentifier("demo-role")
                         Picker("Sign-in preview", selection: $session.scenario) { ForEach(DemoSession.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
+                        Picker("App data preview", selection: $session.memberScenario) { ForEach(DemoMemberRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
                         Button("Continue as \(session.role.rawValue.lowercased())") { session.stage = .signIn }.buttonStyle(SWPrimary())
                     case .signIn:
                         Text("Welcome back.").font(.largeTitle.bold())
@@ -152,7 +164,7 @@ struct DemoAuthView: View {
             .sheet(item: $accountForm) { form in AccountAccessView(form: form) { session.username = form.email; accountForm = nil } }
     }
     private func demoAccountForm(_ step: AccountAccessState.Step) -> AccountAccessState {
-        AccountAccessState(step: step, create: { _, _, _, _ in }, request: { _ in }, reset: { _, code, _ in
+        AccountAccessState(step: step, isDemo: true, create: { _, _, _, _ in }, request: { _ in }, reset: { _, code, _ in
             if code != "123456" { throw NSError(domain: "DemoReset", code: 1) }
         })
     }
@@ -167,7 +179,7 @@ struct DemoProviderView: View {
             ScrollView {
                 SWCard {
                     Text("Continue with \(provider.rawValue)").font(.largeTitle.bold())
-                    Text("Demo only. No provider account is connected and no message is sent.").foregroundStyle(Color.swMuted)
+                    Text("Demo mode. No provider account is connected and no message is sent.").foregroundStyle(Color.swMuted)
                     if provider == .phone {
                         if state.step == .phone {
                             Text("We'll send a verification code.").foregroundStyle(Color.swMuted)
@@ -205,9 +217,15 @@ struct DemoProviderView: View {
 
 struct DemoShell: View {
     let session: DemoSession
+    @State private var member: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selected = AppTab.home
+    init(session: DemoSession) {
+        self.session = session
+        _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name)))
+    }
     var body: some View {
+        VStack(spacing: 0) {
         if sizeClass == .regular {
             NavigationSplitView {
                 List(AppTab.allCases) { tab in
@@ -215,33 +233,46 @@ struct DemoShell: View {
                         .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
                         .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
                 }.scrollContentBackground(.hidden).background(Color.swSidebar).navigationTitle(Brand.appName)
-            } detail: { NavigationStack { DemoDestination(session: session, tab: selected) } }
+            } detail: { NavigationStack { DemoDestination(session: session, member: member, tab: selected) { selected = $0 } } }
         } else {
             TabView(selection: $selected) {
                 ForEach(AppTab.allCases) { tab in
-                    NavigationStack { DemoDestination(session: session, tab: tab) }
+                    NavigationStack { DemoDestination(session: session, member: member, tab: tab) { selected = $0 } }
                         .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
+                        .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
         }
+        }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
     }
 }
 struct DemoDestination: View {
     let session: DemoSession
+    let member: MemberState
     let tab: AppTab
+    let selectTab: (AppTab) -> Void
     var body: some View {
-        ScrollView {
+        Group {
+        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: selectTab) }
+        else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Welcome back, \(session.name).").font(.largeTitle.bold())
                 Text(session.spaces[session.selectedSpace]).foregroundStyle(Color.swMuted)
                 SWCard {
-                    if tab == .profile {
                         Text(session.role.rawValue).font(.headline)
+                        Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out") { session.reset() }.frame(minHeight: 48)
-                    } else { Text("Nothing here yet.") }
                 }
             }.padding(24).frame(maxWidth: 960).frame(maxWidth: .infinity)
+        } }
         }.background(Color.swBg).navigationTitle(tab.rawValue)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        ForEach(session.spaces.indices, id: \.self) { index in Button(session.spaces[index]) { session.selectedSpace = index } }
+                    } label: { Label(session.spaces[session.selectedSpace], systemImage: "building.2") }
+                }
+            }
     }
 }
 private extension View {

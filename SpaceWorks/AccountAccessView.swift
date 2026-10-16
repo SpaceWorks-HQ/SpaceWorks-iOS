@@ -8,6 +8,7 @@ struct AccountAccessView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 BrandWordmark()
+                if form.isDemo { Label("Demo mode · no account changes are made", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 SWCard {
                     Text(heading).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
                     Text(explanation).foregroundStyle(Color.swMuted)
@@ -68,6 +69,14 @@ struct AccountAccessView: View {
         }
     }
     private var explanation: String {
+        if form.isDemo {
+            switch form.step {
+            case .requestReset, .confirmReset: return "No message is sent in this demo. Use the sample recovery code 123456."
+            case .created: return "Simulated account creation. No account was created on a server."
+            case .resetComplete: return "Simulated password update. No real account was changed."
+            default: break
+            }
+        }
         switch form.step {
         case .signUp: return "Use the email you want to use with your makerspace."
         case .created: return "Sign in to continue. You may need to confirm your email."

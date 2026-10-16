@@ -120,6 +120,7 @@ final class MainFlowTests: XCTestCase {
     }
     func testPasswordVisibilityPreservesTextAndKeyboardFocus() {
         let app = launch(); connect(app)
+        XCTAssertLessThanOrEqual(app.secureTextFields["password"].frame.height, 80, "A single-line password field must not consume spare tablet height")
         app.textFields["username"].tap(); app.textFields["username"].typeText("maker\n")
         app.secureTextFields["password"].typeText("sample password")
         app.buttons["Show password"].tap()

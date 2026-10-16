@@ -30,6 +30,10 @@ enum NativeAppearance {
             layout.normal.titleTextAttributes = [.foregroundColor: color("muted")]
             layout.selected.iconColor = color("accent-ink")
             layout.selected.titleTextAttributes = [.foregroundColor: color("accent-ink")]
+            for state in [layout.normal, layout.selected] {
+                state.badgeBackgroundColor = color("danger")
+                state.badgeTextAttributes = [.foregroundColor: color("bg")]
+            }
         }
         return appearance
     }

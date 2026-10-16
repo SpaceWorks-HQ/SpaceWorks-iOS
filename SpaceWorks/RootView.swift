@@ -111,9 +111,30 @@ enum AppTab: String, CaseIterable, Identifiable {
 struct AppShell: View {
     let state: AppState
     let auth: AuthState
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    @State private var selected = AppTab.home
     var body: some View {
+        if let membership = auth.selectedMembership, let origin = state.connectedOrigin {
+            MemberWorkspace(state: state, auth: auth, origin: origin, id: membership.id, slug: membership.slug)
+                .id("\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(membership.id)")
+        }
+    }
+}
+
+private struct MemberWorkspace: View {
+    let state: AppState
+    let auth: AuthState
+    @State private var member: MemberState
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var selected = AppTab.home
+    init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String) {
+        self.state = state; self.auth = auth
+        _member = State(initialValue: MemberState(repository: LiveMemberRepository(service: auth.service, origin: origin, id: id, slug: slug,
+            onUnauthorized: { [weak auth] message in await auth?.invalidateSession(message: message) },
+            onForbidden: { [weak auth] in await auth?.foreground() }),
+            settings: .standard, context: "\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(id)"))
+    }
+    var body: some View {
+        VStack(spacing: 0) {
         if sizeClass == .regular {
             NavigationSplitView {
                 List(AppTab.allCases) { tab in
@@ -125,33 +146,37 @@ struct AppShell: View {
                 }
                 .scrollContentBackground(.hidden).background(Color.swSidebar)
                 .navigationTitle(Brand.appName)
-            } detail: { NavigationStack { MemberScreen(state: state, auth: auth, tab: selected) } }
+            } detail: { NavigationStack { MemberScreen(state: state, auth: auth, member: member, tab: selected) { selected = $0 } } }
         } else {
             TabView(selection: $selected) {
                 ForEach(AppTab.allCases) { tab in
-                    NavigationStack { MemberScreen(state: state, auth: auth, tab: tab) }
+                    NavigationStack { MemberScreen(state: state, auth: auth, member: member, tab: tab) { selected = $0 } }
                         .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
+                        .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
         }
+        }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { Task { await member.loadHome(); await member.loadUnreadCount() } }
+            }
     }
 }
 
 private struct MemberScreen: View {
     let state: AppState
     let auth: AuthState
+    let member: MemberState
     let tab: AppTab
+    let selectTab: (AppTab) -> Void
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
     @State private var confirmSignOut = false
     var body: some View {
-        ScrollView {
+        Group {
+        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: selectTab) }
+        else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if tab == .home {
-                    Text("Welcome back, \(auth.displayName).").font(.largeTitle.bold())
-                    Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
-                }
-                if tab == .profile {
                     SWCard {
                         Text(auth.displayName).font(.title2.bold())
                         Text(auth.user?.email ?? "").foregroundStyle(Color.swMuted).textSelection(.enabled)
@@ -160,15 +185,11 @@ private struct MemberScreen: View {
                             Button("Confirm email") { accountForm = auth.accountForm(.emailVerification) }.frame(minHeight: 48)
                         }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
+                        Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
                     }
-                } else {
-                    SWCard {
-                        Image(systemName: tab.symbol).font(.title).accessibilityHidden(true)
-                        Text("Nothing here yet.").font(.headline)
-                    }
-                }
             }.padding(24).frame(maxWidth: 960, alignment: .leading).frame(maxWidth: .infinity)
+        } }
         }.background(Color.swBg).navigationTitle(tab.rawValue)
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { accountForm = nil } }
         .sheet(isPresented: $replayIntro) { IntroductionView { replayIntro = false } }
@@ -180,7 +201,11 @@ private struct MemberScreen: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     ForEach(auth.memberships, id: \.id) { membership in
-                        Button(membership.slug) { Task { await auth.select(membership.id) } }
+                        Button(membership.slug) {
+                            guard auth.selectedID != membership.id else { return }
+                            member.invalidate()
+                            Task { await auth.select(membership.id) }
+                        }
                     }
                 } label: { Label(auth.selectedMembership?.slug ?? "Choose a makerspace", systemImage: "building.2") }
                 .accessibilityIdentifier("makerspace-switcher")

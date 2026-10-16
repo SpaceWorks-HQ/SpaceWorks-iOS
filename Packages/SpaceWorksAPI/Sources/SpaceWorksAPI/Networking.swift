@@ -205,6 +205,10 @@ private struct ErrorMiddleware: ClientMiddleware {
     }
 }
 
+private enum DeviceRequestScope {
+    @TaskLocal static var makerspace: Int?
+}
+
 public struct SessionMiddleware: ClientMiddleware {
     public let refresh: RefreshCoordinator
     public let makerspace: MakerspaceContext
@@ -215,10 +219,13 @@ public struct SessionMiddleware: ClientMiddleware {
         for name in ["Cookie", "Origin", "Referer"] { request.headerFields[HTTPField.Name(name)!] = nil }
         let pair = await refresh.current()
         request.headerFields[.authorization] = pair.map { "Bearer \($0.access)" }
-        request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = await makerspace.current().map(String.init)
+        let selected = await makerspace.current()
+        if let expected = DeviceRequestScope.makerspace, expected != selected { throw CancellationError() }
+        request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.makerspace ?? selected).map(String.init)
         let result = try await next(request, body, baseURL)
         if result.0.status.code == 401, let pair {
             let updated = try await refresh.recover(rejectedAccess: pair.access)
+            if let expected = DeviceRequestScope.makerspace, await makerspace.current() != expected { throw CancellationError() }
             request.headerFields[.authorization] = "Bearer \(updated.access)"
             return try await checked(next(request, body, baseURL))
         }
@@ -248,7 +255,7 @@ public enum DeviceSession {
 }
 
 public final class SpaceWorksService: Sendable {
-    private let client: Client
+    let client: Client
     private let publicClient: Client
     public let refresh: RefreshCoordinator
     public let makerspace: MakerspaceContext
@@ -272,6 +279,10 @@ public final class SpaceWorksService: Sendable {
     public func health() async throws {
         let result = try await client.api_v1_health_retrieve()
         _ = try result.ok.body.json
+    }
+    /// A task's makerspace header stays bound to its original repository across actor suspension.
+    public func withMakerspace<T: Sendable>(_ id: Int, operation: @Sendable () async throws -> T) async throws -> T {
+        try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
     }
 
     public func configuration() async throws -> Components.Schemas.PublicConfig {

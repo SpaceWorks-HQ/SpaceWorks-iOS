@@ -1,0 +1,27 @@
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "feature": "hardware_requests",
+      "event": "request_accepted",
+      "title": "Your kit is ready",
+      "summary": "Collect your kit at the front desk.",
+      "link": "/activity",
+      "read_at": null,
+      "created_at": "2026-10-16T09:00:00Z"
+    },
+    {
+      "id": 2,
+      "feature": "events",
+      "event": "registration_confirmed",
+      "title": "You\u2019re on the guest list",
+      "summary": "Make your first circuit starts on 20 October.",
+      "link": "/activity/events",
+      "read_at": "2026-10-16T08:00:00Z",
+      "created_at": "2026-10-15T09:00:00Z"
+    }
+  ]
+}

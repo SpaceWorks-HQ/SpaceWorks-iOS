@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Electronics",
+    "slug": "electronics",
+    "display_order": 1,
+    "icon": "box",
+    "product_count": 5
+  },
+  {
+    "id": 2,
+    "name": "Hand tools",
+    "slug": "hand-tools",
+    "display_order": 2,
+    "icon": "box",
+    "product_count": 4
+  },
+  {
+    "id": 3,
+    "name": "Safety",
+    "slug": "safety",
+    "display_order": 3,
+    "icon": "box",
+    "product_count": 1
+  },
+  {
+    "id": 4,
+    "name": "Measuring",
+    "slug": "measuring",
+    "display_order": 4,
+    "icon": "box",
+    "product_count": 1
+  },
+  {
+    "id": 5,
+    "name": "Fabrication",
+    "slug": "fabrication",
+    "display_order": 5,
+    "icon": "box",
+    "product_count": 1
+  }
+]

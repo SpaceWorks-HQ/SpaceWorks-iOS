@@ -23,7 +23,15 @@ struct PasswordEntry: UIViewRepresentable {
         field.tintColor = UIColor(named: "focus")
         field.returnKeyType = .done
         field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.required, for: .vertical)
+        field.setContentCompressionResistancePriority(.required, for: .vertical)
         return field
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextField, context: Context) -> CGSize? {
+        // A UITextField is a single line. Without an explicit fitting height SwiftUI can
+        // allocate all spare tablet height to the representable inside a ScrollView.
+        CGSize(width: proposal.width ?? max(1, uiView.intrinsicContentSize.width),
+               height: max(48, (uiView.font?.lineHeight ?? 20) + 12))
     }
     func updateUIView(_ field: UITextField, context: Context) {
         context.coordinator.parent = self

@@ -149,7 +149,10 @@ final class AuthState {
             try await service.makerspace.select(id, activeMemberships: Set(memberships.map(\.id)))
             selectedID = id
             settings.set(id, forKey: selectionKey)
-        } catch { fail(error) }
+        } catch {
+            try? await service.makerspace.select(nil, activeMemberships: Set(memberships.map(\.id)))
+            selectedID = nil; fail(error)
+        }
     }
     func foreground() async {
         guard stage == .signedIn, !busy else { return }
@@ -160,6 +163,10 @@ final class AuthState {
             let hasNoCredentials = await service.refresh.current() == nil
             if isUnauthorized(error) || hasNoCredentials { try? await service.refresh.install(nil); await clear() }
         }
+    }
+    func invalidateSession(message: String) async {
+        try? await service.refresh.install(nil)
+        await clear(); error = message
     }
     func signOut() async {
         guard !busy else { return }

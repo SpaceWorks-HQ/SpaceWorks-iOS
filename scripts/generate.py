@@ -55,6 +55,7 @@ def generate(raster=True):
         info["UISupportedInterfaceOrientations"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
         info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
         info["UIAppFonts"] = ["Unbounded-Variable.ttf"]
+        info["NSCameraUsageDescription"] = "Scan member and event codes or photograph handover evidence when you choose to."
         schemes = ["spaceworks"]
         google_scheme = brand.get("google_reversed_client_id")
         if google_scheme is not None:
@@ -100,6 +101,10 @@ def generate(raster=True):
     motion_module = importlib.util.module_from_spec(motion_spec)
     motion_spec.loader.exec_module(motion_module)
     motion_module.generate_motion(ROOT)
+    fixture_spec = importlib.util.spec_from_file_location("spaceworks_fixtures", ROOT / "scripts/generate_member_fixtures.py")
+    fixture_module = importlib.util.module_from_spec(fixture_spec)
+    fixture_spec.loader.exec_module(fixture_module)
+    fixture_module.generate_member_fixtures(ROOT)
     wordmark = assets / "Wordmark.imageset"
     wordmark.mkdir(parents=True, exist_ok=True)
     for name, master in [("light.png", "lockup-horizontal-one-colour-ink.png"), ("dark.png", "lockup-horizontal-reversed.png")]:

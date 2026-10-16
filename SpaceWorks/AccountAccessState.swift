@@ -17,6 +17,7 @@ final class AccountAccessCooldown {
 @MainActor @Observable
 final class AccountAccessState: Identifiable {
     let id = UUID()
+    let isDemo: Bool
     enum Step: Equatable { case signUp, created, requestReset, confirmReset, resetComplete, unavailable, emailVerification }
     var step: Step
     var name = ""
@@ -44,7 +45,7 @@ final class AccountAccessState: Identifiable {
     private let resendVerification: () async throws -> Void
     private let now: () -> Date
 
-    init(step: Step, now: @escaping () -> Date = Date.init, cooldown: AccountAccessCooldown? = nil,
+    init(step: Step, now: @escaping () -> Date = Date.init, cooldown: AccountAccessCooldown? = nil, isDemo: Bool = false,
          create: @escaping (String, String, String, String) async throws -> Void,
          request: @escaping (String) async throws -> Void,
          reset: @escaping (String, String, String) async throws -> Void,
@@ -53,6 +54,7 @@ final class AccountAccessState: Identifiable {
         self.step = step; self.now = now; self.create = create; self.request = request
         self.reset = reset; self.verify = verify; self.resendVerification = resendVerification
         self.cooldown = cooldown ?? AccountAccessCooldown()
+        self.isDemo = isDemo
     }
     var canResend: Bool { !busy && now() >= resendAfter }
     func signUp() async {

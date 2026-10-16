@@ -9,6 +9,7 @@ struct NativeQRScanner: View {
     @Environment(\.dismiss) private var dismiss
     @State private var manual = ""
     @State private var cameraReady = false
+    @State private var useDataScanner = false
     @State private var submitted = false
     @State private var message: String?
 
@@ -19,10 +20,13 @@ struct NativeQRScanner: View {
                     Text("Scan the QR code, then review the details before confirming.")
                         .foregroundStyle(Color.swMuted)
                     if cameraReady {
-                        ScannerCamera(onScan: complete, onUnavailable: {
-                            cameraReady = false
-                            message = "Camera scanning is unavailable. Enter the code below."
-                        })
+                        Group {
+                            if useDataScanner {
+                                ScannerCamera(onScan: complete, onUnavailable: cameraUnavailable)
+                            } else {
+                                MetadataCamera(onScan: complete, onUnavailable: cameraUnavailable)
+                            }
+                        }
                         .frame(minHeight: 280, idealHeight: 360, maxHeight: 420)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .accessibilityLabel("QR code camera")
@@ -55,7 +59,7 @@ struct NativeQRScanner: View {
     }
 
     private func prepareCamera() async {
-        guard DataScannerViewController.isSupported else {
+        guard AVCaptureDevice.default(for: .video) != nil else {
             message = "Camera scanning is unavailable on this device. Enter the code below."
             return
         }
@@ -63,8 +67,14 @@ struct NativeQRScanner: View {
         if AVCaptureDevice.authorizationStatus(for: .video) == .notDetermined {
             allowed = await AVCaptureDevice.requestAccess(for: .video)
         }
-        cameraReady = allowed && DataScannerViewController.isAvailable
+        useDataScanner = DataScannerViewController.isSupported && DataScannerViewController.isAvailable
+        cameraReady = allowed
         if !cameraReady { message = "Camera access is unavailable. Enter the code below, or allow Camera in Settings." }
+    }
+
+    private func cameraUnavailable() {
+        cameraReady = false
+        message = "Camera scanning is unavailable. Enter the code below."
     }
 
     private func complete(_ value: String) {
