@@ -2,6 +2,12 @@
 
 iOS 17+ native SwiftUI app. Start with [the PRD](docs/PRD.md); current scope is **A0 Base**. Each later phase waits until its predecessor is merged.
 
+## Development workflow
+
+Use `dev` for ongoing changes and push commits to `origin/dev`. After implementation and CI validation finish, open the final pull request from `dev` to `main`. The A0 foundation is already merged into `main`.
+
+## Build and test
+
 ```sh
 git submodule update --init --recursive
 brew install xcodegen librsvg
