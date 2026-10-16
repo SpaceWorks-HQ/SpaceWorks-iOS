@@ -1,6 +1,6 @@
 # Phase notes
 
-## A0 Base — implementation under validation (2026-10-16)
+## A0 Base (2026-10-16)
 
 Scaffold iOS 17+ SwiftUI app from XcodeGen and a local SPM API package. Pin the public design submodule to `fd28f825086a2cac7fa297881f1860b9d332db69`. Generate all light/dark semantic color assets, Swift color accessors, branding config and opaque icon from `branding/brand.json`. Keep the owner-supplied contract unchanged and generate only A0 health/refresh operations and dependent types at build time.
 
@@ -8,7 +8,7 @@ Networking uses Apple's generated client and URLSession transport, cookie/creden
 
 Compiler integration: Apple's generator 1.10 treats a schema referenced as multipart content as a multipart enum, even when the same schema is also used for JSON. The build projection selects only the refresh endpoint's documented JSON request representation; a test proves every remaining operation, model and field equals the immutable contract. No API fields are invented or edited. URLSession transport 1.1 uses buffered mode so our redirect delegate governs every request. Standard framework detail-only and 400 field errors use defensive dynamic JSON parsing, as specified in the latest owner PRD.
 
-Validation: Python generator/provenance/contrast tests run locally; macOS CI compiles, runs XCTest networking/state/theme tests using URLProtocol fakes, and runs XCUITest main flow, failure, dark mode and Dynamic Type checks. CI status must be green before A0 is called done. UI screenshots are retained in the xcresult artifact. No Mac is available in the authoring environment.
+Validation: six Python generator/provenance/contrast/Release-ATS tests and repository lint run locally and in CI. macOS CI compiles and runs 18 XCTest networking/state/theme tests using URLProtocol fakes plus three XCUITest flows covering connect, every member tab, server failure, dark mode and Dynamic Type. The [current PR checks](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/pull/1/checks) are the completion gate: A0 is complete only when all checks pass without skipped tests. The workflow exports UI PNGs and retains the xcresult artifact. No Mac is available in the authoring environment.
 
 Parity checklist:
 - [x] First launch: “Connect to your Space Works server”, “Server URL”, “Connect”, shared helper text; validates generated `/api/v1/health/` before saving.
