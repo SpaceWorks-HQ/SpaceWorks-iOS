@@ -31,7 +31,7 @@ class CapabilityTests(unittest.TestCase):
         generator = importlib.util.module_from_spec(generation_spec)
         generation_spec.loader.exec_module(generator)
         with tempfile.TemporaryDirectory() as directory:
-            root = pathlib.Path(directory)
+            root = pathlib.Path(directory).resolve()
             for relative in ["branding/brand.json", "api/openapi.json", "api/provenance.json", "tokens/mobile-motion.json", "design/tokens/tokens.json"]:
                 target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
