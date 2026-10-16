@@ -98,7 +98,7 @@ struct MemberContent: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(booking.space_name).font(.headline)
                     Text(memberDate(booking.starts_at, timezone: booking.timezone))
-                    Text(booking.status.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
+                    Text(booking.status.value1.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
             }
             if state.bookingsHasMore { Button("Load more bookings") { Task { await state.loadBookings(more: true) } }.frame(minHeight: 48).disabled(state.bookingsLoad == .loading) }
