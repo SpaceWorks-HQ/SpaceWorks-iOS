@@ -16,6 +16,7 @@ struct RootView: View {
             HStack {
                 Spacer()
                 Button(state.darkMode ? "Light mode" : "Dark mode") { state.toggleAppearance() }
+                    .buttonStyle(.plain).foregroundStyle(Color.swAccentInk)
                     .font(.body).frame(minHeight: 44).padding(.horizontal, 24)
                     .accessibilityIdentifier("appearance")
             }.background(Color.swSurface)
@@ -35,7 +36,9 @@ private struct ConnectView: View {
                     Text("Your makerspace will share its server URL with you.").foregroundStyle(Color.swMuted)
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Server URL").font(.headline)
-                        TextField("https://spaceworks.example", text: $state.serverInput)
+                        TextField("Server URL", text: $state.serverInput,
+                                  prompt: Text("https://spaceworks.example").foregroundColor(Color.swMuted))
+                            .foregroundStyle(Color.swInk)
                             .textContentType(.URL).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                             .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 12))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.swOutline))
@@ -103,6 +106,7 @@ private struct AppShell: View {
         }
         .toolbarBackground(Color.swSurface, for: .tabBar)
         .toolbarBackground(.visible, for: .tabBar)
+        .tint(Color.swAccentInk)
         // There is no Staff tab until A1 provides server-backed membership actions.
     }
 }
