@@ -16,6 +16,7 @@ final class AppState {
     let locked: Bool
     private let settings: UserDefaults
     private let health: @Sendable (ServerOrigin) async throws -> Void
+    private var attemptedRestore = false
 
     init(lockedServer: String? = Brand.serverURL, settings: UserDefaults = .standard,
          health: @escaping @Sendable (ServerOrigin) async throws -> Void = { try await SpaceWorksService(origin: $0).health() }) {
@@ -28,6 +29,11 @@ final class AppState {
     func toggleAppearance() {
         darkMode.toggle()
         settings.set(darkMode, forKey: "dark-mode")
+    }
+    func restore() async {
+        guard !attemptedRestore else { return }
+        attemptedRestore = true
+        if !serverInput.isEmpty { await connect() }
     }
 
     func connect() async {

@@ -20,7 +20,7 @@ struct RootView: View {
                     .accessibilityIdentifier("appearance")
             }.background(Color.swSurface)
         }
-        .task { if !state.serverInput.isEmpty { await state.connect() } }
+        .task { await state.restore() }
     }
 }
 
@@ -101,6 +101,8 @@ private struct AppShell: View {
                 }.tabItem { Label(tab.rawValue, systemImage: tab.symbol) }
             }
         }
+        .toolbarBackground(Color.swSurface, for: .tabBar)
+        .toolbarBackground(.visible, for: .tabBar)
         // There is no Staff tab until A1 provides server-backed membership actions.
     }
 }

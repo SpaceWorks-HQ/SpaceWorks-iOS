@@ -28,7 +28,8 @@ public struct ServerOrigin: Sendable, Equatable {
         guard let next else { return nil }
         guard let candidate = URL(string: next, relativeTo: url)?.absoluteURL,
               let parts = URLComponents(url: candidate, resolvingAgainstBaseURL: true),
-              candidate.scheme == url.scheme, candidate.host == url.host, candidate.port == url.port,
+              candidate.scheme == url.scheme, candidate.host == url.host,
+              (candidate.port ?? (candidate.scheme == "https" ? 443 : 80)) == (url.port ?? (url.scheme == "https" ? 443 : 80)),
               parts.user == nil, parts.password == nil, parts.fragment == nil,
               candidate.path.hasPrefix("/api/"),
               !(parts.percentEncodedPath.removingPercentEncoding ?? "").split(separator: "/").contains(where: { $0 == "." || $0 == ".." })
@@ -109,7 +110,7 @@ public actor RefreshCoordinator {
 
 public actor MakerspaceContext {
     private var selected: Int?
-    public init(selected: Int? = nil) { self.selected = selected }
+    public init() {}
     public func current() -> Int? { selected }
     /// A1 supplies active membership IDs from the generated /auth/me response.
     public func select(_ id: Int?, activeMemberships: Set<Int>) throws {
@@ -218,8 +219,8 @@ public enum DeviceSession {
     }
 }
 
-public struct SpaceWorksService: Sendable {
-    public let client: Client
+public final class SpaceWorksService: Sendable {
+    private let client: Client
     public let refresh: RefreshCoordinator
     public let makerspace: MakerspaceContext
     public init(origin: ServerOrigin, session: URLSession = DeviceSession.make(), initialTokens: TokenPair? = nil,

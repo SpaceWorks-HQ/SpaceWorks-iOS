@@ -147,6 +147,7 @@ final class NetworkingTests: XCTestCase {
         XCTAssertNoThrow(try ServerOrigin("http://localhost:8000", allowLocalHTTP: true))
         XCTAssertThrowsError(try ServerOrigin("http://example.com", allowLocalHTTP: true))
         XCTAssertEqual(try origin.nextPage("/api/v1/items?page=2")?.absoluteString, "https://spaceworks.example/api/v1/items?page=2")
+        XCTAssertNoThrow(try origin.nextPage("https://spaceworks.example:443/api/v1/items?page=2"))
         XCTAssertNil(try origin.nextPage(nil))
         for next in ["https://attacker.example/api/items", "http://spaceworks.example/api/items", "//evil.example/api/items", "https://user@spaceworks.example/api/items", "/admin", "/api/../admin", "https://spaceworks.example:8443/api/items"] { XCTAssertThrowsError(try origin.nextPage(next)) }
     }

@@ -50,6 +50,31 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.screen, .shell)
         XCTAssertEqual(state.serverInput, "https://locked.example")
     }
+    func testLoadingCoalescesRepeatedConnectActions() async {
+        let gate = HealthGate()
+        let state = AppState(settings: settings()) { _ in await gate.wait() }
+        state.serverInput = "https://spaceworks.example"
+        let first = Task { await state.connect() }
+        while !state.connecting { await Task.yield() }
+        XCTAssertTrue(state.connecting)
+        await state.connect()
+        await gate.finish()
+        await first.value
+        let calls = await gate.calls
+        XCTAssertEqual(calls, 1)
+        XCTAssertEqual(state.screen, .shell)
+        XCTAssertFalse(state.connecting)
+    }
+    func testRestoredServerIsRevalidatedOnlyOnceAndCanBeChanged() async {
+        let defaults = settings()
+        defaults.set("https://spaceworks.example", forKey: "server-origin")
+        let state = AppState(settings: defaults) { _ in }
+        await state.restore()
+        XCTAssertEqual(state.screen, .shell)
+        state.changeServer()
+        await state.restore()
+        XCTAssertEqual(state.screen, .connect)
+    }
     func testThrottlingIsPreservedUntilServerChanges() async {
         let state = AppState(settings: settings()) { _ in
             throw APIError(status: 429, code: "throttled", detail: "Slow down.", retryAfter: Date().addingTimeInterval(120))
@@ -87,4 +112,16 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(try color("accent", .light), [0, 110, 99])
         XCTAssertEqual(try color("ink", .dark), [255, 244, 232])
     }
+}
+
+private actor HealthGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var released = false
+    private(set) var calls = 0
+    func wait() async {
+        calls += 1
+        if released { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+    func finish() { released = true; continuation?.resume(); continuation = nil }
 }

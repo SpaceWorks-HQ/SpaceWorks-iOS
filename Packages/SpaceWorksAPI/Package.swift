@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SpaceWorksAPI",
     platforms: [.iOS(.v17), .macOS(.v13)],
-    products: [.library(name: "SpaceWorksAPI", targets: ["SpaceWorksAPI"])],
+    products: [.library(name: "SpaceWorksAPI", type: .static, targets: ["SpaceWorksAPI"])],
     dependencies: [
         .package(url: "https://github.com/apple/swift-openapi-generator", exact: "1.10.0"),
         .package(url: "https://github.com/apple/swift-openapi-runtime", exact: "1.8.2"),

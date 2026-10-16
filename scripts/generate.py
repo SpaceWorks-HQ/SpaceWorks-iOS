@@ -9,7 +9,6 @@ import json
 import pathlib
 import plistlib
 import re
-import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -33,7 +32,7 @@ def generate(raster=True):
     for key in ["ios_bundle_id", "ios_team_id"]:
         if not re.fullmatch(r"[A-Za-z0-9.-]*", brand[key]):
             raise ValueError(f"Invalid {key}")
-    if not brand["ios_bundle_id"] or any(c in brand["app_name"] for c in '\n\r$#;'):
+    if not brand["ios_bundle_id"] or any(ord(c) < 32 for c in brand["app_name"]) or any(c in brand["app_name"] for c in '$#;\\') or "//" in brand["app_name"]:
         raise ValueError("Invalid app name or bundle ID")
     if brand["server_url"] is not None:
         from urllib.parse import urlsplit
@@ -46,7 +45,7 @@ def generate(raster=True):
           + f"BRAND_TEAM_ID = {brand['ios_team_id']}\n")
     swift_literal = lambda value: "nil" if value is None else json.dumps(value, ensure_ascii=False)
     write(ROOT / "SpaceWorks/Generated/Brand.swift", "// Generated. Do not edit.\nimport Foundation\nenum Brand {\n"
-          + "\n".join(f"    static let {name}: String{'?' if brand[key] is None else ''} = {swift_literal(brand[key])}"
+          + "\n".join(f"    static let {name}: String{'?' if key in ['server_url', 'support_url', 'privacy_url'] else ''} = {swift_literal(brand[key])}"
                       for name, key in [("appName", "app_name"), ("bundleID", "ios_bundle_id"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
           + "\n}\n")
     for mode in ["Debug", "Release"]:

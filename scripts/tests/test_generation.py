@@ -2,6 +2,7 @@ import hashlib
 import importlib.util
 import json
 import pathlib
+import plistlib
 import struct
 import unittest
 
@@ -66,6 +67,12 @@ class GenerationTests(unittest.TestCase):
             for ink, bg in [("ink", "bg"), ("muted", "bg"), ("accent-ink", "surface"), ("on-accent", "accent")]:
                 values = sorted([luminance(tokens[mode][ink]), luminance(tokens[mode][bg])])
                 self.assertGreaterEqual((values[1] + .05) / (values[0] + .05), 4.5)
+
+    def test_release_has_no_transport_security_exceptions(self):
+        debug = plistlib.loads((ROOT / "SpaceWorks/Generated/Info-Debug.plist").read_bytes())
+        release = plistlib.loads((ROOT / "SpaceWorks/Generated/Info-Release.plist").read_bytes())
+        self.assertEqual(debug["NSAppTransportSecurity"], {"NSAllowsLocalNetworking": True})
+        self.assertNotIn("NSAppTransportSecurity", release)
 
 
 if __name__ == "__main__":
