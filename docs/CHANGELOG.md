@@ -20,6 +20,11 @@ tips can be dismissed and replayed; live preference scope includes server, accou
 Rendered tablet review also found a UIKit single-line password field stretching into spare vertical
 space. Give it an intrinsic fitting height that follows Dynamic Type, and assert its normal-size
 height in the existing focus/visibility journey.
+Runtime tablet validation passes all 71 native tests and exposed a portrait sidebar overlay covering
+selected destinations. Close that overlay after selection while keeping the wide sidebar visible;
+assert real detail-control hit testing in the member journeys. Add a synchronous opaque scene
+privacy window above presented sheets before app-switcher snapshots, preserving drafts and focus
+on return, with lifecycle tests.
 Add native file/photo/scanner support for later phases with bounded transfers, credential-free signed
 storage requests, QR camera fallback and metadata-stripping JPEG preparation. These helpers do not
 claim that later staff or payment flows are wired or live verified.

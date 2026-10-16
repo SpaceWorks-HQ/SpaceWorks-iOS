@@ -32,6 +32,7 @@ struct RootView: View {
                     .accessibilityIdentifier("appearance")
             }.background(Color.swSurface)
         }
+        .nativePrivacyShield()
         .task { await state.restore() }
     }
     private var liveContent: some View {
@@ -127,6 +128,7 @@ private struct MemberWorkspace: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @State private var selected = AppTab.home
+    @State private var columns = NavigationSplitViewVisibility.automatic
     init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String) {
         self.state = state; self.auth = auth
         _member = State(initialValue: MemberState(repository: LiveMemberRepository(service: auth.service, origin: origin, id: id, slug: slug,
@@ -135,11 +137,15 @@ private struct MemberWorkspace: View {
             settings: .standard, context: "\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(id)"))
     }
     var body: some View {
+        GeometryReader { geometry in
         VStack(spacing: 0) {
         if sizeClass == .regular {
-            NavigationSplitView {
+            NavigationSplitView(columnVisibility: $columns) {
                 List(AppTab.allCases) { tab in
-                    Button { selected = tab } label: {
+                    Button {
+                        selected = tab
+                        columns = geometry.size.width >= 1000 ? .all : .detailOnly
+                    } label: {
                         Text(tab.rawValue).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                     }.buttonStyle(.plain).accessibilityIdentifier("nav-\(tab.rawValue)")
                         .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
@@ -156,6 +162,9 @@ private struct MemberWorkspace: View {
                         .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
+        }
+        }.onChange(of: selected) { _, _ in
+            columns = geometry.size.width >= 1000 ? .all : .detailOnly
         }
         }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
             .onChange(of: scenePhase) { _, phase in

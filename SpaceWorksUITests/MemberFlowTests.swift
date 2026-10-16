@@ -26,7 +26,7 @@ final class MemberFlowTests: XCTestCase {
         let app = demo()
         app.buttons["Browse inventory"].tap()
         let search = app.textFields["inventory-search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5)); search.tap(); search.typeText("multimeter\n")
+        XCTAssertTrue(search.waitForExistence(timeout: 5)); XCTAssertTrue(search.isHittable); search.tap(); search.typeText("multimeter\n")
         let product = app.buttons["product-1"].firstMatch
         let link = app.descendants(matching: .any)["product-1"].firstMatch
         XCTAssertTrue(link.waitForExistence(timeout: 5))
@@ -36,7 +36,8 @@ final class MemberFlowTests: XCTestCase {
         if app.navigationBars.buttons["Inventory"].exists { app.navigationBars.buttons["Inventory"].tap() }
         tab(app, "Inbox")
         XCTAssertTrue(app.staticTexts["Your kit is ready"].waitForExistence(timeout: 5))
-        app.buttons["Unread"].tap()
+        let unread = app.segmentedControls.buttons["Unread"]
+        XCTAssertTrue(unread.isHittable); unread.tap()
         app.buttons["Mark all as read"].tap()
         XCTAssertTrue(app.staticTexts["Nothing here yet."].waitForExistence(timeout: 5))
         capture("Inbox confirmed read state")
@@ -46,7 +47,7 @@ final class MemberFlowTests: XCTestCase {
     func testInventoryFilteredEmptyCanRecover() {
         let app = demo(); tab(app, "Inventory")
         let search = app.textFields["inventory-search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5)); search.tap(); search.typeText("nothing-matches\n")
+        XCTAssertTrue(search.waitForExistence(timeout: 5)); XCTAssertTrue(search.isHittable); search.tap(); search.typeText("nothing-matches\n")
         XCTAssertTrue(app.staticTexts["No items match these filters"].waitForExistence(timeout: 5))
         app.buttons["Clear filters"].tap()
         XCTAssertTrue(app.descendants(matching: .any)["product-1"].firstMatch.waitForExistence(timeout: 5))

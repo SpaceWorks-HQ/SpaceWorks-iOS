@@ -220,16 +220,21 @@ struct DemoShell: View {
     @State private var member: MemberState
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selected = AppTab.home
+    @State private var columns = NavigationSplitViewVisibility.automatic
     init(session: DemoSession) {
         self.session = session
         _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name)))
     }
     var body: some View {
+        GeometryReader { geometry in
         VStack(spacing: 0) {
         if sizeClass == .regular {
-            NavigationSplitView {
+            NavigationSplitView(columnVisibility: $columns) {
                 List(AppTab.allCases) { tab in
-                    Button(tab.rawValue) { selected = tab }.frame(minHeight: 48).accessibilityIdentifier("nav-\(tab.rawValue)")
+                    Button(tab.rawValue) {
+                        selected = tab
+                        columns = geometry.size.width >= 1000 ? .all : .detailOnly
+                    }.frame(minHeight: 48).accessibilityIdentifier("nav-\(tab.rawValue)")
                         .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
                         .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
                 }.scrollContentBackground(.hidden).background(Color.swSidebar).navigationTitle(Brand.appName)
@@ -242,6 +247,9 @@ struct DemoShell: View {
                         .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
+        }
+        }.onChange(of: selected) { _, _ in
+            columns = geometry.size.width >= 1000 ? .all : .detailOnly
         }
         }.task { await member.loadUnreadCount() }.onDisappear { member.invalidate() }
     }
