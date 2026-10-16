@@ -18,3 +18,5 @@ __pycache__/
 /validation-device.json
 /TestAttachments/
 /build.log
+/SourcePackages/
+/release-build.log

@@ -16,8 +16,8 @@ final class MainFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))
     }
     private func credentials(_ app: XCUIApplication) {
-        app.textFields["username"].tap(); app.textFields["username"].typeText("maker")
-        app.secureTextFields["password"].tap(); app.secureTextFields["password"].typeText("fixture-password\n")
+        app.textFields["username"].tap(); app.textFields["username"].typeText("maker\n")
+        app.secureTextFields["password"].typeText("fixture-password\n")
         app.swipeUp()
         app.buttons["sign-in"].tap()
     }
@@ -73,8 +73,8 @@ final class MainFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Demo mode · sample data"].exists)
         app.buttons["Continue as member"].tap()
         app.swipeUp()
-        app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera")
-        app.secureTextFields["demo-password"].tap(); app.secureTextFields["demo-password"].typeText("sample\n")
+        app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera\n")
+        app.secureTextFields["demo-password"].typeText("sample\n")
         app.swipeUp(); app.buttons["demo-sign-in"].tap()
         app.buttons["demo-space-0"].tap()
         XCTAssertTrue(app.staticTexts["Welcome back, Meera Nair."].waitForExistence(timeout: 5))

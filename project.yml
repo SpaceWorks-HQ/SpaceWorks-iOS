@@ -47,6 +47,7 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        'CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]': SpaceWorks/Generated/Simulator.entitlements
     preBuildScripts:
       - name: Generate branding and semantic theme
         script: python3 "$SRCROOT/scripts/generate.py"

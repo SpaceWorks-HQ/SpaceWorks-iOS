@@ -48,6 +48,8 @@ public struct TokenVault: TokenStorage {
         APIError(status: 0, code: "secure_storage_unavailable", detail: "Secure storage is unavailable. Unlock your device and try again.")
     }
     private func check(_ status: OSStatus) throws {
-        guard status == errSecSuccess else { throw vaultError }
+        guard status == errSecSuccess else {
+            throw APIError(status: 0, code: "secure_storage_unavailable_\(status)", detail: vaultError.detail)
+        }
     }
 }

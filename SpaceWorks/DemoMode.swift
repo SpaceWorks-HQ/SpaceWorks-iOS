@@ -92,7 +92,8 @@ struct DemoAuthView: View {
                         Text("or with your email").font(.caption).foregroundStyle(Color.swMuted)
                         Text("Email or username").font(.headline)
                         TextField("Email or username", text: $session.username).textInputAutocapitalization(.never)
-                            .autocorrectionDisabled().demoField().accessibilityIdentifier("demo-username")
+                            .autocorrectionDisabled().submitLabel(.next).onSubmit { passwordFocused = true }
+                            .demoField().accessibilityIdentifier("demo-username")
                         Text("Password").font(.headline)
                         SecureField("Password", text: $session.password).focused($passwordFocused)
                             .submitLabel(.done).onSubmit { passwordFocused = false }

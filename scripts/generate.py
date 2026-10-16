@@ -67,6 +67,12 @@ def generate(raster=True):
         (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps({
             "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production",
             "com.apple.developer.applesignin": ["Default"]}))
+    # Simulator Keychain requires an effective signed app identity, even without an owner team.
+    # This local-only identity is never used in a physical-device build or release archive.
+    simulator_identity = "LOCALCI." + brand["ios_bundle_id"]
+    (ROOT / "SpaceWorks/Generated/Simulator.entitlements").write_bytes(plistlib.dumps({
+        "application-identifier": simulator_identity,
+        "keychain-access-groups": [simulator_identity], "get-task-allow": True}))
     tokens = json.loads(inside(brand["theme_tokens"]).read_text())
     if set(tokens["light"]) != set(tokens["dark"]):
         raise ValueError("Light and dark semantic roles must match")

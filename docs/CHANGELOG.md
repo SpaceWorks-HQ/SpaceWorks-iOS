@@ -36,6 +36,12 @@ adapter seams, and explicit demo provider/phone, expired/offline/throttled/super
 journeys. Live provider buttons stay closed pending native configuration/contracts; no web tokens
 are treated as device sessions. Provider setup is recorded in `docs/NATIVE-SDK-SETUP.md`.
 
+CI integration: the unsigned simulator app could not access Keychain. Give simulator builds an
+ad-hoc signed, local-only application/access-group identity; physical-device entitlements continue
+to come from owner provisioning. Keep the actual Keychain round-trip test and add a generation test
+that proves the simulator identity cannot enter a device archive. Keyboard Next/Done focus is
+explicit in both live and demo forms so tablet keyboards never cover the password action.
+
 ## A0 Base (2026-10-16)
 
 Scaffold iOS 17+ SwiftUI app from XcodeGen and a local SPM API package. Pin the public design submodule to `fd28f825086a2cac7fa297881f1860b9d332db69`. Generate all light/dark semantic color assets, Swift color accessors, branding config and opaque icon from `branding/brand.json`. Keep the owner-supplied contract unchanged and generate only A0 health/refresh operations and dependent types at build time.

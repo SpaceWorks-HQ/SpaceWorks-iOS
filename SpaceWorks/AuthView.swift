@@ -99,7 +99,8 @@ struct SignInView: View {
                             } else {
                             field("Email or username") {
                                 TextField("Email or username", text: $auth.username).textContentType(.username)
-                                    .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("username")
+                                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                                    .submitLabel(.next).onSubmit { passwordFocused = true }.accessibilityIdentifier("username")
                             }
                             field("Password") {
                                 HStack {

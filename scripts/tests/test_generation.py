@@ -79,6 +79,17 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(debug["NSAppTransportSecurity"], {"NSAllowsLocalNetworking": True})
         self.assertNotIn("NSAppTransportSecurity", release)
 
+    def test_simulator_keychain_identity_never_changes_physical_entitlements(self):
+        simulator = plistlib.loads((ROOT / "SpaceWorks/Generated/Simulator.entitlements").read_bytes())
+        brand = json.loads((ROOT / "branding/brand.json").read_text())
+        identity = "LOCALCI." + brand["ios_bundle_id"]
+        self.assertEqual(simulator["application-identifier"], identity)
+        self.assertEqual(simulator["keychain-access-groups"], [identity])
+        for configuration in ("Debug", "Release"):
+            real = plistlib.loads((ROOT / f"SpaceWorks/Generated/Attestation-{configuration}.entitlements").read_bytes())
+            self.assertNotIn("application-identifier", real)
+            self.assertNotIn("keychain-access-groups", real)
+
 
 if __name__ == "__main__":
     unittest.main()
