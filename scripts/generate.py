@@ -50,10 +50,14 @@ def generate(raster=True):
           + "\n}\n")
     for mode in ["Debug", "Release"]:
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
+        info["UISupportedInterfaceOrientations"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+        info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
         if mode == "Debug":
             info["NSAppTransportSecurity"] = {"NSAllowsLocalNetworking": True}
         target = ROOT / f"SpaceWorks/Generated/Info-{mode}.plist"
         target.write_bytes(plistlib.dumps(info))
+        (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps({
+            "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production"}))
     tokens = json.loads(inside(brand["theme_tokens"]).read_text())
     if set(tokens["light"]) != set(tokens["dark"]):
         raise ValueError("Light and dark semantic roles must match")
@@ -94,8 +98,13 @@ def generate(raster=True):
     # JSON representation so that DeviceRefresh remains a generated Codable object. No fields,
     # operations or response schemas are changed, and the authoritative source stays untouched.
     document = json.loads(schema.read_bytes())
-    content = document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"]
-    document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"] = {"application/json": content["application/json"]}
+    for operations in document["paths"].values():
+        for operation in operations.values():
+            if not isinstance(operation, dict):
+                continue
+            content = operation.get("requestBody", {}).get("content", {})
+            if "application/json" in content:
+                operation["requestBody"]["content"] = {"application/json": content["application/json"]}
     write(ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json", json.dumps(document, ensure_ascii=False, indent=2) + "\n")
 
 

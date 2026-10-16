@@ -6,7 +6,8 @@ struct RootView: View {
         Group {
             switch state.screen {
             case .connect: ConnectView(state: state)
-            case .shell: AppShell(state: state)
+            case .shell:
+                if let origin = state.connectedOrigin { AuthRoot(state: state, origin: origin) }
             }
         }
         .tint(Color.swAccentInk)
@@ -82,33 +83,70 @@ enum AppTab: String, CaseIterable, Identifiable {
     }
 }
 
-private struct AppShell: View {
+struct AppShell: View {
     let state: AppState
+    let auth: AuthState
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var selected = AppTab.home
     var body: some View {
-        TabView {
-            ForEach(AppTab.allCases) { tab in
-                NavigationStack {
-                    GeometryReader { geometry in
-                        ScrollView {
-                            VStack(spacing: 16) {
-                                if tab == .home {
-                                    Text("Sign in").font(.title.bold()).accessibilityAddTraits(.isHeader)
-                                    Text("Sign-in will be available in the next phase.").foregroundStyle(Color.swMuted)
-                                }
-                                Image(systemName: tab.symbol).font(.largeTitle).accessibilityHidden(true)
-                                Text("Nothing here yet.").font(.body)
-                                if tab == .profile && !state.locked {
-                                    Button("Change server") { state.changeServer() }.frame(minHeight: 44)
-                                }
-                            }.padding(24).frame(maxWidth: .infinity, minHeight: geometry.size.height)
-                        }
-                        .background(Color.swBg)
-                    }
-                        .navigationTitle(tab.rawValue)
-                }.tabItem { Label(tab.rawValue, systemImage: tab.symbol) }
+        if sizeClass == .regular {
+            NavigationSplitView {
+                List(AppTab.allCases) { tab in
+                    Button { selected = tab } label: {
+                        Text(tab.rawValue).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    }.buttonStyle(.plain).accessibilityIdentifier("nav-\(tab.rawValue)")
+                        .foregroundStyle(selected == tab ? Color.swOnAccent : Color.swInk)
+                        .listRowBackground(selected == tab ? Color.swSidebarActive : Color.swSidebar)
+                }
+                .scrollContentBackground(.hidden).background(Color.swSidebar)
+                .navigationTitle(Brand.appName)
+            } detail: { NavigationStack { MemberScreen(state: state, auth: auth, tab: selected) } }
+        } else {
+            TabView(selection: $selected) {
+                ForEach(AppTab.allCases) { tab in
+                    NavigationStack { MemberScreen(state: state, auth: auth, tab: tab) }
+                        .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
+                }
             }
         }
-        .tint(Color.swAccentInk)
-        // There is no Staff tab until A1 provides server-backed membership actions.
+    }
+}
+
+private struct MemberScreen: View {
+    let state: AppState
+    let auth: AuthState
+    let tab: AppTab
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                if tab == .home {
+                    Text("Welcome back, \(auth.displayName).").font(.largeTitle.bold())
+                    Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
+                }
+                if tab == .profile {
+                    SWCard {
+                        Text(auth.displayName).font(.title2.bold())
+                        Text(auth.user?.email ?? "").foregroundStyle(Color.swMuted).textSelection(.enabled)
+                        if let error = auth.error { SWError(message: error) }
+                        Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 44).disabled(auth.busy)
+                    }
+                } else {
+                    SWCard {
+                        Image(systemName: tab.symbol).font(.title).accessibilityHidden(true)
+                        Text("Nothing here yet.").font(.headline)
+                    }
+                }
+            }.padding(24).frame(maxWidth: 960, alignment: .leading).frame(maxWidth: .infinity)
+        }.background(Color.swBg).navigationTitle(tab.rawValue)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    ForEach(auth.memberships, id: \.id) { membership in
+                        Button(membership.slug) { Task { await auth.select(membership.id) } }
+                    }
+                } label: { Label(auth.selectedMembership?.slug ?? "Choose a makerspace", systemImage: "building.2") }
+                .accessibilityIdentifier("makerspace-switcher")
+            }
+        }
     }
 }

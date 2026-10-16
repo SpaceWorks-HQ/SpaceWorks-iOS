@@ -1,5 +1,30 @@
 # Phase notes
 
+## A1 Sign-in — implementation checkpoint (2026-10-16)
+
+Add generated password/attestation, `/auth/me`, configuration, native MFA verify/enroll/confirm and
+logout operations. Store the whole token pair in a server-scoped, non-synchronizing, device-only
+Keychain item. Refresh persists synchronously before any waiting request can retry. Logout clears
+local credentials even if remote revocation cannot be confirmed. Foreground identity refresh clears
+revoked sessions; superadmins are refused. Only direct memberships reach the switcher; staff authority
+remains closed until backend 1a. Real devices use a fresh App Attest key and SHA-256 challenge;
+Debug simulators use the PRD's development proof. Apple provisioning remains an owner dependency.
+
+The native flow includes password visibility, MFA enrollment QR/manual secret, recovery-code
+acknowledgement, makerspace selection, profile/sign-out, constrained forms, iPad sidebar and phone
+tabs, portrait/landscape and semantic light/dark styling. CI is the compiler; this phase is not
+complete until its new auth/network/UI tests pass. Local generation's six tests and source lint pass.
+
+Parity: Email or username, Password, Sign in; Verify your sign-in / Set up two-step sign-in;
+Authenticator or recovery code, Verify, Back to sign in; I saved my codes. Continue;
+Choose a makerspace; You haven’t joined a makerspace yet.; Profile, Sign out, Change server.
+Native MFA completion requires access, refresh and a device grant, rejecting browser-only completion.
+The original contract lacks native provider/version configuration, OIDC device callback delivery and
+staff authority. These remain tracked backend requests, not invented payloads. The owner deferred
+the backend and requested isolated Debug demo flows for planned features; see the implementation plan
+and local Docker evidence. All documented JSON request variants are mechanically selected for the
+build projection; every source path, schema, field and response stays unchanged.
+
 ## A0 Base (2026-10-16)
 
 Scaffold iOS 17+ SwiftUI app from XcodeGen and a local SPM API package. Pin the public design submodule to `fd28f825086a2cac7fa297881f1860b9d332db69`. Generate all light/dark semantic color assets, Swift color accessors, branding config and opaque icon from `branding/brand.json`. Keep the owner-supplied contract unchanged and generate only A0 health/refresh operations and dependent types at build time.

@@ -14,6 +14,7 @@ settings:
     MARKETING_VERSION: 0.1.0
     GENERATE_INFOPLIST_FILE: YES
     ENABLE_USER_SCRIPT_SANDBOXING: NO
+    TARGETED_DEVICE_FAMILY: '1,2'
 packages:
   SpaceWorksAPI:
     path: Packages/SpaceWorksAPI
@@ -30,8 +31,10 @@ targets:
       configs:
         Debug:
           INFOPLIST_FILE: SpaceWorks/Generated/Info-Debug.plist
+          CODE_SIGN_ENTITLEMENTS: SpaceWorks/Generated/Attestation-Debug.entitlements
         Release:
           INFOPLIST_FILE: SpaceWorks/Generated/Info-Release.plist
+          CODE_SIGN_ENTITLEMENTS: SpaceWorks/Generated/Attestation-Release.entitlements
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(BRAND_BUNDLE_ID)
         DEVELOPMENT_TEAM: $(BRAND_TEAM_ID)

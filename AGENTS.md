@@ -24,3 +24,14 @@ The owner merged the A0 foundation and requested this workflow on 2026-10-16:
 - Start ongoing work from `dev`, commit there, and push to `origin/dev`.
 - Finish the phase's implementation and validation before opening its final `dev` → `main` pull request.
 - Keep `main` for reviewed merges. Preserve the owner's configured commit identity and the required Codex co-author trailer.
+
+## Complete-build execution addendum (owner, 2026-10-16)
+
+The owner requested the remaining phases as one batch, with Android and iOS agents in parallel.
+Implement each phase sequentially on `dev`, with phase commits, tests, CI evidence, and a changelog
+parity checklist. A green phase may proceed without an intermediate merge; the existing final
+`dev` → `main` PR tracks the batch. The owner performs merges. Preserve `docs/PRD.md` byte-for-byte.
+Phone and tablet layouts, portrait/landscape, light/dark and largest Dynamic Type are now in scope.
+Use generated contract operations only. Record missing backend contracts as `backend-request`
+issues and continue independent work when prerequisites permit. Local Docker is the development API;
+development attestation and local HTTP must remain Debug-only. Store credentials only in Keychain.

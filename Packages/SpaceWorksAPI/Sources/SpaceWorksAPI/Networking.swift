@@ -65,10 +65,15 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
         if let error = error as? ClientError { return retryDeadline(error.underlyingError) }
         return nil
     }
+    public static func status(_ error: Error) -> Int? {
+        if let error = error as? APIError { return error.status }
+        if let error = error as? ClientError { return status(error.underlyingError) }
+        return nil
+    }
 }
 
 /// Local credentials, not a hand-written API payload. Persist together in Keychain in A1.
-public struct TokenPair: Sendable, Equatable {
+public struct TokenPair: Sendable, Equatable, Codable {
     public let access: String
     public let refresh: String
     public init(access: String, refresh: String) { self.access = access; self.refresh = refresh }
@@ -79,22 +84,40 @@ public actor RefreshCoordinator {
     private var pair: TokenPair?
     private var flight: Task<TokenPair, Error>?
     private let rotate: @Sendable (String) async throws -> TokenPair
-    public init(pair: TokenPair? = nil, rotate: @escaping @Sendable (String) async throws -> TokenPair) {
-        self.pair = pair; self.rotate = rotate
+    private let persist: @Sendable (TokenPair?) throws -> Void
+    private var generation = 0
+    public init(pair: TokenPair? = nil, persist: @escaping @Sendable (TokenPair?) throws -> Void = { _ in },
+                rotate: @escaping @Sendable (String) async throws -> TokenPair) {
+        self.pair = pair; self.rotate = rotate; self.persist = persist
     }
     public func current() -> TokenPair? { pair }
+    public func install(_ value: TokenPair?) throws {
+        generation += 1
+        flight?.cancel()
+        flight = nil
+        pair = nil
+        try persist(value)
+        pair = value
+    }
     public func recover(rejectedAccess: String) async throws -> TokenPair {
         guard let current = pair else { throw APIError(status: 401, code: "signed_out", detail: "Sign in to continue.") }
         if current.access != rejectedAccess { return current }
         if let flight { return try await flight.value }
         let rotate = self.rotate
+        let generation = self.generation
         let task = Task {
             do {
                 let updated = try await rotate(current.refresh)
+                guard self.generation == generation else { throw CancellationError() }
+                try self.persist(updated)
+                guard self.generation == generation else { throw CancellationError() }
                 self.commit(updated)
                 return updated
             } catch {
-                self.commit(nil)
+                if self.generation == generation {
+                    self.commit(nil)
+                    try? self.persist(nil)
+                }
                 throw error
             }
         }
@@ -221,15 +244,18 @@ public enum DeviceSession {
 
 public final class SpaceWorksService: Sendable {
     private let client: Client
+    private let publicClient: Client
     public let refresh: RefreshCoordinator
     public let makerspace: MakerspaceContext
     public init(origin: ServerOrigin, session: URLSession = DeviceSession.make(), initialTokens: TokenPair? = nil,
-                makerspace: MakerspaceContext = MakerspaceContext()) {
+                makerspace: MakerspaceContext = MakerspaceContext(),
+                persist: @escaping @Sendable (TokenPair?) throws -> Void = { _ in }) {
         // Buffered mode keeps URLSession's session delegate in control of redirects. Streaming
         // transport installs its own task delegate and would bypass that guarantee.
         let transport = URLSessionTransport(configuration: .init(session: session, httpBodyProcessingMode: .buffered))
         let raw = Client(serverURL: origin.url, transport: transport, middlewares: [ErrorMiddleware()])
-        let coordinator = RefreshCoordinator(pair: initialTokens) { token in
+        self.publicClient = raw
+        let coordinator = RefreshCoordinator(pair: initialTokens, persist: persist) { token in
             let response = try await raw.api_v1_auth_device_refresh_create(.init(body: .json(.init(refresh: token))))
             let value = try response.ok.body.json
             return TokenPair(access: value.access, refresh: value.refresh)
@@ -241,5 +267,34 @@ public final class SpaceWorksService: Sendable {
     public func health() async throws {
         let result = try await client.api_v1_health_retrieve()
         _ = try result.ok.body.json
+    }
+
+    public func configuration() async throws -> Components.Schemas.PublicConfig {
+        try await publicClient.api_v1_config_retrieve().ok.body.json
+    }
+    public func challenge(appID: String, development: Bool) async throws -> Components.Schemas.DeviceChallengeResponse {
+        let input = Components.Schemas.DeviceIdentity(platform: .apple, app_id: appID, environment: development ? .development : .production)
+        return try await publicClient.api_v1_auth_device_attestation_challenge_create(.init(body: .json(input))).ok.body.json
+    }
+    public func signIn(appID: String, development: Bool, username: String, password: String, challenge: String,
+                       attestationJSON: Data) async throws -> Components.Schemas.DeviceLoginResult {
+        let input = try Components.Schemas.DeviceLogin(platform: .apple, app_id: appID, environment: development ? .development : .production,
+            username: username, password: password, challenge: challenge,
+            attestation: JSONDecoder().decode(OpenAPIValueContainer.self, from: attestationJSON))
+        return try await publicClient.api_v1_auth_device_login_create(.init(body: .json(input))).ok.body.json
+    }
+    public func me() async throws -> Components.Schemas.AuthUserPayload {
+        try await client.api_v1_auth_me_retrieve().ok.body.json
+    }
+    public func verify(challenge: String, code: String, enrolling: Bool = false) async throws -> Components.Schemas.MFACompleted {
+        let input = Components.Schemas.MFAVerify(challenge: challenge, code: code)
+        if enrolling { return try await publicClient.api_v1_auth_mfa_confirm_create(.init(body: .json(input))).ok.body.json }
+        return try await publicClient.api_v1_auth_mfa_verify_create(.init(body: .json(input))).ok.body.json
+    }
+    public func enroll(challenge: String) async throws -> Components.Schemas.MFAEnrollment {
+        try await publicClient.api_v1_auth_mfa_enroll_create(.init(body: .json(.init(challenge: challenge)))).ok.body.json
+    }
+    public func signOut() async throws {
+        _ = try await client.api_v1_auth_device_logout_create().ok.body.json
     }
 }

@@ -6,3 +6,11 @@ filter:
   operations:
     - api_v1_health_retrieve
     - api_v1_auth_device_refresh_create
+    - api_v1_auth_device_attestation_challenge_create
+    - api_v1_auth_device_login_create
+    - api_v1_auth_device_logout_create
+    - api_v1_auth_me_retrieve
+    - api_v1_auth_mfa_verify_create
+    - api_v1_auth_mfa_enroll_create
+    - api_v1_auth_mfa_confirm_create
+    - api_v1_config_retrieve

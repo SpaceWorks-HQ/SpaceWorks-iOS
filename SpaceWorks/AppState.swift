@@ -13,6 +13,7 @@ final class AppState {
     private(set) var connecting = false
     private(set) var error: String?
     private(set) var retryAfter: Date?
+    private(set) var connectedOrigin: ServerOrigin?
     let locked: Bool
     private let settings: UserDefaults
     private let health: @Sendable (ServerOrigin) async throws -> Void
@@ -52,6 +53,7 @@ final class AppState {
             guard !Task.isCancelled else { return }
             settings.set(origin.url.absoluteString, forKey: "server-origin")
             serverInput = origin.url.absoluteString
+            connectedOrigin = origin
             screen = .shell
         } catch {
             self.error = APIError.display(error)
@@ -63,5 +65,6 @@ final class AppState {
         guard !locked else { return }
         settings.removeObject(forKey: "server-origin")
         screen = .connect
+        connectedOrigin = nil
     }
 }

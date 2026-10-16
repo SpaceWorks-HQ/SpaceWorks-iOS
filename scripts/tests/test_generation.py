@@ -18,9 +18,14 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(source).hexdigest(), json.loads((ROOT / "api/provenance.json").read_text())["sha256"])
         staged = json.loads((ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json").read_bytes())
         expected = json.loads(source)
-        content = expected["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"]
-        expected["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"] = {"application/json": content["application/json"]}
-        self.assertEqual(staged, expected, "Only refresh's documented JSON representation may be selected; all models must remain unchanged")
+        for operations in expected["paths"].values():
+            for operation in operations.values():
+                if not isinstance(operation, dict):
+                    continue
+                content = operation.get("requestBody", {}).get("content", {})
+                if "application/json" in content:
+                    operation["requestBody"]["content"] = {"application/json": content["application/json"]}
+        self.assertEqual(staged, expected, "Only documented JSON request representations may be selected; all models remain unchanged")
         self.assertEqual(len(json.loads(source)["paths"]), 635)
 
     def test_brand_config_drives_project_display_name_bundle_and_icon(self):
