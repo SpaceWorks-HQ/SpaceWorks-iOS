@@ -62,7 +62,7 @@ final class AuthState {
             guard await service.refresh.current() != nil else { stage = .signIn; return }
             try await loadIdentity()
         } catch {
-            error = APIError.display(error)
+            self.error = APIError.display(error)
             if isUnauthorized(error) { try? await service.refresh.install(nil) }
             stage = .signIn
         }
@@ -83,9 +83,9 @@ final class AuthState {
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines), password: password,
                 challenge: challenge.challenge, attestationJSON: proof)
             switch result {
-            case .case1(let tokens):
+            case .DeviceTokenResponse(let tokens):
                 try await accept(TokenPair(access: tokens.access, refresh: tokens.refresh))
-            case .case2(let challenge):
+            case .MFAChallengeResponse(let challenge):
                 mfa = challenge
                 mfaExpires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
                 if challenge.enrollment_required { enrollment = try await service.enroll(challenge: challenge.challenge) }

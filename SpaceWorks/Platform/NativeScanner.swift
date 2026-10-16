@@ -9,6 +9,7 @@ struct NativeQRScanner: View {
     @Environment(\.dismiss) private var dismiss
     @State private var manual = ""
     @State private var cameraReady = false
+    @State private var submitted = false
     @State private var message: String?
 
     var body: some View {
@@ -33,7 +34,9 @@ struct NativeQRScanner: View {
                     Text("Enter code manually").font(.headline)
                     TextField("Code", text: $manual)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .textFieldStyle(.roundedBorder).accessibilityIdentifier("scanner-manual-code")
+                        .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
+                        .accessibilityIdentifier("scanner-manual-code")
                         .submitLabel(.go).onSubmit { complete(manual) }
                     Button { complete(manual) } label: {
                         Text("Review code").frame(minHeight: 48)
@@ -65,12 +68,14 @@ struct NativeQRScanner: View {
     }
 
     private func complete(_ value: String) {
+        guard !submitted else { return }
         let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !code.isEmpty, code.utf8.count <= 2048,
               code.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
             message = "Enter a valid code and try again."
             return
         }
+        submitted = true
         onScan(code)
         dismiss()
     }
@@ -115,7 +120,9 @@ private struct ScannerCamera: UIViewControllerRepresentable {
         func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
             guard !delivered else { return }
             for item in addedItems {
-                if case .barcode(let barcode) = item, let value = barcode.payloadStringValue, !value.isEmpty {
+                if case .barcode(let barcode) = item, let value = barcode.payloadStringValue,
+                   !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.utf8.count <= 2048,
+                   value.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) {
                     delivered = true
                     dataScanner.stopScanning()
                     onScan(value)
