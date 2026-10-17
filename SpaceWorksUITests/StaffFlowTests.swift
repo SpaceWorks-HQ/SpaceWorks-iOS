@@ -21,12 +21,20 @@ final class StaffFlowTests: XCTestCase {
             }
             tap(profile, in: app)
         }
-        tap(app.buttons["staff-tools"], in: app)
+        let tools = app.buttons["staff-tools"]
+        tap(tools, in: app)
+        // Wait for outgoing Profile content to leave the AX tree before querying new scroll views.
+        let outgoingGone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: tools)
+        XCTAssertEqual(XCTWaiter.wait(for: [outgoingGone], timeout: 5), .completed)
+        XCTAssertTrue(app.navigationBars["Staff tools"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["staff-requests"].waitForExistence(timeout: 5))
         return app
     }
     private func scan(_ payload: String, app: XCUIApplication) {
         let field = app.textFields["scanner-manual-code"]
         tap(field, in: app); field.typeText(payload + "\n")
+        let scannerClosed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [scannerClosed], timeout: 5), .completed)
     }
     private func recordHandover(in app: XCUIApplication) {
         // Native confirmation dialogs have separate title/action scroll regions.
@@ -53,9 +61,15 @@ final class StaffFlowTests: XCTestCase {
         tap(app.switches["staff-borrower-checked"], in: app); tap(app.buttons["staff-handover-next"], in: app)
         tap(app.buttons["staff-handover-next"], in: app)
         tap(app.buttons["staff-sample-photo"], in: app); tap(app.buttons["staff-upload-photo"], in: app)
-        for button in app.buttons.matching(identifier: "Start count").allElementsBoundByIndex { tap(button, in: app) }
-        XCTAssertTrue(app.buttons["staff-handover-confirm"].waitForExistence(timeout: 5)); attach("Staff issue evidence and review")
-        tap(app.buttons["staff-handover-confirm"], in: app)
+        let confirm = app.buttons["staff-handover-confirm"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5)); XCTAssertFalse(confirm.isEnabled)
+        let startCount = app.buttons.matching(NSPredicate(format: "label == %@", "Start count for Precision toolkit, Sample probe"))
+        XCTAssertEqual(startCount.count, 1, "The sample kit has one component that must be explicitly counted.")
+        tap(startCount.firstMatch, in: app)
+        let present = app.steppers.matching(NSPredicate(format: "label == %@", "Present Precision toolkit, Sample probe")).firstMatch
+        XCTAssertTrue(present.waitForExistence(timeout: 5)); XCTAssertEqual(present.value as? String, "0 of 2")
+        XCTAssertTrue(confirm.isEnabled); attach("Staff issue evidence and review")
+        tap(confirm, in: app)
         XCTAssertFalse(app.descendants(matching: .any)["staff-handover-recorded"].firstMatch.exists)
         recordHandover(in: app)
         XCTAssertTrue(app.descendants(matching: .any)["staff-handover-recorded"].firstMatch.waitForExistence(timeout: 10)); attach("Staff handover recorded")

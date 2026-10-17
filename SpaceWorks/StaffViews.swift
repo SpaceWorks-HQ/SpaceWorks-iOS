@@ -177,7 +177,7 @@ private struct StaffCheckInView: View {
                     Text("Payment: \((person.payment_status ?? "Unavailable").replacingOccurrences(of: "_", with: " "))").foregroundStyle(Color.swMuted)
                     if state.canConfirm { Button("Confirm attendance") { Task { await state.confirm() } }.buttonStyle(SWPrimary()).accessibilityIdentifier("staff-confirm-attendance") }
                     else { Text("This registration cannot be checked in. Scan another code or ask the event manager.").foregroundStyle(Color.swMuted) }
-                }.accessibilityIdentifier("staff-resolved-person")
+                }
             }
             }
         }.padding(24).frame(maxWidth: 720).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle("Check-in").navigationBarTitleDisplayMode(.inline)
