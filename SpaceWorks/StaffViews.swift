@@ -31,11 +31,21 @@ struct StaffView: View {
 
 private struct StaffMenuRow: View {
     let title: Text; let detail: LocalizedStringKey; let symbol: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: symbol).font(.title2).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) { title.font(.headline); Text(detail).font(.subheadline).foregroundStyle(Color.swMuted) }
-            Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    title.font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).font(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .top, spacing: 16) {
+                    Image(systemName: symbol).font(.title2).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) { title.font(.headline); Text(detail).font(.subheadline).foregroundStyle(Color.swMuted) }
+                    Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
+                }
+            }
         }.frame(minHeight: 64).padding(.vertical, 12).foregroundStyle(Color.swInk)
     }
 }

@@ -280,15 +280,22 @@ struct InventoryList: View {
     }
     private func productRow(_ product: Components.Schemas.PublicProduct) -> some View {
         SWCard {
-            HStack(alignment: .top, spacing: 16) {
-                Image(systemName: "shippingbox").font(.title).frame(width: 48, height: 48).background(Color.swSurface, in: RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
+            if textSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(product.name).font(.headline)
-                    if let category = product.category_name { Text(category).foregroundStyle(Color.swMuted) }
-                    Text(availability(product)).foregroundStyle(Color.swMuted)
-
+                    Text(verbatim: product.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    if let category = product.category_name { Text(verbatim: category).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true) }
+                    Text(availability(product)).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .top, spacing: 16) {
+                    Image(systemName: "shippingbox").font(.title).frame(width: 48, height: 48).background(Color.swSurface, in: RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(verbatim: product.name).font(.headline)
+                        if let category = product.category_name { Text(verbatim: category).foregroundStyle(Color.swMuted) }
+                        Text(availability(product)).foregroundStyle(Color.swMuted)
+                    }
+                    Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
                 }
-                Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
             }
         }
     }
