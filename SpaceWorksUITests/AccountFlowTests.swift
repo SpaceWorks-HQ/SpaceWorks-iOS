@@ -26,7 +26,11 @@ final class AccountFlowTests: XCTestCase {
             tap(profile, in: app)
         }
         }
-        tap(app.buttons["account-entry"], in: app); return app
+        let entry = app.buttons["account-entry"]
+        tap(entry, in: app)
+        XCTAssertTrue(entry.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Account and security"].waitForExistence(timeout: 5))
+        return app
     }
     private func confirmNativeDialog(_ title: String, action label: String, in app: XCUIApplication) {
         if title == "Leave this makerspace?" || title == "Cancel membership renewal?" {

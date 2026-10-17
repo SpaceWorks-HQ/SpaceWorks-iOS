@@ -74,7 +74,15 @@ enum NativeUIActions {
         return descendants.matching(NSPredicate(format: "label == %@", element.label)).firstMatch.exists
     }
     private static func containingScroll(_ element: XCUIElement, _ app: XCUIApplication) -> XCUIElement {
-        let scrolls = app.scrollViews.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+        let scrolls = app.scrollViews.allElementsBoundByIndex.filter { scroll in
+            guard scroll.exists else { return false }
+            let frame = scroll.frame
+            guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite,
+                  frame.width > 0, frame.height > 0 else { return false }
+            let visible = frame.intersection(app.frame)
+            guard !visible.isNull, visible.width > 0, visible.height > 0 else { return false }
+            return scroll.isHittable
+        }
         // Presented SwiftUI sheets may appear in a backing view's AX descendants.
         // Its scroll cannot move the modal content. Prefer the actual review container.
         if let review = scrolls.first(where: { $0.identifier == "request-review-scroll" }) { return review }
