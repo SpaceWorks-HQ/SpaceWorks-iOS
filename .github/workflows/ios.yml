@@ -69,10 +69,19 @@ jobs:
       - name: Select phone or tablet simulator
         run: |
           python3 scripts/device-matrix.py '${{ matrix.device }}'
-      - name: Compile and test on simulator
+      - name: Compile app and native test bundles
         run: |
           set -o pipefail
-          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+          xcodebuild build-for-testing -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+      - name: Run native state and API tests
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath NativeTestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksTests | tee -a build.log
+      - name: Run native UI journeys
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksUITests | tee -a build.log
       - name: Export UI screenshots
         if: always()
         run: |
@@ -93,6 +102,7 @@ jobs:
         with:
           name: ios-validation-${{ matrix.device }}
           path: |
+            NativeTestResults.xcresult
             TestResults.xcresult
             TestAttachments
             build.log

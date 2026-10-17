@@ -223,7 +223,7 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
                 return (200, DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true"))
             }
             if request.url!.path.hasSuffix("/change-password") { return (401, #"{"detail":"Current password is incorrect."}"#) }
-            if request.url!.path.hasSuffix("/refresh") { return (200, #"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            if request.url!.path.hasSuffix("/refresh") { return (200, DeviceRefreshFixture.rotated) }
             return try self.response(request)
         }
         await auth.restore(); XCTAssertEqual(auth.stage, .passwordChange)

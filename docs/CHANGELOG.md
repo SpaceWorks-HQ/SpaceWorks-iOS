@@ -4,7 +4,11 @@
 
 The first merged A8 [`7455146` matrix](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018807936) stopped during compilation before tests because SwiftUI exposes Reduce Motion as a read-only environment value. The introduction now reads the OS value and combines it locally with the Debug-only UI-test launch flag; Release continues to use the OS setting. The global environment is unchanged, including introduction replay. This compiler checkpoint provides no native test or screenshot acceptance; the corrected exact-head matrix remains required.
 
-This isolated A8 candidate started from A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61` and now includes the `8ff47bc` staff-title compiler correction through a normal merge. A7 native acceptance remains pending [follow-up workflow 39018648885](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018648885); the initial 39017485631 checkpoint stopped before tests, as recorded below. This preparation does not claim native acceptance or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
+The diagnostic `96c25e6` matrix was canceled after its started profiles all stopped in the same account retry test before UI testing. It includes no native acceptance. The candidate now normally merges actual corrected dev `e94a5c8`, including complete successful-refresh fixtures and bounded test synchronization; A7 and A8 native acceptance remain pending.
+
+CI now compiles the entire scheme, runs every native state/API test, then runs every UI journey as distinct steps. Native tests have a ten-minute step bound so an unreachable fixture wait is visible promptly; both result bundles and the shared build log are archived. Scheme, destinations, signing flags, all tests, six profiles and the 120-minute job limit are retained.
+
+This isolated A8 candidate started from A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61` and now includes the `8ff47bc` staff-title compiler correction through a normal merge. The prior [A7 workflow 39018648885](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018648885) was canceled for diagnostic logs; native acceptance at corrected dev remains pending; the initial 39017485631 checkpoint stopped before tests, as recorded below. This preparation does not claim native acceptance or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
 
 Add a replayable App guide covering navigation, requests, renewal, bookings, event tickets,
 notifications, payments, security and membership. Staff instructions appear only with available
@@ -43,6 +47,12 @@ Staff retry timers retain even very large finite server deadlines while sleeping
 chunks of at most 3600 seconds. This avoids an overflowing UInt64 nanosecond conversion and keeps
 canceled or superseded timers from reopening requests. One state regression exercises extreme
 server deadlines, replacement and private-scope invalidation; native execution is still required.
+
+## A7 native test fixture correction
+
+- Canceled the previous A7 validation after native diagnostics showed an incomplete successful-refresh fixture prevented the held management retry from being reached. No UI tests had started; that run is not acceptance evidence.
+- Share a schema-complete refresh response across account, email and required-password tests, and decode it through the generated `DeviceRefreshResponse` in the existing operation test. The stale-management test now waits at most five seconds for retry arrival or early completion, always releases its held response, and awaits the operation so early decoding errors surface.
+- Intended native/UI/Python counts remain 285/34/21. Full phone/tablet tests and unsigned Release must pass at the corrected head before A7 acceptance.
 
 ## A7 Account and localization — implementation checkpoint (2026-10-17)
 

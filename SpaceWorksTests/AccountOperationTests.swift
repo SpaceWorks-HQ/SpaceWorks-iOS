@@ -73,7 +73,7 @@ final class AccountOperationTests: XCTestCase {
         let ended = AccountCallCounter()
         var repo = try await repository(makerspaceID: nil) { request in
             if request.url?.path == "/api/v1/auth/change-password" { return self.json(#"{"detail":"Password updated."}"#) }
-            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(#"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(DeviceRefreshFixture.rotated) }
             XCTAssertEqual(request.url?.path, "/api/v1/auth/me")
             return self.json(#"{"detail":"Session revoked."}"#, status: 401)
         }
@@ -83,6 +83,10 @@ final class AccountOperationTests: XCTestCase {
         XCTAssertEqual(ended.value, 1)
     }
     func testAll21GeneratedAccountOperationsUseExactBodiesAndPublicArchiveHasNoAccountCredentials() async throws {
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
+        let refreshed = try decoder.decode(Components.Schemas.DeviceRefreshResponse.self, from: Data(DeviceRefreshFixture.rotated.utf8))
+        XCTAssertEqual(refreshed.access, "rotated-access"); XCTAssertEqual(refreshed.refresh, "rotated-refresh")
+        XCTAssertEqual(refreshed.device_grant.app_id, "org.spaceworks.app")
         var calls = Set<String>(); var grantsIssued = 0
         let zip = try archiveBytes()
         let repo = try await repository { request in
@@ -187,9 +191,11 @@ final class AccountOperationTests: XCTestCase {
         XCTAssertEqual(count.value, 0); XCTAssertEqual(ended.value, 0)
     }
     func testLateManagement401NeverProbesOrSignsOutReplacementAccount() async throws {
-        let finalResponse = AccountResponseGate(), calls = AccountCallCounter(), ended = AccountCallCounter(), probes = AccountCallCounter()
+        let entryOrCompletion = expectation(description: "Retried response arrived or operation finished")
+        let finalResponse = AccountResponseGate(entryOrCompletion: entryOrCompletion)
+        let calls = AccountCallCounter(), ended = AccountCallCounter(), probes = AccountCallCounter()
         var repo = try await repository(makerspaceID: nil) { request in
-            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(#"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(DeviceRefreshFixture.rotated) }
             if request.url?.path == "/api/v1/auth/me" { probes.increment(); return self.json(self.me) }
             XCTAssertEqual(request.url?.path, "/api/v1/auth/mfa/recovery")
             calls.increment()
@@ -198,8 +204,19 @@ final class AccountOperationTests: XCTestCase {
         }
         repo.onUnauthorized = { _ in ended.increment() }
         let owner = repo
-        let old = Task { try await owner.regenerateRecovery(password: "old-password") }
-        await finalResponse.entered()
+        let old = Task {
+            defer { finalResponse.operationCompleted() }
+            return try await owner.regenerateRecovery(password: "old-password")
+        }
+        defer { finalResponse.release(); old.cancel() }
+        await fulfillment(of: [entryOrCompletion], timeout: 5)
+        guard finalResponse.didEnter else {
+            finalResponse.release()
+            // An early decode/transport failure must surface instead of waiting for an unreachable retry.
+            _ = try await old.value
+            XCTFail("Management operation finished without its held retry")
+            return
+        }
         try await repo.service.refresh.install(.init(access: "replacement-access", refresh: "replacement-refresh"))
         finalResponse.release()
         do { _ = try await old.value; XCTFail("Old management result accepted") }
@@ -261,7 +278,7 @@ final class AccountOperationTests: XCTestCase {
     @MainActor func testWrongPassword401RefreshesThenProbesIdentityWithoutDestroyingAccountState() async throws {
         let ended = AccountCallCounter(); let refreshes = AccountCallCounter(); let checks = AccountCallCounter()
         var repo = try await repository { request in
-            if request.url?.path == "/api/v1/auth/device/refresh" { refreshes.increment(); return self.json(#"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            if request.url?.path == "/api/v1/auth/device/refresh" { refreshes.increment(); return self.json(DeviceRefreshFixture.rotated) }
             if request.url?.path == "/api/v1/auth/me" { checks.increment(); return self.json(self.me) }
             if request.url?.path == "/api/v1/auth/mfa" { return self.json(DebugAccountFixtures.mfa) }
             XCTAssertEqual(request.url?.path, "/api/v1/auth/mfa/recovery")
@@ -277,7 +294,7 @@ final class AccountOperationTests: XCTestCase {
         let ended = AccountCallCounter(), count = AccountCallCounter()
         var repo = try await repository(makerspaceID: nil) { request in
             count.increment()
-            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(#"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            if request.url?.path == "/api/v1/auth/device/refresh" { return self.json(DeviceRefreshFixture.rotated) }
             if request.url?.path == "/api/v1/auth/me" { return (503, ["Content-Type": "application/json", "Retry-After": "17"], Data(#"{"detail":"Identity is temporarily unavailable."}"#.utf8)) }
             if request.url?.path == "/api/v1/auth/mfa" { return self.json(DebugAccountFixtures.mfa) }
             return self.json(#"{"detail":"Password verification failed."}"#, status: 401)
@@ -332,19 +349,20 @@ private actor AccountScopeGate {
 private final class AccountResponseGate: @unchecked Sendable {
     private let lock = NSLock()
     private let response = DispatchSemaphore(value: 0)
+    private let entryOrCompletion: XCTestExpectation
     private var started = false
-    private var observer: CheckedContinuation<Void, Never>?
+    private var signaled = false
+    init(entryOrCompletion: XCTestExpectation) { self.entryOrCompletion = entryOrCompletion }
+    var didEnter: Bool { lock.lock(); defer { lock.unlock() }; return started }
     func block() {
-        lock.lock(); started = true; let observer = self.observer; self.observer = nil; lock.unlock()
-        observer?.resume()
-        _ = response.wait(timeout: .now() + 10)
+        lock.lock(); started = true; lock.unlock()
+        signal()
+        XCTAssertEqual(response.wait(timeout: .now() + 10), .success, "Held management response was not released")
     }
-    func entered() async {
-        await withCheckedContinuation { continuation in
-            lock.lock()
-            if started { lock.unlock(); continuation.resume() }
-            else { observer = continuation; lock.unlock() }
-        }
+    func operationCompleted() { signal() }
+    private func signal() {
+        lock.lock(); let shouldSignal = !signaled; signaled = true; lock.unlock()
+        if shouldSignal { entryOrCompletion.fulfill() }
     }
     func release() { response.signal() }
 }
