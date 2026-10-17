@@ -5,7 +5,7 @@ final class MainFlowTests: XCTestCase {
     private func launch(extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing"] + extra
-        app.launch()
+        app.launchForDeviceProfile()
         return app
     }
     private func connect(_ app: XCUIApplication) {
@@ -36,7 +36,7 @@ final class MainFlowTests: XCTestCase {
         XCTAssertTrue(item.waitForExistence(timeout: 5)); item.tap()
     }
     func testPasswordMakerspaceSwitchProfileAndSignOut() {
-        let app = launch(); connect(app); attach(app, "Sign in portrait")
+        let app = launch(); connect(app); attach(app, "Sign in initial device layout")
         credentials(app); selectSpace(app)
         XCTAssertTrue(app.staticTexts["Welcome back, Maker."].waitForExistence(timeout: 10))
         attach(app, "Home member portrait")
@@ -64,7 +64,7 @@ final class MainFlowTests: XCTestCase {
         attach(app, "Server failure")
     }
     func testDarkModeLargestTextPortraitAndLandscape() {
-        let app = launch(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let app = launch(extra: ["--ui-start-light", "--ui-start-portrait", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         app.buttons["appearance"].tap(); connect(app)
         app.swipeUp(); attach(app, "Sign in largest text dark portrait")
         XCUIDevice.shared.orientation = .landscapeLeft
@@ -97,7 +97,7 @@ final class MainFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Borrow with confidence."].exists)
         app.buttons["intro-next"].tap(); app.buttons["intro-next"].tap()
         XCTAssertTrue(app.textFields["server-url"].exists)
-        app.terminate(); app.launchArguments = ["--ui-testing", "--introduction"]; app.launch()
+        app.terminate(); app.launchArguments = ["--ui-testing", "--introduction"]; app.launchForDeviceProfile()
         XCTAssertTrue(app.textFields["server-url"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["Skip introduction"].exists)
     }

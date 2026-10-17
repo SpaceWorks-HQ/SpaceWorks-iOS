@@ -186,15 +186,18 @@ struct BrandWordmark: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
-        if Brand.appName == "Space Works" {
-            if compact || verticalSize == .compact || typeSize.isAccessibilitySize {
+        let compactLayout = compact || verticalSize == .compact || typeSize.isAccessibilitySize
+        let originalBrand = Brand.appName == "Space Works"
+        let useSymbol = Brand.hasCustomWordmark ? (compactLayout ? Brand.hasCustomSymbol : !Brand.hasCustomStacked) : compactLayout
+        if originalBrand || Brand.hasCustomWordmark {
+            if useSymbol {
                 Image("BrandSymbol").resizable().scaledToFit().frame(width: 52, height: 48)
-                    .padding(12).accessibilityLabel("Space Works")
+                    .padding(12).accessibilityLabel(Text(verbatim: Brand.appName))
             } else {
                 Image("BrandStacked").resizable().scaledToFit().frame(width: spacious ? 280 : 180, height: spacious ? 100 : 64)
-                    .padding(16).accessibilityLabel("Space Works")
+                    .padding(16).accessibilityLabel(Text(verbatim: Brand.appName))
             }
-        } else { Text(Brand.appName).font(.headline).foregroundStyle(Color.swAccentInk) }
+        } else { Text(verbatim: Brand.appName).font(.headline).foregroundStyle(Color.swAccentInk) }
     }
 }
 

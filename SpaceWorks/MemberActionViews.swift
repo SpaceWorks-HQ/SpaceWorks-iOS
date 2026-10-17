@@ -54,7 +54,7 @@ struct RequestCartView: View {
         }.interactiveDismissDisabled(state.busy)
     }
     @ViewBuilder private func submission(at date: Date) -> some View {
-        if let deadline = state.retryAfter, date < deadline { Text("Try again in \(max(1, Int(ceil(deadline.timeIntervalSince(date)))))s.").foregroundStyle(Color.swMuted) }
+        if let deadline = state.retryAfter, date < deadline { Text(CooldownCopy.retryMessage(until: deadline, now: date)).foregroundStyle(Color.swMuted) }
         Button(state.busy ? "Submitting…" : "Submit request") {
             Task { await state.submit(); if state.receipt != nil { await completed() } }
         }.buttonStyle(SWPrimary()).disabled(state.busy || state.lines.isEmpty || (state.retryAfter ?? .distantPast) > date)

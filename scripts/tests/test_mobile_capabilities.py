@@ -32,7 +32,11 @@ class CapabilityTests(unittest.TestCase):
         generation_spec.loader.exec_module(generator)
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory).resolve()
-            for relative in ["branding/brand.json", "api/openapi.json", "api/provenance.json", "tokens/mobile-motion.json", "design/tokens/tokens.json"]:
+            inputs = json.loads((ROOT / "branding/brand.json").read_text(encoding="utf-8"))
+            files = ["branding/brand.json", "api/openapi.json", "api/provenance.json", "tokens/mobile-motion.json", inputs["theme_tokens"], inputs["app_icon"]]
+            files += [value for key, value in inputs.items() if key.startswith("logo_") and value is not None]
+            shutil.copytree(ROOT / "design/logo", root / "design/logo")
+            for relative in dict.fromkeys(files):
                 target = root / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(ROOT / relative, target)

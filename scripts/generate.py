@@ -31,6 +31,37 @@ def inside(relative):
 
 def generate(raster=True):
     brand = json.loads((ROOT / "branding/brand.json").read_text())
+    links_spec = importlib.util.spec_from_file_location("spaceworks_brand_links", ROOT / "scripts/brand_links.py")
+    links_module = importlib.util.module_from_spec(links_spec)
+    links_spec.loader.exec_module(links_module)
+    # Validate destinations before writing any generated output. Only these optional
+    # external links are normalized; the deployment origin has its own strict policy.
+    brand.update(links_module.validated_links(brand))
+    artwork_spec = importlib.util.spec_from_file_location("spaceworks_artwork", ROOT / "scripts/brand_artwork.py")
+    artwork_module = importlib.util.module_from_spec(artwork_spec)
+    artwork_spec.loader.exec_module(artwork_module)
+    selected_artwork = artwork_module.selected_artwork(ROOT, brand)
+    artwork_flags = artwork_module.artwork_flags(brand)
+    icon_source = inside(brand["app_icon"])
+    theme_source = inside(brand["theme_tokens"])
+    if not icon_source.is_file() or icon_source.suffix.lower() != ".svg":
+        raise ValueError("app_icon must name a repository-local SVG file")
+    try:
+        if ET.parse(icon_source).getroot().tag.split("}")[-1] != "svg":
+            raise ValueError("app_icon must contain SVG artwork")
+    except (ET.ParseError, OSError) as error:
+        raise ValueError("app_icon must contain valid SVG artwork") from error
+    if not theme_source.is_file():
+        raise ValueError("theme_tokens must name a repository-local JSON file")
+    tokens = json.loads(theme_source.read_text(encoding="utf-8"))
+    if not isinstance(tokens, dict) or any(not isinstance(tokens.get(mode), dict) or not tokens[mode] for mode in ["light", "dark"]):
+        raise ValueError("theme_tokens requires nonempty light and dark semantic roles")
+    if set(tokens["light"]) != set(tokens["dark"]):
+        raise ValueError("Light and dark semantic roles must match")
+    for mode in ["light", "dark"]:
+        for role, color in tokens[mode].items():
+            if not isinstance(color, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+                raise ValueError(f"Invalid token {mode}.{role}")
     for key in ["ios_bundle_id", "ios_team_id"]:
         if not re.fullmatch(r"[A-Za-z0-9.-]*", brand[key]):
             raise ValueError(f"Invalid {key}")
@@ -54,6 +85,7 @@ def generate(raster=True):
     write(ROOT / "SpaceWorks/Generated/Brand.swift", "// Generated. Do not edit.\nimport Foundation\nenum Brand {\n"
           + "\n".join(f"    static let {name}: String{'?' if key in ['server_url', 'support_url', 'privacy_url'] else ''} = {swift_literal(brand[key])}"
                       for name, key in [("appName", "app_name"), ("bundleID", "ios_bundle_id"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
+          + "\n" + "\n".join(f"    static let {name} = {str(value).lower()}" for name, value in artwork_flags.items())
           + "\n    static let pushConfigured = " + str(push_configured).lower()
           + "\n    #if DEBUG\n    static let pushEnvironment = \"development\"\n    #else\n    static let pushEnvironment = \"production\"\n    #endif\n"
           + "    static let associatedDomains: [String] = " + json.dumps(brand.get("associated_domains", []))
@@ -86,7 +118,7 @@ def generate(raster=True):
     (ROOT / "SpaceWorks/Generated/Simulator.entitlements").write_bytes(plistlib.dumps({
         "application-identifier": simulator_identity,
         "keychain-access-groups": [simulator_identity], "get-task-allow": True}))
-    tokens = json.loads(inside(brand["theme_tokens"]).read_text())
+    # Theme input was parsed and validated before generated output writes.
     if set(tokens["light"]) != set(tokens["dark"]):
         raise ValueError("Light and dark semantic roles must match")
     assets = ROOT / "SpaceWorks/Assets.xcassets"
@@ -123,18 +155,12 @@ def generate(raster=True):
     account_module = importlib.util.module_from_spec(account_spec)
     account_spec.loader.exec_module(account_module)
     account_module.generate_account_fixtures(ROOT)
-    wordmark = assets / "Wordmark.imageset"
-    wordmark.mkdir(parents=True, exist_ok=True)
-    for name, master in [("light.png", "lockup-horizontal-one-colour-ink.png"), ("dark.png", "lockup-horizontal-reversed.png")]:
-        shutil.copyfile(ROOT / "design/logo" / master, wordmark / name)
-    write(wordmark / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
-        {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
-        "info": {"author": "xcode", "version": 1}}))
-    for asset, master in [("BrandStacked", "lockup-stacked"), ("BrandSymbol", "symbol")]:
+    for asset in ["Wordmark", "BrandStacked", "BrandSymbol"]:
         target = assets / f"{asset}.imageset"
         target.mkdir(parents=True, exist_ok=True)
-        for name, suffix in [("light.png", ""), ("dark.png", "-reversed")]:
-            shutil.copyfile(ROOT / "design/logo" / f"{master}{suffix}.png", target / name)
+        for selected_asset, name, master in selected_artwork:
+            if selected_asset == asset:
+                shutil.copyfile(master, target / name)
         write(target / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
             {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
             "info": {"author": "xcode", "version": 1}}))

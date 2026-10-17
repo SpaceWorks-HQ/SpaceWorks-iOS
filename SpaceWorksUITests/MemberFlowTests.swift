@@ -5,7 +5,7 @@ final class MemberFlowTests: XCTestCase {
     private func demo(_ argument: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-testing"] + (argument.map { [$0] } ?? [])
-        app.launch()
+        app.launchForDeviceProfile()
         app.buttons["explore-demo"].tap(); app.buttons["Continue as member"].tap()
         app.swipeUp(); app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")

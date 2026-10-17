@@ -4,7 +4,7 @@ final class StaffFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) { NativeUIActions.tap(element, in: app) }
     private func staff(extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launchForDeviceProfile()
         tap(app.buttons["explore-demo"], in: app)
         tap(app.segmentedControls["demo-role"].buttons["Staff"], in: app)
         tap(app.buttons["Continue as staff"], in: app)

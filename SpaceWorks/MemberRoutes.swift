@@ -22,6 +22,7 @@ struct MemberRouteView: View {
     var body: some View {
         switch route {
         case .product(let id): InventoryDetail(repository: member.repository, id: id, cart: cart, drafts: drafts) { await member.loadActivity(); drafts.registrationCancelled() }
+        case .bookings: MemberBookingsView(state: member)
         case .spaces: SpaceDiscoveryView(member: member, repository: actions, isDemo: isDemo) { await member.loadBookings() }
         case .space(let token):
             if let space = member.spaces.first(where: { $0.public_token == token }) {

@@ -124,7 +124,26 @@ final class MemberActionsFlowTests: XCTestCase {
         }
         return viewport.insetBy(dx: gestureInset, dy: gestureInset)
     }
-    private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, target: XCUIElement, down: Bool) {
+    /// This landscape proof requires the whole primary label, without activating it.
+    private func revealFully(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<24 {
+            let scroll = containingScroll(element, app)
+            let viewport = visibleContent(scroll, app, gestureInset: 0).insetBy(dx: 2, dy: 2)
+            if element.exists {
+                let frame = element.frame
+                if frame.minX.isFinite, frame.minY.isFinite, frame.maxX.isFinite, frame.maxY.isFinite,
+                   frame.width > 0, frame.height > 0, viewport.contains(frame),
+                   element.isEnabled, element.isHittable { return }
+                drag(scroll, app, target: element, down: frame.minY < viewport.minY, approachTargetEdge: true)
+            } else {
+                drag(scroll, app, target: element, down: false, approachTargetEdge: true)
+            }
+        }
+        capture("Primary action not fully visible in largest text landscape")
+        XCTFail("The complete enabled primary action must fit inside the usable landscape viewport.")
+    }
+    private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, target: XCUIElement, down: Bool,
+                      approachTargetEdge: Bool = false) {
         let viewport = visibleContent(scroll, app)
         guard viewport.width > 20, viewport.height > 30 else { return }
         // Drag entirely inside the actual visible content, never across tab/navigation bars.
@@ -132,14 +151,14 @@ final class MemberActionsFlowTests: XCTestCase {
         // viewport. Hold at a slow, bounded endpoint so the next visible target is
         // examined before momentum can carry it under the navigation/tab bars.
         var distance = min(200, viewport.height * 0.4)
-        if scroll.identifier == "request-review-scroll", target.exists {
+        if (scroll.identifier == "request-review-scroll" || approachTargetEdge), target.exists {
             let frame = target.frame
             if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0, frame.height <= viewport.height - 4 {
                 let inset = viewport.insetBy(dx: 2, dy: 2)
                 let remaining = down ? inset.minY - frame.minY : frame.maxY - inset.maxY
                 if remaining > 0 {
                     // Native traces move 190pt for a 200pt drag (10pt pan slop).
-                    // Approach the exposed edge precisely in short landscape content.
+                    // Approach the exposed edge precisely for review and reveal-only landscape proof.
                     distance = min(distance, max(12, remaining + 10))
                 }
             }
@@ -171,7 +190,7 @@ final class MemberActionsFlowTests: XCTestCase {
                    withVelocity: .slow, thenHoldForDuration: 0.3)
     }
     private func demo(_ arguments: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launchForDeviceProfile()
         tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
         let username = app.textFields["demo-username"]; tap(username, in: app)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5)); username.typeText("meera\n")
@@ -251,7 +270,7 @@ final class MemberActionsFlowTests: XCTestCase {
         capture("Waitlisted event without a ticket")
     }
     func testLargestTextDarkRequestReviewPortraitAndLandscape() {
-        let app = demo(["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        let app = demo(["--ui-start-light", "--ui-start-portrait", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         tap(app.buttons["appearance"], in: app)
         tap(app.buttons["Browse inventory"], in: app)
         tap(app.descendants(matching: .any)["product-1"].firstMatch, in: app)
@@ -259,7 +278,11 @@ final class MemberActionsFlowTests: XCTestCase {
         tap(app.buttons["submit-request"], in: app)
         XCTAssertTrue(app.staticTexts["Request received"].waitForExistence(timeout: 5)); capture("Request receipt largest text dark portrait")
         XCUIDevice.shared.orientation = .landscapeLeft; XCTAssertGreaterThan(app.frame.width, app.frame.height)
-        tap(app.buttons["Done"], in: app); capture("Member item largest text dark landscape")
+        tap(app.buttons["Done"], in: app)
+        let add = app.buttons["Add to request"]
+        revealFully(add, in: app)
+        XCTAssertGreaterThanOrEqual(add.frame.height, 48)
+        capture("Member item primary action fully visible largest text dark landscape")
     }
 
 }

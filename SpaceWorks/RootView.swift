@@ -3,6 +3,7 @@ import SpaceWorksAPI
 
 struct RootView: View {
     @State private var state = AppState()
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var linkRouter = MobileLinkRouter()
     @State private var pendingURL: URL?
     @AppStorage("introduction-complete") private var introComplete = false
@@ -25,12 +26,24 @@ struct RootView: View {
         .tint(Color.swAccentInk)
         .foregroundStyle(Color.swInk)
         .preferredColorScheme(state.darkMode ? .dark : .light)
+        #if DEBUG
+        // UI automation exercises the app's reduced-motion environment; Release uses the OS.
+        .environment(\.accessibilityReduceMotion, systemReduceMotion ||
+            (ProcessInfo.processInfo.arguments.contains("--ui-testing") &&
+             ProcessInfo.processInfo.environment["SPACEWORKS_TEST_REDUCE_MOTION"] == "1"))
+        #endif
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack {
                 Spacer()
-                Button(state.darkMode ? "Light mode" : "Dark mode") { state.toggleAppearance() }
+                Button { state.toggleAppearance() } label: {
+                    Label(state.darkMode ? String(localized: "Light mode") : String(localized: "Dark mode"),
+                          systemImage: state.darkMode ? "sun.max" : "moon")
+                        .labelStyle(.iconOnly)
+                        .font(.title3).frame(minWidth: 48, minHeight: 48)
+                        .contentShape(Rectangle())
+                }
                     .buttonStyle(.plain).foregroundStyle(Color.swAccentInk)
-                    .font(.body).frame(minHeight: 48).padding(.horizontal, 24)
+                    .padding(.horizontal, 24)
                     .accessibilityIdentifier("appearance")
             }.background(Color.swSurface)
         }
@@ -276,7 +289,7 @@ private struct MemberScreen: View {
     @State private var confirmSignOut = false
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, openLink: { text in
+        if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, guidanceBookingsEnabled: capabilities.bootstrap?.modules.contains("bookable_spaces") == true, openLink: { text in
             guard let origin = state.connectedOrigin else { linkRouter.refuseURL(); return }
             if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
             else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
@@ -301,6 +314,9 @@ private struct MemberScreen: View {
                             NavigationLink("Notifications") { NotificationSettingsView(state: notifications) }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
                         }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
+                        NavigationLink("App guide") {
+                            AppGuideView(serverLabel: state.connectedOrigin?.url.absoluteString, replayTips: member.replayGuidance)
+                        }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
                     }

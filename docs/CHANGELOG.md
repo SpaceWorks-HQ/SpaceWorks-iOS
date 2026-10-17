@@ -1,5 +1,47 @@
 # Phase notes
 
+## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
+
+This isolated A8 candidate is based on A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61`. A7 native acceptance remains pending [workflow 39017485631](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39017485631); this preparation does not claim its result or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
+
+Add a replayable App guide covering navigation, requests, renewal, bookings, event tickets,
+notifications, payments, security and membership. Staff instructions appear only with available
+staff tools. Keep introduction replay and account/makerspace-scoped helpful tips, and use an enabled
+Profile alternative when the booking module is unavailable. Show the actual app version/build,
+validated selected server where available, and only configured support/privacy destinations.
+Unrepresentably long server cooldowns now have safe localized display copy without changing the
+retained deadline or permitting an early request; three boundary tests cover that conversion.
+
+White-label builds can supply paired native logo PNGs, a custom SVG icon and a semantic palette.
+Validate selected files and optional HTTPS links before generated writes, preserve supplied artwork
+bytes and the pinned Design masters, and select custom artwork even with a changed app name. The
+regressions exercise actual custom configuration rather than requiring default-brand output.
+
+The final workflow supplies real app appearance/orientation policies to every UI journey, includes
+compact/normal/large iPhone and three iPad profiles, and preserves all native tests. The unsigned
+physical-device build is audited for effective identity, device families/orientations, camera copy,
+branding/fonts/icons, English resources, privacy manifest and disabled multiple scenes. Profile
+attachments record actual window/theme; reduced-motion app-environment coverage is distinguished
+from a physical system-setting or third-party SDK test.
+
+Provide concrete store text, phone/tablet screenshot and reviewer-account plans, white-label setup,
+privacy/account controls and the release procedure. Native test evidence and accepted SHA belong to
+the final dev-to-main pull request's exact workflow links. Signing, real-device attestation/providers,
+APNs/link deployment, payment confirmation, whole-account deletion and TestFlight/store submission
+remain owner/backend release gates; Debug previews and unsigned builds do not establish those results.
+
+Source adds two guide UI journeys, three demo guidance scope/reset cases and three countdown boundary cases. Local composed checks pass
+40 Python cases, English catalog consistency and source lint; the native compiler/full device matrix
+is the acceptance gate. Parity: App guide / Replay introduction / Reset helpful tips / Start here.
+
+
+The View bookings shortcut opens a typed current-makerspace booking list above retained Activity history, preserving cached booking/profile drafts. Two state regressions cover history/draft retention and invalidation; the existing guide journey also exercises the real shortcut.
+
+Staff retry timers retain even very large finite server deadlines while sleeping in cancellable
+chunks of at most 3600 seconds. This avoids an overflowing UInt64 nanosecond conversion and keeps
+canceled or superseded timers from reopening requests. One state regression exercises extreme
+server deadlines, replacement and private-scope invalidation; native execution is still required.
+
 ## A7 Account and localization — implementation checkpoint (2026-10-17)
 
 Provide global Account and security before joining a makerspace: authenticator status, phone linking,

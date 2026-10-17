@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MemberRoute: Hashable {
-    case product(Int), spaces, space(String), event(String), booking(String), registration(Int), contact, preferences, payments, payment(Int), staff, account
+    case product(Int), bookings, spaces, space(String), event(String), booking(String), registration(Int), contact, preferences, payments, payment(Int), staff, account
 }
 
 /// Memory-only navigation belongs to one authenticated account/makerspace, outside adaptive branches.
@@ -17,6 +17,10 @@ final class MemberNavigation {
         })
     }
     func open(_ route: MemberRoute, tab: AppTab) { selected = tab; paths[tab] = [route] }
+    func openBookings() {
+        selected = .activity
+        if paths[.activity, default: []].last != .bookings { paths[.activity, default: []].append(.bookings) }
+    }
     func compactInventory() {
         guard selected == .inventory, let inventorySelection, paths[.inventory, default: []].isEmpty else { return }
         paths[.inventory] = [.product(inventorySelection)]

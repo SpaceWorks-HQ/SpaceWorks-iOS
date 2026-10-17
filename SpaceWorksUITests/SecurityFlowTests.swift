@@ -3,7 +3,7 @@ import XCTest
 final class SecurityFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     func testIsolatedEmailVerificationPreviewContinuesToMakerspaceSelection() {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launchForDeviceProfile()
         NativeUIActions.tap(app.buttons["explore-demo"], in: app); NativeUIActions.tap(app.buttons["Continue as member"], in: app)
         let username = app.textFields["demo-username"]; NativeUIActions.tap(username, in: app); username.typeText("unverified\n")
         app.secureTextFields["demo-password"].typeText("sample\n"); NativeUIActions.tap(app.buttons["demo-sign-in"], in: app)
@@ -21,7 +21,7 @@ final class SecurityFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["demo-space-0"].waitForExistence(timeout: 10))
     }
     func testRequiredPasswordUpdateReturnsToFreshSignIn() {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--temporary-password"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing", "--temporary-password"]; app.launchForDeviceProfile()
         let server = app.textFields["server-url"]; NativeUIActions.tap(server, in: app); server.typeText("https://ui-test.spaceworks.invalid\n")
         XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))
         NativeUIActions.tap(app.textFields["username"], in: app); app.textFields["username"].typeText("maker\n")

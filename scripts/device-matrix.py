@@ -48,7 +48,10 @@ def select(profile):
             if profile in ('large', 'tablet-landscape', 'large-tablet'):
                 simctl('ui', identifier, 'content_size', 'accessibility-extra-extra-extra-large')
             evidence = {'profile': profile, 'name': name, 'udid': identifier, 'runtime': runtime['version'],
-                        'appearance': appearance, 'landscape_required': profile == 'tablet-landscape',
+                        'appearance': appearance, 'expected_app_appearance': appearance,
+                        'launch_orientation': 'landscape' if profile == 'tablet-landscape' else 'portrait',
+                        'reduce_motion_environment': profile == 'large-tablet',
+                        'landscape_required': profile == 'tablet-landscape',
                         'large_text': profile in ('large', 'tablet-landscape', 'large-tablet')}
             pathlib.Path('validation-device.json').write_text(json.dumps(evidence, indent=2) + '\n', encoding='utf-8')
             with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:

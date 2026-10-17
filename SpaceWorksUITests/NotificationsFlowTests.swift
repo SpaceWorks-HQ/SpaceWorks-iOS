@@ -14,7 +14,7 @@ final class NotificationsFlowTests: XCTestCase {
         tap(item, app)
     }
     private func notifications() -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launchForDeviceProfile()
         tap(app.buttons["explore-demo"], app); tap(app.buttons["Continue as member"], app)
         let username = app.textFields["demo-username"]; tap(username, app); username.typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")

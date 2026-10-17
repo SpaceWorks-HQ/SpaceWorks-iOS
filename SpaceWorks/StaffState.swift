@@ -144,10 +144,15 @@ final class StaffState {
         if let deadline = APIError.retryDeadline(error), deadline > retryAfter {
             retryAfter = deadline; cooldownTask?.cancel()
             cooldownTask = Task { [weak self] in
-                let delay = max(0, deadline.timeIntervalSinceNow)
-                do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
-                catch { return }
-                guard let self, self.active else { return }; self.retryAfter = .distantPast
+                do {
+                    while !Task.isCancelled, deadline > Date() {
+                        guard self?.active == true, self?.retryAfter == deadline else { return }
+                        let seconds = min(3600, max(0, deadline.timeIntervalSinceNow))
+                        try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                    }
+                } catch { return }
+                guard !Task.isCancelled, let self, self.active, self.retryAfter == deadline else { return }
+                self.retryAfter = .distantPast
             }
         }
         if [401, 403].contains(APIError.status(error)) {

@@ -12,6 +12,7 @@ struct MemberContent: View {
     var navigation: MemberNavigation? = nil
     var drafts: MemberActionDrafts? = nil
     var paymentsAvailable = false
+    var guidanceBookingsEnabled = true
     var openLink: ((String) -> Void)? = nil
     @State private var showCard = false
     @State private var renewal: Components.Schemas.MemberLoanActivity?
@@ -29,10 +30,11 @@ struct MemberContent: View {
                             Text("Your makerspace, at a glance.").foregroundStyle(Color.swMuted)
                             if state.showGuidance {
                                 SWCard {
-                                    HStack { Text("Start here").font(.headline); Spacer(); Button("Dismiss") { state.dismissGuidance() }.frame(minHeight: 48) }
+                                    HStack { Text("Start here").font(.headline); Spacer(); Button("Dismiss") { state.dismissGuidance() }.frame(minHeight: 48).accessibilityIdentifier("guidance-dismiss") }
                                     Text("Find what you need, then request it from your makerspace.").foregroundStyle(Color.swMuted)
                                     Button("Browse inventory") { selectTab(.inventory) }.buttonStyle(SWPrimary())
-                                    Button("View bookings") { selectTab(.activity) }.frame(minHeight: 48)
+                                    if guidanceBookingsEnabled { Button("View bookings") { if let navigation { navigation.openBookings() } else { selectTab(.activity) } }.frame(minHeight: 48) }
+                                    else { Button("View profile") { selectTab(.profile) }.frame(minHeight: 48) }
                                 }
                             }
                         }
@@ -198,7 +200,7 @@ struct LoadFeedback: View {
                 SWError(message: message)
                 if let lastUpdated { Text("Last updated \(lastUpdated.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(Color.swMuted) }
                 TimelineView(.periodic(from: .now, by: 1)) { tick in
-                    Button((retryAfter ?? .distantPast) > tick.date ? "Try again in \(max(1, Int(ceil((retryAfter ?? tick.date).timeIntervalSince(tick.date)))))s" : "Try again") { Task { await retry() } }
+                    Button((retryAfter ?? .distantPast) > tick.date ? CooldownCopy.retryButton(until: retryAfter ?? tick.date, now: tick.date) : "Try again") { Task { await retry() } }
                         .frame(minHeight: 48).disabled((retryAfter ?? .distantPast) > tick.date)
                 }
             }

@@ -10,6 +10,7 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: '5.0'
+    SPACEWORKS_TEST_PROFILE: phone
     SWIFT_EMIT_LOC_STRINGS: YES
     CODE_SIGN_STYLE: Automatic
     CURRENT_PROJECT_VERSION: 1
@@ -94,4 +95,6 @@ schemes:
         SpaceWorksUITests: [test]
     test:
       gatherCoverageData: true
+      environmentVariables:
+        SPACEWORKS_TEST_PROFILE: $(SPACEWORKS_TEST_PROFILE)
       targets: [SpaceWorksTests, SpaceWorksUITests]

@@ -52,6 +52,7 @@ final class MemberState {
     private(set) var showGuidance: Bool
     private let settings: UserDefaults?
     private let guidanceKey: String?
+    private let guidanceChanged: ((Bool) -> Void)?
     private var nextInventoryPage: Int?
     private var nextInboxPage: Int?
     private var nextBookingsPage: Int?
@@ -66,14 +67,14 @@ final class MemberState {
     private var unreadLoading = false
     private let now: () -> Date
 
-    init(repository: any MemberRepository, settings: UserDefaults? = nil, context: String? = nil, now: @escaping () -> Date = Date.init) {
+    init(repository: any MemberRepository, settings: UserDefaults? = nil, context: String? = nil, now: @escaping () -> Date = Date.init, initialGuidance: Bool? = nil, guidanceChanged: ((Bool) -> Void)? = nil) {
         self.repository = repository; self.settings = settings
-        self.now = now
+        self.now = now; self.guidanceChanged = guidanceChanged
         self.guidanceKey = context.map { "guidance.member-v1." + $0 }
-        self.showGuidance = context.map { settings?.object(forKey: "guidance.member-v1." + $0) as? Bool ?? true } ?? true
+        self.showGuidance = initialGuidance ?? context.map { settings?.object(forKey: "guidance.member-v1." + $0) as? Bool ?? true } ?? true
     }
-    func dismissGuidance() { showGuidance = false; if let guidanceKey { settings?.set(false, forKey: guidanceKey) } }
-    func replayGuidance() { showGuidance = true; if let guidanceKey { settings?.set(true, forKey: guidanceKey) } }
+    func dismissGuidance() { showGuidance = false; if let guidanceKey { settings?.set(false, forKey: guidanceKey) }; guidanceChanged?(false) }
+    func replayGuidance() { showGuidance = true; if let guidanceKey { settings?.set(true, forKey: guidanceKey) }; guidanceChanged?(true) }
     func invalidate() {
         active = false; inventoryGeneration += 1; inboxGeneration += 1; cardGeneration += 1; bookingsGeneration += 1
         products = []; categories = []; activity = nil; bookings = []; events = []; spaces = []; card = nil; messages = []; unreadCount = nil; updated = [:]

@@ -33,6 +33,8 @@ final class DemoSession {
     var pendingAccountFix: DemoDeletionState.Blocker?
     @ObservationIgnored var globalAccountRepository: DemoAccountRepository?
     @ObservationIgnored var memberAccountRepositories: [Int: DemoAccountRepository] = [:]
+    @ObservationIgnored var guidanceFlags: [DemoGuidanceKey: Bool] = [:]
+    @ObservationIgnored var guidanceEpoch = UUID()
     var notificationState = DemoNotificationState()
     @ObservationIgnored private var paymentRepositories: [Int: DemoPaymentRepository] = [:]
     var staffScenario = DemoStaffScenario.populated
@@ -84,7 +86,7 @@ final class DemoSession {
         if let repository = paymentRepositories[makerspaceID] { return repository }
         let repository = DemoPaymentRepository(); paymentRepositories[makerspaceID] = repository; return repository
     }
-    func reset() { accountCooldown = AccountAccessCooldown(); emailCooldown = AccountAccessCooldown(); demoEmailConfirmed = false; emailFlowID = UUID(); fixNotice = nil; availableSpaces = [0, 1]; globalAccountRepository = nil; memberAccountRepositories = [:]; securityEnrollment = false; securityCodes = []; securityMessage = nil; pendingAccountFix = nil; paymentRepositories = [:]; notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
+    func reset() { guidanceFlags = [:]; guidanceEpoch = UUID(); accountCooldown = AccountAccessCooldown(); emailCooldown = AccountAccessCooldown(); demoEmailConfirmed = false; emailFlowID = UUID(); fixNotice = nil; availableSpaces = [0, 1]; globalAccountRepository = nil; memberAccountRepositories = [:]; securityEnrollment = false; securityCodes = []; securityMessage = nil; pendingAccountFix = nil; paymentRepositories = [:]; notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
 }
 
 enum DemoProvider: String, CaseIterable, Identifiable {
@@ -101,7 +103,11 @@ struct DemoRoot: View {
             HStack {
                 Text("Demo mode · sample data").font(.caption.bold())
                 Spacer()
-                Button("Exit demo") { session.reset(); exit() }.frame(minHeight: 48)
+                Button { session.reset(); exit() } label: {
+                    Label("Exit demo", systemImage: "xmark").labelStyle(.iconOnly)
+                        .font(.title3).frame(minWidth: 48, minHeight: 48)
+                        .contentShape(Rectangle())
+                }
             }.padding(.horizontal, 20).foregroundStyle(Color.swOnEmphasis).background(Color.swEmphasis)
             if session.stage == .shell {
                 DemoShell(session: session, linkRouter: linkRouter).id("\(session.role.rawValue).\(session.selectedSpace).\(session.memberScenario.rawValue)")
@@ -303,7 +309,7 @@ struct DemoShell: View {
         _cart = State(initialValue: RequestCartState(repository: actions))
         _drafts = State(initialValue: MemberActionDrafts(repository: actions))
         _capabilities = State(initialValue: MemberCapabilities(repository: actions, makerspaceID: session.selectedSpace + 7))
-        _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name, store: store)))
+        _member = State(initialValue: session.makeGuidedMemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name, store: store), makerspaceID: session.selectedSpace + 7))
     }
     var body: some View {
         GeometryReader { geometry in
@@ -401,7 +407,7 @@ struct DemoDestination: View {
     let linkRouter: MobileLinkRouter
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, openLink: { text in
+        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, guidanceBookingsEnabled: capabilities.bootstrap?.modules.contains("bookable_spaces") == true, openLink: { text in
             guard let origin = try? ServerOrigin("https://demo.spaceworks.invalid") else { return }
             if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
             else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
@@ -431,6 +437,9 @@ struct DemoDestination: View {
                         Picker("Action preview result", selection: Binding(get: { session.actionScenario }, set: { session.actionScenario = $0 })) {
                             ForEach(DemoMemberActionsRepository.Scenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) }
                         }.frame(minHeight: 48).accessibilityIdentifier("action-preview-result")
+                        NavigationLink("App guide") {
+                            AppGuideView(isDemo: true, staffAvailable: staff != nil, replayTips: member.replayGuidance)
+                        }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out") { session.reset() }.frame(minHeight: 48)
                 }
@@ -441,7 +450,7 @@ struct DemoDestination: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
                         ForEach(session.spaces.indices.filter { session.availableSpaces.contains($0) }, id: \.self) { index in Button(session.spaces[index]) { linkRouter.cancelIntent(); session.selectedSpace = index } }
-                    } label: { Label(session.spaces[session.selectedSpace], systemImage: "building.2") }
+                    } label: { Label(session.spaces[session.selectedSpace], systemImage: "building.2") }.accessibilityIdentifier("demo-makerspace-switcher")
                 }
             }
     }

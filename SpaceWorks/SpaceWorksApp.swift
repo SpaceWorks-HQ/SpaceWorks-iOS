@@ -15,7 +15,9 @@ struct SpaceWorksApp: App {
         if ProcessInfo.processInfo.arguments.contains("--ui-testing") {
             PreviewMemberResponses.reset()
             UserDefaults.standard.removeObject(forKey: "server-origin")
-            UserDefaults.standard.removeObject(forKey: "dark-mode")
+            // The app has an explicit theme, so simulator appearance alone is insufficient.
+            let appearance = ProcessInfo.processInfo.environment["SPACEWORKS_TEST_APPEARANCE"]
+            UserDefaults.standard.set(appearance == "dark", forKey: "dark-mode")
             UserDefaults.standard.removeObject(forKey: "makerspace-selection")
             for key in UserDefaults.standard.dictionaryRepresentation().keys where key.hasPrefix("makerspace-selection.") {
                 UserDefaults.standard.removeObject(forKey: key)

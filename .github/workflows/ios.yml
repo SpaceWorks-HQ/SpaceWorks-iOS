@@ -17,7 +17,7 @@ jobs:
     name: Build and test (${{ matrix.device }})
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 6
       matrix:
         device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["compact","phone","large","tablet","tablet-landscape","large-tablet"]' || '["phone","tablet"]') }}
     steps:
@@ -72,7 +72,7 @@ jobs:
       - name: Compile and test on simulator
         run: |
           set -o pipefail
-          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
       - name: Export UI screenshots
         if: always()
         run: |
@@ -84,6 +84,9 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build -project SpaceWorks.xcodeproj -scheme SpaceWorks -configuration Release -destination 'generic/platform=iOS' -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee release-build.log
+      - name: Audit unsigned Release bundle resources
+        if: success() && matrix.device == 'phone'
+        run: python3 scripts/audit_bundle.py DerivedData/Build/Products/Release-iphoneos/SpaceWorks.app
       - name: Archive validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -95,6 +98,7 @@ jobs:
             build.log
             release-build.log
             validation-device.json
+            validation-bundle.json
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7

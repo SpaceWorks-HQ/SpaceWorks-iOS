@@ -121,7 +121,7 @@ struct AccountAccessView: View {
                 Button(title) { Task { await action() } }.frame(minHeight: 48)
                     .disabled(form.busy || tick.date < form.resendAfter)
                 if tick.date < form.resendAfter {
-                    Text("Try again in \(max(1, Int(ceil(form.resendAfter.timeIntervalSince(tick.date)))))s.")
+                    Text(CooldownCopy.retryMessage(until: form.resendAfter, now: tick.date))
                         .font(.caption).foregroundStyle(Color.swMuted)
                 }
             }

@@ -27,11 +27,13 @@ class MotionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 motion.render_motion(document)
 
-    def test_native_logo_assets_are_exact_unmodified_masters_in_both_appearances(self):
-        for asset, master in [("BrandStacked", "lockup-stacked"), ("BrandSymbol", "symbol")]:
-            for filename, suffix in [("light.png", ""), ("dark.png", "-reversed")]:
-                self.assertEqual((ROOT / f"SpaceWorks/Assets.xcassets/{asset}.imageset/{filename}").read_bytes(),
-                                 (ROOT / f"design/logo/{master}{suffix}.png").read_bytes())
+    def test_native_logo_assets_preserve_configured_source_bytes_in_both_appearances(self):
+        artwork_spec = importlib.util.spec_from_file_location("artwork", ROOT / "scripts/brand_artwork.py")
+        artwork = importlib.util.module_from_spec(artwork_spec)
+        artwork_spec.loader.exec_module(artwork)
+        brand = json.loads((ROOT / "branding/brand.json").read_text())
+        for asset, filename, source in artwork.selected_artwork(ROOT, brand):
+            self.assertEqual((ROOT / f"SpaceWorks/Assets.xcassets/{asset}.imageset/{filename}").read_bytes(), source.read_bytes())
 
     def test_native_accent_font_has_recorded_license_and_provenance(self):
         font = ROOT / "SpaceWorks/Resources/Fonts/Unbounded-Variable.ttf"

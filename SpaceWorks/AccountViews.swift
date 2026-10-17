@@ -32,6 +32,7 @@ struct AccountView: View {
             }
             SWCard {
                 Text("Privacy and help").font(.title2.bold())
+                NavigationLink("App guide") { AppGuideView(isDemo: state.isDemo) }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                 if let url = AccountLinks.safe(privacyURL) { Link("Privacy policy", destination: url).frame(minHeight: 48) }
                 else { Text("Your makerspace hasn't provided a privacy policy link.").foregroundStyle(Color.swMuted) }
                 if let url = AccountLinks.safe(supportURL) { Link("Contact support", destination: url).frame(minHeight: 48) }
@@ -172,7 +173,7 @@ private struct AccountPhoneView: View {
                 TextField("Phone number", text: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad).modifier(AccountInput()).focused($focused, equals: .phone).disabled(state.busy).accessibilityIdentifier("account-phone-number")
             }
             TimelineView(.periodic(from: .now, by: 1)) { tick in
-                Button(tick.date < state.resendAfter ? "Send another code in \(max(1, Int(ceil(state.resendAfter.timeIntervalSince(tick.date)))))s" : state.pendingPhone == nil ? "Send verification code" : "Send another code") { Task { await state.sendPhoneCode() } }
+                Button(tick.date < state.resendAfter ? CooldownCopy.resendButton(until: state.resendAfter, now: tick.date) : state.pendingPhone == nil ? "Send verification code" : "Send another code") { Task { await state.sendPhoneCode() } }
                     .frame(minHeight: 48).disabled(!state.canRequest || tick.date < state.resendAfter).accessibilityIdentifier("account-phone-send")
             }
             Button("Remove linked phone", role: .destructive) { unlink = true }.frame(minHeight: 48).disabled(!state.canRequest)

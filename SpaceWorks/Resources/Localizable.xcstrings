@@ -78,6 +78,17 @@
         }
       }
     },
+    "A ticket code is shown only while it remains valid. Staff verify attendance; displaying a code alone does not confirm check-in or payment.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A ticket code is shown only while it remains valid. Staff verify attendance; displaying a code alone does not confirm check-in or payment."
+          }
+        }
+      }
+    },
     "A ticket is available only after registration is confirmed.": {
       "extractionState": "manual",
       "localizations": {
@@ -96,6 +107,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "About the event"
+          }
+        }
+      }
+    },
+    "About this app": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About this app"
           }
         }
       }
@@ -419,6 +441,17 @@
         }
       }
     },
+    "App guide": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App guide"
+          }
+        }
+      }
+    },
     "Apple": {
       "extractionState": "manual",
       "localizations": {
@@ -459,6 +492,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ask your makerspace about availability."
+          }
+        }
+      }
+    },
+    "Ask your makerspace for help with unavailable features, permissions or account records.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask your makerspace for help with unavailable features, permissions or account records."
           }
         }
       }
@@ -716,6 +760,17 @@
         }
       }
     },
+    "Borrow tools": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrow tools"
+          }
+        }
+      }
+    },
     "Borrow with confidence.": {
       "extractionState": "manual",
       "localizations": {
@@ -800,6 +855,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Camera access is unavailable. Enter the code below, or allow Camera in Settings."
+          }
+        }
+      }
+    },
+    "Camera permission is requested only when you choose Scan or Take evidence photo. If scanning is unavailable, use manual entry. Evidence photos require a camera; the app explains permission or hardware problems at that step.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Camera permission is requested only when you choose Scan or Take evidence photo. If scanning is unavailable, use manual entry. Evidence photos require a camera; the app explains permission or hardware problems at that step."
           }
         }
       }
@@ -910,6 +976,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cancel registration"
+          }
+        }
+      }
+    },
+    "Cancel renewal keeps the current term as your makerspace permits; leaving ends that membership. Neither action deletes your whole account. Data exports and account deletion depend on the server's available account controls.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel renewal keeps the current term as your makerspace permits; leaving ends that membership. Neither action deletes your whole account. Data exports and account deletion depend on the server's available account controls."
           }
         }
       }
@@ -1519,6 +1596,17 @@
         }
       }
     },
+    "Communication preferences control optional updates from your makerspace. Required safety messages remain on. Opening an update checks current access and reloads its destination.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Communication preferences control optional updates from your makerspace. Required safety messages remain on. Opening an update checks current access and reloads its destination."
+          }
+        }
+      }
+    },
     "Confirm acceptance": {
       "extractionState": "manual",
       "localizations": {
@@ -1849,6 +1937,17 @@
         }
       }
     },
+    "Dark mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark mode"
+          }
+        }
+      }
+    },
     "Data export": {
       "extractionState": "manual",
       "localizations": {
@@ -1911,6 +2010,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Demo account · sample data"
+          }
+        }
+      }
+    },
+    "Demo changes stay in this preview.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo changes stay in this preview."
           }
         }
       }
@@ -2960,6 +3070,17 @@
         }
       }
     },
+    "Find your way around": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find your way around"
+          }
+        }
+      }
+    },
     "First name": {
       "extractionState": "manual",
       "localizations": {
@@ -3022,6 +3143,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hardware requests"
+          }
+        }
+      }
+    },
+    "Helpful tips will appear again on Home.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helpful tips will appear again on Home."
           }
         }
       }
@@ -3092,6 +3224,17 @@
         }
       }
     },
+    "If confirmation is delayed, refresh the status before trying another payment. Open Receipts and credit notes to view or share an available document. Demo checkout never charges you.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If confirmation is delayed, refresh the status before trying another payment. Open Receipts and credit notes to view or share an available document. Demo checkout never charges you."
+          }
+        }
+      }
+    },
     "If you don't have a current password, sign out and use Forgot password to recover access.": {
       "extractionState": "manual",
       "localizations": {
@@ -3099,6 +3242,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "If you don't have a current password, sign out and use Forgot password to recover access."
+          }
+        }
+      }
+    },
+    "In Activity, check each active loan's due date. Choose Renew loan when available. A renewal is confirmed only when your makerspace returns a new due date.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Activity, check each active loan's due date. Choose Renew loan when available. A renewal is confirmed only when your makerspace returns a new due date."
+          }
+        }
+      }
+    },
+    "In Activity, choose Find a space. Set Starts and Ends, then choose Check availability. Review opening hours and booked times, complete any required answers and review your request. Pending approval is different from a confirmed booking.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Activity, choose Find a space. Set Starts and Ends, then choose Check availability. Review opening hours and booked times, complete any required answers and review your request. Pending approval is different from a confirmed booking."
+          }
+        }
+      }
+    },
+    "In Profile, open Account and security to manage your password, two-step sign-in, verified phone and connected sign-in methods. Devices shows native app sessions; available makerspace Sessions are listed separately.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In Profile, open Account and security to manage your password, two-step sign-in, verified phone and connected sign-in methods. Devices shows native app sessions; available makerspace Sessions are listed separately."
           }
         }
       }
@@ -3202,6 +3378,17 @@
         }
       }
     },
+    "Join events": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Join events"
+          }
+        }
+      }
+    },
     "Keep booking": {
       "extractionState": "manual",
       "localizations": {
@@ -3301,6 +3488,17 @@
         }
       }
     },
+    "Keep up to date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep up to date"
+          }
+        }
+      }
+    },
     "Keep up with requests, bookings, and important makerspace updates. Your inbox is always available.": {
       "extractionState": "manual",
       "localizations": {
@@ -3396,6 +3594,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Less searching.\nMore making."
+          }
+        }
+      }
+    },
+    "Light mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light mode"
           }
         }
       }
@@ -3660,6 +3869,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Make sure you can still sign in another way. Your makerspace may refuse to remove your last method."
+          }
+        }
+      }
+    },
+    "Make the most of your makerspace, at your own pace.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make the most of your makerspace, at your own pace."
           }
         }
       }
@@ -4104,6 +4324,17 @@
         }
       }
     },
+    "Open Inventory, search or filter, then choose an item. Add the items you need and review quantities before submitting your request. Staff confirm availability, collection and borrowing terms.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Inventory, search or filter, then choose an item. Add the items you need and review quantities before submitting your request. Staff confirm availability, collection and borrowing terms."
+          }
+        }
+      }
+    },
     "Open PDF": {
       "extractionState": "manual",
       "localizations": {
@@ -4111,6 +4342,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open PDF"
+          }
+        }
+      }
+    },
+    "Open Payments from Home, Activity or Profile. Review the amount, currency and charge before continuing to the configured checkout. The app checks the server after checkout; a payment is complete only when its status is confirmed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Payments from Home, Activity or Profile. Review the amount, currency and charge before continuing to the configured checkout. The app checks the server after checkout; a payment is complete only when its status is confirmed."
+          }
+        }
+      }
+    },
+    "Open Staff tools to review queues and approvals available to your role. Resolve the person or request before confirming an action. For issue, return or direct handout, check the items, capture required evidence and review the final confirmation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Staff tools to review queues and approvals available to your role. Resolve the person or request before confirming an action. For issue, return or direct handout, check the items, capture required evidence and review the final confirmation."
+          }
+        }
+      }
+    },
+    "Open an event, review its details and ticket choices, then confirm registration. Your result may be registered, awaiting approval or waitlisted. Open the confirmed registration in Activity to see its ticket.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open an event, review its details and ticket choices, then confirm registration. Your result may be registered, awaiting approval or waitlisted. Open the confirmed registration in Activity to see its ticket."
           }
         }
       }
@@ -4188,6 +4452,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open update from another makerspace"
+          }
+        }
+      }
+    },
+    "Open your booking to review its current status and available cancellation action. Confirm cancellation when prompted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open your booking to review its current status and available cancellation action. Confirm cancellation when prompted."
           }
         }
       }
@@ -4463,6 +4738,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Payments"
+          }
+        }
+      }
+    },
+    "Payments and receipts": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payments and receipts"
           }
         }
       }
@@ -4874,6 +5160,17 @@
         }
       }
     },
+    "Protect your account": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protect your account"
+          }
+        }
+      }
+    },
     "Push notifications": {
       "extractionState": "manual",
       "localizations": {
@@ -5281,6 +5578,17 @@
         }
       }
     },
+    "Replay introduction": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replay introduction"
+          }
+        }
+      }
+    },
     "Request an export of your personal data held by this makerspace. Keep downloaded files somewhere private.": {
       "extractionState": "manual",
       "localizations": {
@@ -5431,6 +5739,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Requests and loans"
+          }
+        }
+      }
+    },
+    "Reset helpful tips": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset helpful tips"
           }
         }
       }
@@ -5765,6 +6084,17 @@
         }
       }
     },
+    "Save new recovery codes before continuing. Some security changes end your sessions and require a fresh sign-in. A verified phone and an editable contact phone serve different purposes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save new recovery codes before continuing. Some security changes end your sessions and require a fresh sign-in. A verified phone and an editable contact phone serve different purposes."
+          }
+        }
+      }
+    },
     "Save or share archive": {
       "extractionState": "manual",
       "localizations": {
@@ -5864,6 +6194,17 @@
         }
       }
     },
+    "Scanning finds a record; it never confirms handover or attendance by itself. Check the resolved person, then choose Confirm check-in. If access changes or a conflict appears, refresh before continuing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scanning finds a record; it never confirms handover or attendance by itself. Check the resolved person, then choose Confirm check-in. If access changes or a conflict appears, refresh before continuing."
+          }
+        }
+      }
+    },
     "Search": {
       "extractionState": "manual",
       "localizations": {
@@ -5919,6 +6260,17 @@
         }
       }
     },
+    "Send another code later": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send another code later"
+          }
+        }
+      }
+    },
     "Send verification code": {
       "extractionState": "manual",
       "localizations": {
@@ -5926,6 +6278,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Send verification code"
+          }
+        }
+      }
+    },
+    "Server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
           }
         }
       }
@@ -6245,6 +6608,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Staff data preview"
+          }
+        }
+      }
+    },
+    "Staff handovers and check-in": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Staff handovers and check-in"
           }
         }
       }
@@ -7151,6 +7525,28 @@
         }
       }
     },
+    "Try again later": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again later"
+          }
+        }
+      }
+    },
+    "Try again later.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again later."
+          }
+        }
+      }
+    },
     "Turn off for this account": {
       "extractionState": "manual",
       "localizations": {
@@ -7437,6 +7833,28 @@
         }
       }
     },
+    "Use Home to see due loans, bookings, events and notices. Choose a makerspace from the switcher; your activity and permissions belong to that makerspace.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Home to see due loans, bookings, events and notices. Choose a makerspace from the switcher; your activity and permissions belong to that makerspace."
+          }
+        }
+      }
+    },
+    "Use Inbox for updates even when device notifications are off. In Profile, choose Notifications when you want alerts. Permission is requested only after you choose Enable notifications; you can change it later in Settings.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use Inbox for updates even when device notifications are off. In Profile, choose Notifications when you want alerts. Permission is requested only after you choose Enable notifications; you can change it later in Settings."
+          }
+        }
+      }
+    },
     "Use a password with no more than 128 characters.": {
       "extractionState": "manual",
       "localizations": {
@@ -7697,6 +8115,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "View membership card"
+          }
+        }
+      }
+    },
+    "View profile": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View profile"
           }
         }
       }

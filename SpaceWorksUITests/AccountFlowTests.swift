@@ -4,7 +4,7 @@ final class AccountFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) { NativeUIActions.tap(element, in: app) }
     private func account(extra: [String] = [], withoutMakerspace: Bool = false) -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launch()
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launchForDeviceProfile()
         tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
         let username = app.textFields["demo-username"]; tap(username, in: app); username.typeText("member\n")
         app.secureTextFields["demo-password"].typeText("sample\n"); tap(app.buttons["demo-sign-in"], in: app)
