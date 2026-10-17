@@ -66,7 +66,10 @@ final class StaffFlowTests: XCTestCase {
         let startCount = app.buttons.matching(NSPredicate(format: "label == %@", "Start count for Precision toolkit, Sample probe"))
         XCTAssertEqual(startCount.count, 1, "The sample kit has one component that must be explicitly counted.")
         tap(startCount.firstMatch, in: app)
-        let present = app.steppers.matching(NSPredicate(format: "label == %@", "Present Precision toolkit, Sample probe")).firstMatch
+        // SwiftUI composes the visible count title with its semantic label.
+        let presentCounts = app.steppers.matching(NSPredicate(format: "label ENDSWITH %@", "Present Precision toolkit, Sample probe"))
+        XCTAssertEqual(presentCounts.count, 1, "The sample kit exposes one counted component.")
+        let present = presentCounts.firstMatch
         XCTAssertTrue(present.waitForExistence(timeout: 5)); XCTAssertEqual(present.value as? String, "0 of 2")
         XCTAssertTrue(confirm.isEnabled); attach("Staff issue evidence and review")
         tap(confirm, in: app)

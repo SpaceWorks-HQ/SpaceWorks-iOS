@@ -19,9 +19,13 @@ enum NativeUIActions {
                    !visible.isNull, visible.width > 4, visible.height > 4 { element.tap(); return }
                 // A fitting review button must reveal its entire label before activation.
                 // Its midpoint can be hittable while the second line is below the screen.
-                let fullReviewButton = scroll.identifier == "request-review-scroll" && element.elementType == .button
-                    && frame.height > 0 && frame.height <= viewport.height - 4
-                let positioned = fullReviewButton ? viewport.insetBy(dx: 2, dy: 2).contains(frame)
+                let isReviewButton = scroll.identifier == "request-review-scroll" && element.elementType == .button
+                let reviewViewport = isReviewButton ? visibleContent(scroll, app, gestureInset: 0) : viewport
+                let fullReviewButton = isReviewButton && frame.height > 0 && frame.height <= reviewViewport.height - 4
+                // Gesture margins keep drags away from chrome; they are not clipping.
+                // Check the complete review control against the actual bar-adjusted
+                // viewport, with a 2pt safety margin, rather than its 8pt drag inset.
+                let positioned = fullReviewButton ? reviewViewport.insetBy(dx: 2, dy: 2).contains(frame)
                     : viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY))
                 if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4, positioned {
                     // Use the native activation point. A wide Toggle's label centre is not
@@ -71,7 +75,7 @@ enum NativeUIActions {
             ?? scrolls.first ?? app.scrollViews.firstMatch
     }
     private static func area(_ rect: CGRect) -> CGFloat { rect.isNull ? .greatestFiniteMagnitude : rect.width * rect.height }
-    private static func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication) -> CGRect {
+    private static func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication, gestureInset: CGFloat = 8) -> CGRect {
         var viewport = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
         // SwiftUI's accessibility ScrollView frame includes content UNDER native bars.
         // A target can be marked hittable there while its coordinate activates another tab.
@@ -88,7 +92,7 @@ enum NativeUIActions {
             let frame = bar.frame
             if frame.intersects(viewport), frame.midY > viewport.minY { viewport.size.height = max(0, min(viewport.maxY, frame.minY) - viewport.minY) }
         }
-        return viewport.insetBy(dx: 8, dy: 8)
+        return viewport.insetBy(dx: gestureInset, dy: gestureInset)
     }
     private static func drag(_ scroll: XCUIElement, _ app: XCUIApplication, target: XCUIElement, down: Bool) {
         let viewport = visibleContent(scroll, app)

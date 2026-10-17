@@ -10,6 +10,7 @@ final class MemberActionsFlowTests: XCTestCase {
         var reviewDown = false
         var previousReviewFrame: CGRect?
         var capturedReviewStall = false
+        var capturedNativeAlternate = false
         for attempt in 0..<24 {
             let scroll = containingScroll(element, app)
             if element.exists {
@@ -18,6 +19,7 @@ final class MemberActionsFlowTests: XCTestCase {
                 let frame = element.frame
                 let viewport = visibleContent(scroll, app)
                 let visible = frame.intersection(viewport)
+                let reviewStalled = scroll.identifier == "request-review-scroll" && previousReviewFrame == frame
                 if scroll.identifier == "request-review-scroll" {
                     if !capturedReviewStall, previousReviewFrame == frame {
                         capture("Review scroll stalled before " + element.identifier)
@@ -32,9 +34,13 @@ final class MemberActionsFlowTests: XCTestCase {
                    !visible.isNull, visible.width > 4, visible.height > 4 { activate(element); return }
                 // A fitting review button must reveal its entire label before activation.
                 // Its midpoint can be hittable while the second line is below the screen.
-                let fullReviewButton = scroll.identifier == "request-review-scroll" && element.elementType == .button
-                    && frame.height > 0 && frame.height <= viewport.height - 4
-                let positioned = fullReviewButton ? viewport.insetBy(dx: 2, dy: 2).contains(frame)
+                let isReviewButton = scroll.identifier == "request-review-scroll" && element.elementType == .button
+                let reviewViewport = isReviewButton ? visibleContent(scroll, app, gestureInset: 0) : viewport
+                let fullReviewButton = isReviewButton && frame.height > 0 && frame.height <= reviewViewport.height - 4
+                // Gesture margins keep drags away from chrome; they are not clipping.
+                // Check the complete review control against the actual bar-adjusted
+                // viewport, with a 2pt safety margin, rather than its 8pt drag inset.
+                let positioned = fullReviewButton ? reviewViewport.insetBy(dx: 2, dy: 2).contains(frame)
                     : viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY))
                 if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4, positioned {
                     // Use the native activation point. A wide Toggle's label centre is not
@@ -50,6 +56,19 @@ final class MemberActionsFlowTests: XCTestCase {
                 // Sweep consistently in each direction; activation still requires a real
                 // visible, hittable target. New screens normally start near their top.
                 if scroll.identifier == "request-review-scroll" {
+                    // An unchanged far-offscreen target demonstrates a no-op coordinate
+                    // pan. Exercise a native scroll gesture within this same search budget.
+                    // Near the target, retain the bounded drag and whole-button checks.
+                    if isReviewButton, reviewStalled, frame.minY.isFinite, frame.height > 0, frame.minY >= reviewViewport.maxY {
+                        let captureAlternate = !capturedNativeAlternate
+                        capturedNativeAlternate = true
+                        if captureAlternate { capture("Native review scroll alternate before") }
+                        print("Native review swipeUp alternate, attempt \(attempt), target before \(frame)")
+                        scroll.swipeUp(velocity: .slow)
+                        if element.exists { print("Native review swipeUp target after \(element.frame)") }
+                        if captureAlternate { capture("Native review scroll alternate after") }
+                        continue
+                    }
                     // Native geometry proves this target remains in the same modal.
                     // Some drags can make no progress; do not reverse a resumed
                     // search merely because half the gesture budget elapsed.
@@ -86,7 +105,7 @@ final class MemberActionsFlowTests: XCTestCase {
             ?? scrolls.first ?? app.scrollViews.firstMatch
     }
     private func area(_ rect: CGRect) -> CGFloat { rect.isNull ? .greatestFiniteMagnitude : rect.width * rect.height }
-    private func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication) -> CGRect {
+    private func visibleContent(_ scroll: XCUIElement, _ app: XCUIApplication, gestureInset: CGFloat = 8) -> CGRect {
         var viewport = scroll.exists ? scroll.frame.intersection(app.frame) : app.frame
         // SwiftUI's accessibility ScrollView frame includes content UNDER native bars.
         // A target can be marked hittable there while its coordinate activates another tab.
@@ -103,7 +122,7 @@ final class MemberActionsFlowTests: XCTestCase {
             let frame = bar.frame
             if frame.intersects(viewport), frame.midY > viewport.minY { viewport.size.height = max(0, min(viewport.maxY, frame.minY) - viewport.minY) }
         }
-        return viewport.insetBy(dx: 8, dy: 8)
+        return viewport.insetBy(dx: gestureInset, dy: gestureInset)
     }
     private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, target: XCUIElement, down: Bool) {
         let viewport = visibleContent(scroll, app)
