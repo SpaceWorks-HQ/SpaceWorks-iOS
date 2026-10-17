@@ -311,8 +311,8 @@ private struct AccountMembershipView: View {
                     }
                 }
             }.task { await state.loadMembership() }
-            .confirmationDialog(decision == "leave" ? "Leave this makerspace?" : "Cancel membership renewal?", isPresented: Binding(get: { decision != nil }, set: { if !$0 { decision = nil } }), titleVisibility: .visible) {
-                Button(decision == "leave" ? "Confirm leave" : "Confirm cancellation", role: .destructive) { let leave = decision == "leave"; decision = nil; Task { if leave { await state.leaveMakerspace() } else { await state.cancelRenewal() } } }; Button("Keep membership", role: .cancel) { decision = nil }
+            .alert(decision == "leave" ? "Leave this makerspace?" : "Cancel membership renewal?", isPresented: Binding(get: { decision != nil }, set: { if !$0 { decision = nil } }), presenting: decision) { selectedDecision in
+                Button(selectedDecision == "leave" ? "Confirm leave" : "Confirm cancellation", role: .destructive) { let leave = selectedDecision == "leave"; decision = nil; Task { if leave { await state.leaveMakerspace() } else { await state.cancelRenewal() } } }; Button("Keep membership", role: .cancel) { decision = nil }
             }
     }
 }

@@ -4,6 +4,7 @@ final class MemberActionsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func activate(_ element: XCUIElement) {
         if element.identifier == "submit-request" { capture("Request review before submission") }
+        if element.label == "Confirm renewal" { capture("Loan renewal before confirmation") }
         element.tap()
     }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
@@ -223,7 +224,11 @@ final class MemberActionsFlowTests: XCTestCase {
     func testAvailabilityBookingPendingReceiptAndServerConfirmedCancellation() {
         let app = demo(["--demo-action-pending"]); tab(app, "Activity")
         tap(app.buttons["Find a space"], in: app)
-        tap(app.descendants(matching: .any)["space-00000000-0000-0000-0000-000000000031"].firstMatch, in: app)
+        let space = app.descendants(matching: .any)["space-00000000-0000-0000-0000-000000000031"].firstMatch
+        tap(space, in: app)
+        let moved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: space)
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 5), .completed)
+        XCTAssertTrue(app.navigationBars["Book a space"].waitForExistence(timeout: 5))
         tap(app.buttons["Check availability"], in: app)
         tap(app.buttons["Submit booking request"], in: app)
         XCTAssertTrue(app.staticTexts["Booking request received"].waitForExistence(timeout: 5)); capture("Space booking awaiting approval")

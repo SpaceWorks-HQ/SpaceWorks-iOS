@@ -87,14 +87,21 @@ struct RenewLoanView: View {
                         if let due = loan.due_at { Text("Currently due \(due.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted) }
                         Text("Your makerspace checks its renewal policy. A renewal is confirmed only when a new due date is returned.").foregroundStyle(Color.swMuted)
                         if let error { SWError(message: error) }
-                        TimelineView(.periodic(from: .now, by: 1)) { tick in
-                            Button(busy ? "Checking…" : "Confirm renewal") { Task { await renew() } }.buttonStyle(SWPrimary())
-                                .disabled(busy || (retryAfter ?? .distantPast) > tick.date)
+                        if retryAfter != nil {
+                            TimelineView(.periodic(from: .now, by: 1)) { tick in
+                                confirmation(at: tick.date)
+                            }
+                        } else {
+                            confirmation(at: .now)
                         }
                     }
                 }.padding(24).frame(maxWidth: 600).frame(maxWidth: .infinity)
             }.background(Color.swBg).toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.frame(minHeight: 48).disabled(busy) } }
         }.interactiveDismissDisabled(busy)
+    }
+    private func confirmation(at date: Date) -> some View {
+        Button(busy ? "Checking…" : "Confirm renewal") { Task { await renew() } }.buttonStyle(SWPrimary())
+            .disabled(busy || (retryAfter ?? .distantPast) > date)
     }
     private func renew() async {
         guard !busy else { return }; busy = true; error = nil; defer { busy = false }

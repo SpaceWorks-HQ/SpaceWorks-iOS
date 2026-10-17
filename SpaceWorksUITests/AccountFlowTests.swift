@@ -12,10 +12,16 @@ final class AccountFlowTests: XCTestCase {
         tap(app.buttons["demo-space-0"], in: app)
         if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
         else {
-            let profile = app.descendants(matching: .any)["nav-Profile"].firstMatch
-            if !profile.isHittable {
-                let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-                if sidebar.exists { sidebar.tap() }
+            let profile = app.buttons["nav-Profile"]
+            let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+            let ready = XCTNSPredicateExpectation(predicate: readiness, object: profile)
+            if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
+                let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+                let sidebarReady = XCTNSPredicateExpectation(predicate: readiness, object: sidebar)
+                XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
+                sidebar.tap()
+                let opened = XCTNSPredicateExpectation(predicate: readiness, object: profile)
+                XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
             }
             tap(profile, in: app)
         }
@@ -23,6 +29,22 @@ final class AccountFlowTests: XCTestCase {
         tap(app.buttons["account-entry"], in: app); return app
     }
     private func confirmNativeDialog(_ title: String, action label: String, in app: XCUIApplication) {
+        if title == "Leave this makerspace?" || title == "Cancel membership renewal?" {
+            let alert = app.alerts.firstMatch
+            XCTAssertTrue(alert.waitForExistence(timeout: 5))
+            XCTAssertTrue(alert.staticTexts[title].waitForExistence(timeout: 5))
+            let action = alert.buttons[label]
+            XCTAssertTrue(action.waitForExistence(timeout: 5))
+            XCTAssertTrue(action.isHittable)
+            let frame = action.frame
+            XCTAssertGreaterThan(frame.width, 0)
+            XCTAssertGreaterThan(frame.height, 0)
+            XCTAssertTrue(alert.frame.insetBy(dx: 2, dy: 2).contains(frame))
+            XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+            attach("Native account confirmation")
+            action.tap()
+            return
+        }
         // Native confirmation popovers own separate title/action scroll regions.
         XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
         let action = app.buttons[label]
