@@ -61,11 +61,22 @@ enum AccountLinks {
 
 private struct AccountMenuRow: View {
     let title: LocalizedStringKey; let detail: String; let icon: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Image(systemName: icon).font(.title2).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); Text(verbatim: detail).font(.subheadline).foregroundStyle(Color.swMuted) }
-            Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Decorative glyphs must not squeeze scaled words into narrow columns.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: detail).font(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .top, spacing: 16) {
+                    Image(systemName: icon).font(.title2).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); Text(verbatim: detail).font(.subheadline).foregroundStyle(Color.swMuted) }
+                    Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
+                }
+            }
         }.foregroundStyle(Color.swInk).padding(.vertical, 12).frame(minHeight: 64)
     }
 }

@@ -1,5 +1,12 @@
 # Phase notes
 
+## A7 accessible account rows and keyboard journeys
+
+- The corrected phone and tablet runs passed all 285 native tests; tablet passed 33/34 UI journeys and phone passed 32/34. Recordings show a real largest-text layout defect: decorative row glyphs squeeze account titles into fragmented words. Give the unchanged title and detail the full row width at accessibility sizes, preserving font scaling.
+- The phone-linking test missed a visible floating Done accessory by restricting its lookup to Toolbar descendants; the compact membership journey also skipped that accessory. Require the actual visible/hittable full-window Done button, tap it natively and verify keyboard dismissal before continuing all three original steps. Keep the shared scroll helper, gesture budget and every phone/session/membership assertion unchanged.
+- Correct only the export-menu test navigation's proven blind reversal: follow the real row geometry with full visible-content pans and the same 24-attempt bound, positive/visible/hittable activation and native tap. Capture the revealed accessible row in the existing largest-text journey. The shared helper and every subsequent export/share assertion remain unchanged.
+- Counts remain 285 native /34 UI /21 Python. Full phone/tablet validation and unsigned Release are still required at the corrected head; these failed runs are not phase acceptance.
+
 ## A7 native test fixture correction
 
 - Canceled the previous A7 validation after native diagnostics showed an incomplete successful-refresh fixture prevented the held management retry from being reached. No UI tests had started; that run is not acceptance evidence.
