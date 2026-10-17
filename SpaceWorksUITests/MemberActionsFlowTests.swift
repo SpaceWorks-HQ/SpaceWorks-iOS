@@ -30,8 +30,8 @@ final class MemberActionsFlowTests: XCTestCase {
                 // rotation. Reversing on their midpoint oscillated around hidden controls.
                 // Sweep consistently in each direction; activation still requires a real
                 // visible, hittable target. New screens normally start near their top.
-                drag(scroll, app, down: attempt >= 12)
-            } else { drag(scroll, app, down: attempt >= 12) }
+                drag(scroll, app, target: element, down: attempt >= 12)
+            } else { drag(scroll, app, target: element, down: attempt >= 12) }
         }
         let target = element.exists ? (element.identifier.isEmpty ? element.label : element.identifier) : "missing control"
         capture("Unreachable action " + target)
@@ -73,7 +73,7 @@ final class MemberActionsFlowTests: XCTestCase {
         }
         return viewport.insetBy(dx: 8, dy: 8)
     }
-    private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, down: Bool) {
+    private func drag(_ scroll: XCUIElement, _ app: XCUIApplication, target: XCUIElement, down: Bool) {
         let viewport = visibleContent(scroll, app)
         guard viewport.width > 20, viewport.height > 30 else { return }
         // Drag entirely inside the actual visible content, never across tab/navigation bars.
@@ -81,9 +81,19 @@ final class MemberActionsFlowTests: XCTestCase {
         // viewport. Hold at a slow, bounded endpoint so the next visible target is
         // examined before momentum can carry it under the navigation/tab bars.
         let distance = min(200, viewport.height * 0.4)
-        // Multiline fields have their own scroll view. Drag in the page gutter so
-        // the parent moves even when a tall field occupies the viewport centre.
-        let x = viewport.minX + min(12, viewport.width * 0.1)
+        // The modal's multiline purpose field owns an inner scroll; its gutter
+        // moves the parent. A generic tablet viewport may include the sidebar, so
+        // keep other gestures within the target's horizontal content column.
+        var x = viewport.midX
+        if scroll.identifier == "request-review-scroll" {
+            x = viewport.minX + min(12, viewport.width * 0.1)
+        } else if target.exists {
+            let frame = target.frame
+            if frame.minX.isFinite, frame.maxX.isFinite, frame.width > 0 {
+                let lower = max(viewport.minX, frame.minX), upper = min(viewport.maxX, frame.maxX)
+                if upper - lower > 24 { x = (lower + upper) / 2 }
+            }
+        }
         let start = CGPoint(x: x, y: viewport.midY + (down ? -distance : distance) / 2)
         let end = CGPoint(x: x, y: viewport.midY + (down ? distance : -distance) / 2)
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
