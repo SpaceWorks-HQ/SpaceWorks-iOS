@@ -83,8 +83,14 @@ enum NativeUIActions {
         // moves the parent. A generic tablet viewport may include the sidebar, so
         // keep other gestures within the target's horizontal content column.
         var x = viewport.midX
-        if scroll.identifier == "request-review-scroll" {
-            x = viewport.minX + min(12, viewport.width * 0.1)
+        if scroll.identifier == "request-review-scroll", target.exists {
+            // Stay inside the card's padding. The outer screen gutter can be
+            // captured by the sheet's pan recognizer instead of its scroll view.
+            // The purpose editor begins at the target's leading content edge.
+            let leading = target.frame.minX
+            if leading.isFinite {
+                x = min(viewport.maxX - 12, max(viewport.minX + 12, leading - 12))
+            }
         } else if target.exists {
             let frame = target.frame
             if frame.minX.isFinite, frame.maxX.isFinite, frame.width > 0 {
@@ -94,6 +100,10 @@ enum NativeUIActions {
         }
         let start = CGPoint(x: x, y: viewport.midY + (down ? -distance : distance) / 2)
         let end = CGPoint(x: x, y: viewport.midY + (down ? distance : -distance) / 2)
+        if scroll.identifier == "request-review-scroll" {
+            let purpose = app.descendants(matching: .any)["request-purpose"].firstMatch
+            print("Review drag \(start) -> \(end), scroll \(scroll.frame), purpose \(purpose.exists ? String(describing: purpose.frame) : "absent")")
+        }
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
             .press(forDuration: 0.05,
                    thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)),
