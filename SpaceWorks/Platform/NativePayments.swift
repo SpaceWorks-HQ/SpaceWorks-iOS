@@ -46,6 +46,34 @@ enum NativePaymentInput {
     #endif
     var hasInFlightPayment: Bool { callback.isActive }
 
+    #if canImport(StripePaymentSheet)
+    /// Stripe owns sizing, weight resolution and Dynamic Type; pass a fresh unscaled base.
+    static func stripeAppearance() -> PaymentSheet.Appearance {
+        var appearance = PaymentSheet.Appearance()
+        appearance.font.base = BrandTypography.unscaledFont(size: UIFont.systemFontSize)
+        appearance.colors.primary = UIColor(Color.swAccentInk)
+        appearance.colors.background = UIColor(Color.swPanel)
+        appearance.colors.componentBackground = UIColor(Color.swSurface)
+        appearance.colors.componentBorder = UIColor(Color.swOutline)
+        appearance.colors.componentDivider = UIColor(Color.swLine)
+        appearance.colors.text = UIColor(Color.swInk)
+        appearance.colors.textSecondary = UIColor(Color.swMuted)
+        appearance.colors.componentText = UIColor(Color.swInk)
+        appearance.colors.componentPlaceholderText = UIColor(Color.swMuted)
+        appearance.colors.icon = UIColor(Color.swMuted)
+        appearance.colors.danger = UIColor(Color.swDanger)
+        appearance.cornerRadius = 10
+        appearance.borderWidth = 1
+        appearance.shadow = .disabled
+        appearance.primaryButton.backgroundColor = UIColor(Color.swAccent)
+        appearance.primaryButton.textColor = UIColor(Color.swOnAccent)
+        appearance.primaryButton.height = 48
+        appearance.primaryButton.successBackgroundColor = UIColor(Color.swSuccessSoft)
+        appearance.primaryButton.successTextColor = UIColor(Color.swSuccessInk)
+        return appearance
+    }
+    #endif
+
     func presentStripe(clientSecret: String, publishableKey: String, customerID: String? = nil,
                        ephemeralKey: String? = nil, returnURL: URL? = nil, isDemo: Bool,
                        from controller: UIViewController, completion: @escaping (NativePaymentOutcome) -> Void) {
@@ -62,25 +90,7 @@ enum NativePaymentInput {
         if let customerID, let ephemeralKey {
             configuration.customer = .init(id: customerID, ephemeralKeySecret: ephemeralKey)
         }
-        configuration.appearance.colors.primary = UIColor(Color.swAccentInk)
-        configuration.appearance.colors.background = UIColor(Color.swPanel)
-        configuration.appearance.colors.componentBackground = UIColor(Color.swSurface)
-        configuration.appearance.colors.componentBorder = UIColor(Color.swOutline)
-        configuration.appearance.colors.componentDivider = UIColor(Color.swLine)
-        configuration.appearance.colors.text = UIColor(Color.swInk)
-        configuration.appearance.colors.textSecondary = UIColor(Color.swMuted)
-        configuration.appearance.colors.componentText = UIColor(Color.swInk)
-        configuration.appearance.colors.componentPlaceholderText = UIColor(Color.swMuted)
-        configuration.appearance.colors.icon = UIColor(Color.swMuted)
-        configuration.appearance.colors.danger = UIColor(Color.swDanger)
-        configuration.appearance.cornerRadius = 10
-        configuration.appearance.borderWidth = 1
-        configuration.appearance.shadow = .disabled
-        configuration.appearance.primaryButton.backgroundColor = UIColor(Color.swAccent)
-        configuration.appearance.primaryButton.textColor = UIColor(Color.swOnAccent)
-        configuration.appearance.primaryButton.height = 48
-        configuration.appearance.primaryButton.successBackgroundColor = UIColor(Color.swSuccessSoft)
-        configuration.appearance.primaryButton.successTextColor = UIColor(Color.swSuccessInk)
+        configuration.appearance = Self.stripeAppearance()
         let sheet = PaymentSheet(paymentIntentClientSecret: clientSecret, configuration: configuration)
         stripe = sheet
         sheet.present(from: controller) { [weak self] result in

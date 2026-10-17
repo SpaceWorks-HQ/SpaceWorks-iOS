@@ -132,7 +132,7 @@ struct MemberBookingDetailView: View {
                 Text(intervalLabel(current.starts_at, current.ends_at, timezone: current.timezone))
                 Text(current.timezone).brandFont(.caption).foregroundStyle(Color.swMuted)
                 Text(NativeStatusCopy.label(current.status.value1.rawValue)).brandFont(.headline)
-                Text("Booking reference").brandFont(.headline); Text(current.public_token).font(.body.monospaced()).textSelection(.enabled)
+                Text("Booking reference").brandFont(.headline); Text(current.public_token).brandFont(.body, weight: .medium).monospacedDigit().textSelection(.enabled)
                 if let error { SWError(message: error) }
                 if current.can_cancel {
                     Text("Cancellation cutoff: \(current.cancellation_cutoff_at.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted)

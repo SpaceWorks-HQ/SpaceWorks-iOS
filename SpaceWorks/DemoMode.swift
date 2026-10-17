@@ -194,7 +194,7 @@ struct DemoAuthView: View {
                         if session.scenario == .enrollment {
                             QRCodeView(value: "otpauth://totp/SpaceWorks:demo?secret=JBSWY3DPEHPK3PXP&issuer=SpaceWorks")
                             Text("Can't scan? Enter this key").brandFont(.headline)
-                            Text(verbatim: "JBSWY3DPEHPK3PXP").font(.body.monospaced()).textSelection(.enabled)
+                            Text(verbatim: "JBSWY3DPEHPK3PXP").brandFont(.body, weight: .medium).monospacedDigit().textSelection(.enabled)
                         }
                         Text("Authenticator or recovery code").brandFont(.headline)
                         TextField("Authenticator or recovery code", text: $session.code).demoField()
@@ -206,7 +206,7 @@ struct DemoAuthView: View {
                     case .recovery:
                         Text("Save your recovery codes").brandFont(.largeTitle, weight: .bold)
                         Text("Sample codes for this demo. Real codes appear once after enrollment.").foregroundStyle(Color.swMuted)
-                        Text(verbatim: "sample-recovery\nsample-backup").font(.body.monospaced()).textSelection(.enabled)
+                        Text(verbatim: "sample-recovery\nsample-backup").brandFont(.body, weight: .medium).monospacedDigit().textSelection(.enabled)
                         Button("I saved my codes. Continue") { if session.securityEnrollment { session.securityEnded(codes: [], message: "Two-step sign-in was set up. Sign in again to continue.") } else { session.stage = session.membershipStage } }.buttonStyle(SWPrimary())
                     case .makerspace:
                         Text("Choose a makerspace").brandFont(.largeTitle, weight: .bold)

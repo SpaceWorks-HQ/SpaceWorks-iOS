@@ -1,6 +1,6 @@
 {
-  "conversion": "fontTools4.67.0; WOFFcontainer toSFNT; recalcTimestampfalse; tables/outlines/names retained except requiredheadchecksum adjustment",
-  "authorization": "Owner supplied Designfontassets; latest fullbrand app request authorizes their use under applicable upstreamlicense. No open-source grant inferred.",
+  "conversion": "fontTools 4.67.0; WOFF container to native SFNT; recalcTimestamp false; original tables, outlines and names retained except the required head checksum adjustment",
+  "authorization": "Owner-supplied Design font assets; the full-brand native-app request authorizes their use under applicable upstream licensing. No open-source grant is inferred.",
   "faces": [
     {
       "source": "design/fonts/Gilroy-Regular.woff",

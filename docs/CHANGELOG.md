@@ -1,5 +1,11 @@
 # Phase notes
 
+## B3 Brand conformance and supported checkout typography — implementation checkpoint (2026-10-18)
+
+The owner rule in the pinned brand specification requires IDs and secrets to use the UI family with tabular digits. Five remaining rows now use the actual Gilroy Medium face with digit-only tabular spacing; values, selection and privacy handling are unchanged. This corrects B1's retained monospace exception. The wide auth panel now uses the paired semantic surface/ink ground, so its adaptive supplied full-color/reversed master remains legible in both appearances; the former fixed citron ground selected a reversed cream logo in dark mode. No logo is recolored, redrawn or distorted.
+
+Stripe's pinned 26.14.0 public Appearance API now receives an unscaled registered Gilroy base. Its own font-size, weight-resolution and Dynamic Type behavior remain in control, with the existing colors, shapes and checkout authority/callback semantics preserved. The supplied app font tables are unchanged; no promise is made that the SDK resolves all four separately named app faces. Razorpay's existing supported theme color remains unchanged; no unsupported font key is invented. One authored native test inspects the actual Stripe appearance under default and accessibility traits to guard against double scaling. Intended totals are 299 native/36 UI/42 Python; exact Apple compilation/runtime, native SDK configuration and full current-source visual/Release proof remain pending. The Debug metadata writer now explicitly uses UTF-8.
+
 ## B2 Native orientation evidence and compact action framing — diagnostic checkpoint (2026-10-18)
 
 The exact 3d3 compact recording showed slow short reveal gestures leave the two actions at alternating positions or with the primary control's upper edge behind the fixed header. The test now targets the center of their combined frame within the actual visible viewport, using its available interior slack. The existing 24-attempt limit, full-control bounds, enabled/hittable foreground checks, clear gutter, capped slow gesture/end hold, far native swipes and all outcomes remain unchanged. No app reachability or UIKit threshold cause is claimed.

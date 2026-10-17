@@ -94,7 +94,7 @@ jobs:
                     'sdk': info.get('DTSDKName'), 'device_families': info.get('UIDeviceFamily'),
                     'fonts': info.get('UIAppFonts', []), 'scene_manifest': scene,
                     'orientations': orientations, 'validations': validations}
-          pathlib.Path('validation-debug-bundle.json').write_text(json.dumps(report, indent=2) + '\n')
+          pathlib.Path('validation-debug-bundle.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
           assert all(validations.values()), validations
           PY
       - name: Run native state and API tests

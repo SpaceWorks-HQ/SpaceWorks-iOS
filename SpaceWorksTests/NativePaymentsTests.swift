@@ -1,8 +1,20 @@
 import XCTest
 import UIKit
+import StripePaymentSheet
 @testable import SpaceWorks
 
 final class NativePaymentsTests: XCTestCase {
+    @MainActor func testStripeAppearanceReceivesUnscaledBrandBaseUnderBothContentSizeTraits() {
+        for category in [UIContentSizeCategory.large, .accessibilityExtraExtraExtraLarge] {
+            UITraitCollection(preferredContentSizeCategory: category).performAsCurrent {
+                let appearance = NativePayments.stripeAppearance()
+                XCTAssertEqual(appearance.font.base.fontName, "Gilroy-Regular")
+                XCTAssertEqual(appearance.font.base.pointSize, UIFont.systemFontSize)
+                XCTAssertEqual(appearance.font.sizeScaleFactor, 1)
+            }
+        }
+    }
+
     func testSecretKeysAndIncompleteCustomerConfigurationNeverLaunchStripe() {
         XCTAssertFalse(NativePaymentInput.stripeIsValid(key: "sk_live_private", secret: "pi_1_secret_1", customer: nil, ephemeralKey: nil))
         XCTAssertFalse(NativePaymentInput.stripeIsValid(key: "pk_test_public", secret: "", customer: nil, ephemeralKey: nil))

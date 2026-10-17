@@ -28,13 +28,17 @@ enum BrandTypography {
     static func font(_ style: Font.TextStyle, weight: Weight, boldText: Bool) -> Font {
         .custom(weight.face(boldText: boldText), size: size(style), relativeTo: style)
     }
+    static func unscaledFont(size: CGFloat, weight: Weight = .regular, boldText: Bool = false) -> UIFont {
+        guard let font = UIFont(name: weight.face(boldText: boldText), size: size) else {
+            preconditionFailure("Missing registered Space Works font")
+        }
+        return font
+    }
     static func uiFont(style: UIFont.TextStyle = .body, weight: Weight = .regular,
                        traits: UITraitCollection, boldText: Bool) -> UIFont {
         let base = UIFontDescriptor.preferredFontDescriptor(withTextStyle: style,
             compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)).pointSize
-        guard let font = UIFont(name: weight.face(boldText: boldText), size: base) else {
-            preconditionFailure("Missing registered Space Works font")
-        }
+        let font = unscaledFont(size: base, weight: weight, boldText: boldText)
         return UIFontMetrics(forTextStyle: style).scaledFont(for: font, compatibleWith: traits)
     }
 }

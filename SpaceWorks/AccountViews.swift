@@ -151,7 +151,7 @@ struct AccountSecurityCompletionView: View {
             Text(codes.isEmpty ? "Sign in again" : "Save your recovery codes").brandFont(.largeTitle, weight: .bold)
             Text(message).foregroundStyle(Color.swMuted)
             if !codes.isEmpty {
-                SWCard { Text(codes.joined(separator: "\n")).font(.body.monospaced()).textSelection(.enabled).privacySensitive() }
+                SWCard { Text(codes.joined(separator: "\n")).brandFont(.body, weight: .medium).monospacedDigit().textSelection(.enabled).privacySensitive() }
                 Text("Keep these codes somewhere safe. Each code can be used once.").foregroundStyle(Color.swMuted)
                 Toggle("I saved my recovery codes", isOn: $saved).frame(minHeight: 48).accessibilityIdentifier("account-recovery-saved")
             }

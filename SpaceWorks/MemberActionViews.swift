@@ -17,7 +17,7 @@ struct RequestCartView: View {
                             Text(NativeStatusCopy.label(receipt.status)).brandFont(.title2)
                             Text("Your makerspace will review your request and confirm collection and due dates.").foregroundStyle(Color.swMuted)
                             Text("Request reference").brandFont(.headline)
-                            Text(receipt.public_token).font(.body.monospaced()).textSelection(.enabled)
+                            Text(receipt.public_token).brandFont(.body, weight: .medium).monospacedDigit().textSelection(.enabled)
                             Button("Done") { dismiss() }.buttonStyle(SWPrimary())
                         }
                     } else {

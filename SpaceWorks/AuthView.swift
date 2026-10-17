@@ -171,7 +171,7 @@ struct SignInView: View {
                             Text("Less searching.\nMore making.").font(.custom("Unbounded-Regular", size: 24, relativeTo: .title2).weight(.medium))
                             Text("Borrow hardware. Make room for your next idea.").brandFont(.title3)
                         }.padding(40).frame(maxWidth: 460, minHeight: 460, alignment: .leading)
-                            .background(Color.swSuccess, in: RoundedRectangle(cornerRadius: 28)).foregroundStyle(Color.swOnSuccess)
+                            .background(Color.swSurface, in: RoundedRectangle(cornerRadius: 28)).foregroundStyle(Color.swInk)
                             .accessibilityHidden(true)
                     }
                 }.padding(24).frame(maxWidth: .infinity, minHeight: geometry.size.height)
