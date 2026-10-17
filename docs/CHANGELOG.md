@@ -2,6 +2,8 @@
 
 ## A6 Staff — implementation checkpoint (2026-10-17)
 
+Initial native evidence: [`eaa400d` CI39006807733](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39006807733) passed all 215 native state/API cases and the 22 earlier UI journeys on both phone and tablet. The two new staff journeys hung while opening their destinations, so this phase was not accepted and the unsigned physical-device Release step was skipped. Destination construction registered weak child-cleanup callbacks on an observable array. That bookkeeping now avoids view observation; a focused actual-child construction regression checks that registration does not invalidate the parent view while scope invalidation still clears both children. The corrected 219-native/24-UI complete gate remains pending.
+
 Add the generated request queues, request decisions, QR resolution, container/kit preview, issue,
 return, direct handout, booking decisions, event attendance and evidence operations. Staff tools
 remain closed in production until a fresh native staff authority and the required makerspace actions
@@ -17,8 +19,8 @@ use exact POST fields with file last or raw PUT headers, with no app credentials
 
 Conflict, upload refusal, stale scope, duplicate item selection and invalid metadata remain recoverable
 without issuing equipment locally. Receipts come from confirmed server results; pending callbacks
-cannot mutate an invalidated workspace. This checkpoint adds26 state/API cases plus2 native staff
-journeys; Mac compilation/runtime and phone/tablet captures remain pending. Physical cameras,
+cannot mutate an invalidated workspace. This phase adds31 state/API cases plus2 native staff
+journeys; the corrected native gate and staff phone/tablet captures remain pending. Physical cameras,
 owner provisioning and real staff authority remain deployment validation gates.
 
 Parity: Staff tools / Pending requests / Accept request / Reject request / Issue equipment / Return
@@ -29,17 +31,28 @@ Staff repositories also retain their accepted installation. A new replacement-ac
 requires zero queue, container-assignment or booking-approval requests and zero replacement
 authentication callbacks after the old owner is retired. Native proof remains pending.
 
-Carry the A5 receipt visual follow-up into this full native gate: its initial screenshot showed only
-an early blank QuickLook canvas, so it did not prove rendered receipt content. The existing payment
-journey now waits at most 20 seconds for native Vision to recognize both unique sample PDF phrases
-in the actual full-OS pixels before capture. On refusal it preserves the screenshot, native AX tree
-and recognized text. No app marker, viewer replacement, fixed sleep or test removal is involved.
-All earlier payment, request-review, staff and Release checks still run; native rendered-page proof
-on phone and tablet remains pending.
+The A5 receipt visual follow-up passed on both device sizes in the initial A6 native checkpoint.
+Native Vision recognized both unique sample PDF phrases in actual full-OS pixels within the unchanged
+20-second bound; independent review confirmed the rendered receipt and usable Done/share controls.
+The prior blank images were premature captures. Retain this actual-page gate in every later run,
+explicitly include small text in OCR coverage and attach Vision errors on refusal. No app marker,
+viewer replacement, fixed sleep or test removal is involved.
+
+The Debug staff repository now retains generated request and direct-loan records after each
+confirmed mutation. Acceptance quantities survive issue and queue refresh; partial returned,
+damaged or missing counts remain outstanding until every issued item is resolved. Separate direct
+loans retain their actual selected/scanned quantities, distinct local item IDs, evidence and return
+notes. Invalid, duplicate or overremaining resolutions are rejected before committing any record.
+Sample QR codes also carry the currently selected makerspace, including the second demo space.
+
+Three new refetch regressions cover partial acceptance/issue, cumulative request returns and
+independent direct-loan quantities/returns. The existing makerspace test checks both QR codes.
+This increases the intended complete A6 native total to 219, with 24 UI journeys and 19 Python cases;
+new native execution remains pending. The change does not alter the live API or contract.
 
 ## A5 Payments — implementation checkpoint (2026-10-17)
 
-Native build evidence (rendered-PDF follow-up pending): [`072275f` CI39004152168](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39004152168) passed 188 native state/API cases and 22 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The native outcome popover, awaiting confirmation, canceled/pending state and complete request-submit action were visually reviewed. Both PDF captures showed an early blank preview canvas; opening chrome does not prove rendered document content. The stricter actual-page check accompanies A6 and must demonstrate the receipt on both device sizes before visual acceptance. These are fixture/compiler results; real backend/provider/device setup remains a release gate.
+Native build evidence (rendered-PDF follow-up pending): [`072275f` CI39004152168](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39004152168) passed 188 native state/API cases and 22 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The native outcome popover, awaiting confirmation, canceled/pending state and complete request-submit action were visually reviewed. Both PDF captures showed an early blank preview canvas; opening chrome does not prove rendered document content. The actual-page follow-up in [`eaa400d` CI39006807733](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39006807733) recognized both page phrases and independently demonstrated the complete rendered receipt on both sizes; A6 staff navigation still needs its corrected full gate. These are fixture/compiler results; real backend/provider/device setup remains a release gate.
 
 Rerun every existing A4 journey with a stronger request-review check: a fitting button must be
 fully inside the visible content before tapping and before the screenshot. Cap review-only drag

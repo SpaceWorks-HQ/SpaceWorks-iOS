@@ -15,8 +15,9 @@ actor DemoStaffRepository: StaffRepository {
     let makerspaceID: Int
     private var statuses = [601: "pending", 602: "accepted", 603: "issued"]
     private var assignments = Set<Int>()
-    private var directCreated = false
-    private var directReturned = false
+    private var requestRecords: [Int: Components.Schemas.AdminRequest] = [:]
+    private var loanRecords: [Int: Components.Schemas.DirectLoan] = [:]
+    private var nextLoanID = 702
     private var attended = false
     private var bookingStatus = "pending"
     private var evidenceCounter = 1300
@@ -47,37 +48,88 @@ actor DemoStaffRepository: StaffRepository {
         let rows: [Components.Schemas.AdminRequest] = try statuses.keys.sorted().filter { statuses[$0] == target }.map { try request($0) }
         return try self.page(rows, page: page)
     }
+    private func changed() -> APIError {
+        APIError(status: 409, code: "changed", detail: "This changed. Refresh and try again.")
+    }
     private func request(_ id: Int) throws -> Components.Schemas.AdminRequest {
-        guard let status = statuses[id] else { throw APIError(status: 404, code: "not_found", detail: "Sample request unavailable.") }
-        var object = try JSONSerialization.jsonObject(with: Data(DebugStaffFixtures.request.utf8)) as! [String: Any]
-        var items = object["items"] as! [[String: Any]]
-        items[0]["issued_quantity"] = status == "issued" || status == "closed" ? 2 : 0
-        items[0]["returned_quantity"] = status == "closed" ? 2 : 0
-        object["items"] = items
-        return try decode(String(decoding: JSONSerialization.data(withJSONObject: object), as: UTF8.self), changes: ["id": id, "status": status])
+        try checked()
+        if let saved = requestRecords[id] { return saved }
+        guard let status = statuses[id] else { throw changed() }
+        var row: Components.Schemas.AdminRequest = try decode(DebugStaffFixtures.request, changes: ["id": id, "status": status])
+        row.items = row.items.map { initial in
+            var item = initial
+            item.accepted_quantity = status == "pending" ? 0 : item.requested_quantity
+            item.issued_quantity = status == "issued" ? item.accepted_quantity : 0
+            item.returned_quantity = 0; item.damaged_quantity = 0; item.missing_quantity = 0
+            return item
+        }
+        return row
+    }
+    private func save(_ row: Components.Schemas.AdminRequest) -> Components.Schemas.AdminRequest {
+        requestRecords[row.id] = row; statuses[row.id] = row.status; return row
     }
     func accept(id: Int, body: Components.Schemas.AcceptRequest) throws -> Components.Schemas.AdminRequest {
-        try checked(); statuses[id] = "accepted"; return try request(id)
+        var row = try request(id)
+        guard row.status == "pending" else { throw changed() }
+        let values = body.accepted_quantities ?? row.items.map { .init(item_id: $0.id, quantity: $0.requested_quantity) }
+        guard Set(values.map(\.item_id)).count == values.count,
+              values.allSatisfy({ value in row.items.contains { $0.id == value.item_id && value.quantity >= 0 && value.quantity <= $0.requested_quantity } }),
+              values.contains(where: { $0.quantity > 0 }) else { throw changed() }
+        row.items = row.items.map { initial in
+            var item = initial; item.accepted_quantity = values.first { $0.item_id == item.id }?.quantity ?? 0; return item
+        }
+        row.status = "accepted"; return save(row)
     }
     func reject(id: Int, body: Components.Schemas.RejectRequest) throws -> Components.Schemas.AdminRequest {
-        try checked(); statuses[id] = "rejected"; return try request(id)
+        var row = try request(id)
+        guard row.status == "pending", !body.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw changed() }
+        row.status = "rejected"; row.rejection_reason = body.reason; return save(row)
     }
     func assignBox(id: Int, body: Components.Schemas.AssignBox) throws -> Components.Schemas.AdminRequest {
-        try checked(); guard statuses[id] == "accepted", body.box_code == "DEMO-BOX" else { throw APIError(status: 409, code: "changed", detail: "Sample container or request changed.") }
-        assignments.insert(id); return try request(id)
+        let row = try request(id)
+        guard row.status == "accepted", body.box_code == "DEMO-BOX" else { throw changed() }
+        assignments.insert(id); return row
     }
     func issue(id: Int, body: Components.Schemas.IssueRequest) throws -> Components.Schemas.AdminRequest {
-        try checked()
+        var row = try request(id)
         if scenario == .issueConflict { throw APIError(status: 409, code: "issue_conflict", detail: "The request changed before issue completed.") }
-        guard statuses[id] == "accepted", assignments.contains(id) else { throw APIError(status: 409, code: "changed", detail: "Refresh the sample request.") }
-        statuses[id] = "issued"; return try request(id)
+        guard row.status == "accepted", assignments.contains(id), body.evidence_id > 0,
+              row.items.contains(where: { $0.accepted_quantity > 0 }) else { throw changed() }
+        row.items = row.items.map { initial in var item = initial; item.issued_quantity = item.accepted_quantity; return item }
+        row.status = "issued"; row.issue_evidence_id = body.evidence_id; return save(row)
+    }
+    private func counts(_ resolution: Components.Schemas.ReturnItemResolution, remaining: Int) throws -> (returned: Int, damaged: Int, missing: Int, remaining: Int) {
+        let returned = resolution.returned ?? 0, damaged = resolution.damaged ?? 0, missing = resolution.missing ?? 0
+        var left = remaining
+        for count in [returned, damaged, missing] {
+            guard count >= 0, count <= left else { throw changed() }; left -= count
+        }
+        guard resolution.assets?.isEmpty != false else { throw changed() }
+        return (returned, damaged, missing, left)
     }
     func returnRequest(id: Int, body: Components.Schemas.ReturnRequest) throws -> Components.Schemas.AdminRequest {
-        try checked(); statuses[id] = "closed"; return try request(id)
+        var row = try request(id)
+        guard row.status == "issued", body.evidence_id > 0, body.box_code == "DEMO-BOX",
+              !body.remark.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              Set(body.resolutions.map(\.item_id)).count == body.resolutions.count else { throw changed() }
+        var recorded = false
+        for resolution in body.resolutions {
+            guard let index = row.items.firstIndex(where: { $0.id == resolution.item_id }),
+                  let remaining = StaffMetadata.remaining(issued: row.items[index].issued_quantity, returned: row.items[index].returned_quantity,
+                      damaged: row.items[index].damaged_quantity, missing: row.items[index].missing_quantity) else { throw changed() }
+            let delta = try counts(resolution, remaining: remaining)
+            row.items[index].returned_quantity += delta.returned; row.items[index].damaged_quantity += delta.damaged; row.items[index].missing_quantity += delta.missing
+            recorded = recorded || delta.remaining < remaining
+        }
+        guard recorded else { throw changed() }
+        row.return_evidence_ids += try JSONDecoder().decode(type(of: row.return_evidence_ids), from: Data("[\(body.evidence_id)]".utf8))
+        row.status = row.items.allSatisfy { StaffMetadata.remaining(issued: $0.issued_quantity, returned: $0.returned_quantity, damaged: $0.damaged_quantity, missing: $0.missing_quantity) == 0 } ? "closed" : "issued"
+        return save(row)
     }
     func resolveQR(body: Components.Schemas.QrResolve) throws -> Components.Schemas.QrResolveResult {
         guard ["DEMO-BOX", "DEMO-TOOL"].contains(body.payload) else { throw APIError(status: 404, code: "not_found", detail: "Use DEMO-BOX or DEMO-TOOL in this sample.") }
         var object = try JSONSerialization.jsonObject(with: Data(DebugStaffFixtures.qr.utf8)) as! [String: Any]
+        var scopedQR = object["qr"] as! [String: Any]; scopedQR["makerspace"] = makerspaceID; object["qr"] = scopedQR
         if body.payload == "DEMO-TOOL" {
             var qr = object["qr"] as! [String: Any]; qr["id"] = 1202; qr["payload"] = body.payload; qr["target_type"] = "product"; qr["target_id"] = 901; object["qr"] = qr
             object["target"] = ["type": "product", "id": 901, "label": "Sample precision toolkit", "product_id": 901]
@@ -85,9 +137,13 @@ actor DemoStaffRepository: StaffRepository {
         }
         return try decode(String(decoding: JSONSerialization.data(withJSONObject: object), as: UTF8.self))
     }
+    private func initialLoan() throws -> Components.Schemas.DirectLoan {
+        if let saved = loanRecords[701] { return saved }
+        let row: Components.Schemas.DirectLoan = try decode(DebugStaffFixtures.loan); loanRecords[row.id] = row; return row
+    }
     func directLoans(page: Int) throws -> Components.Schemas.PaginatedDirectLoanList {
-        let row: Components.Schemas.DirectLoan = try decode(DebugStaffFixtures.loan, changes: ["status": directReturned ? "returned" : "active"])
-        return try self.page([row], page: page)
+        try checked(); _ = try initialLoan()
+        return try self.page(loanRecords.keys.sorted().compactMap { loanRecords[$0] }, page: page)
     }
     func directMembers(page: Int) throws -> Components.Schemas.PaginatedDirectLoanMemberList {
         let initial: Components.Schemas.PaginatedDirectLoanMemberList = try decode(DebugStaffFixtures.members)
@@ -99,10 +155,39 @@ actor DemoStaffRepository: StaffRepository {
     }
     func containers(page: Int) throws -> Components.Schemas.PaginatedBoxList { try decode(DebugStaffFixtures.containers) }
     func createDirect(body: Components.Schemas.DirectLoanIssue) throws -> Components.Schemas.DirectLoan {
-        try checked(); directCreated = true; return try decode(DebugStaffFixtures.loan)
+        try checked()
+        let items = body.items ?? [], scans = body.qr_payloads ?? []
+        guard body.borrower_id == 51, body.evidence_id > 0, body.container_id == nil,
+              Set(items.map(\.product_id)).count == items.count,
+              items.allSatisfy({ $0.product_id == 901 && (1...4).contains($0.quantity) }),
+              Set(scans).count == scans.count, scans.allSatisfy({ $0 == "DEMO-TOOL" }),
+              items.isEmpty || scans.isEmpty else { throw changed() }
+        let quantity = items.first?.quantity ?? (scans.isEmpty ? 0 : 1)
+        guard quantity > 0 else { throw changed() }
+        var row = try initialLoan()
+        row.id = nextLoanID; nextLoanID += 1
+        row.public_token = String(format: "71000000-0000-4000-8000-%012lld", Int64(row.id))
+        row.status = "active"; row.issue_evidence_id = body.evidence_id; row.return_evidence_id = nil; row.return_notes = ""
+        row.items = [.init(product_name: row.target_label, quantity: quantity)]
+        row.return_items = [.init(item_id: row.id * 100 + 1, product_name: row.target_label, remaining_quantity: quantity, tracking_mode: "quantity", assets: [])]
+        loanRecords[row.id] = row; return row
     }
     func returnDirect(id: Int, body: Components.Schemas.DirectLoanReturn) throws -> Components.Schemas.DirectLoan {
-        try checked(); directReturned = true; return try decode(DebugStaffFixtures.loan, changes: ["status": "returned"])
+        try checked(); _ = try initialLoan()
+        guard var row = loanRecords[id], row.status == "active", body.evidence_id > 0,
+              !body.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let resolutions = body.resolutions, Set(resolutions.map(\.item_id)).count == resolutions.count else { throw changed() }
+        var recorded = false
+        for resolution in resolutions {
+            guard let index = row.return_items.firstIndex(where: { $0.item_id == resolution.item_id }) else { throw changed() }
+            let remaining = row.return_items[index].remaining_quantity
+            let delta = try counts(resolution, remaining: remaining)
+            row.return_items[index].remaining_quantity = delta.remaining; recorded = recorded || delta.remaining < remaining
+        }
+        guard recorded else { throw changed() }
+        row.return_notes = body.notes; row.return_evidence_id = body.evidence_id
+        row.status = row.return_items.allSatisfy { $0.remaining_quantity == 0 } ? "returned" : "active"
+        loanRecords[id] = row; return row
     }
     func evidence(body: Components.Schemas.EvidenceUrlRequest) async throws -> Components.Schemas.EvidenceUrlResponse {
         await beforeEvidence()

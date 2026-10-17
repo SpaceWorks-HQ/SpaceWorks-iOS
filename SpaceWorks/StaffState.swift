@@ -35,7 +35,8 @@ final class StaffState {
     private var selectedSpace: Int?
     private var active = true
     @ObservationIgnored private var cooldownTask: Task<Void, Never>?
-    private var children: [() -> Void] = []
+    // Destination construction registers weak cleanup callbacks, which must not invalidate views.
+    @ObservationIgnored private var children: [() -> Void] = []
     init(repository: any StaffRepository, makerspaceID: Int, actions: Set<String>, features: Set<String>) {
         self.repository = repository; self.makerspaceID = makerspaceID
         self.actions = actions; self.features = features

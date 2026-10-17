@@ -38,14 +38,17 @@ final class PaymentsFlowTests: XCTestCase {
     }
     private func waitForRenderedReceipt(in app: XCUIApplication) {
         var lastRecognizedText = ""
+        var lastRecognitionError = "None."
         let visibleReceipt = NSPredicate { _, _ in
             guard let image = XCUIScreen.main.screenshot().image.cgImage else { return false }
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             request.recognitionLanguages = ["en-US"]
             request.usesLanguageCorrection = false
+            // The PDF body is small relative to the full-screen image; keep it in OCR coverage.
+            request.minimumTextHeight = 0.005
             do { try VNImageRequestHandler(cgImage: image, options: [:]).perform([request]) }
-            catch { return false }
+            catch { lastRecognitionError = String(describing: error); return false }
             lastRecognizedText = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
             let text = lastRecognizedText.uppercased()
             // Both phrases occur in the actual PDF page, never in the backing document list.
@@ -59,6 +62,8 @@ final class PaymentsFlowTests: XCTestCase {
             hierarchy.name = "Native receipt accessibility hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
             let recognized = XCTAttachment(string: lastRecognizedText)
             recognized.name = "Native receipt visible text"; recognized.lifetime = .keepAlways; add(recognized)
+            let recognition = XCTAttachment(string: "minimumTextHeight=0.005; last Vision error: \(lastRecognitionError)")
+            recognition.name = "Native receipt recognition diagnostics"; recognition.lifetime = .keepAlways; add(recognition)
         }
         XCTAssertEqual(result, .completed, "The actual native PDF page must render its sample receipt before capture.")
     }

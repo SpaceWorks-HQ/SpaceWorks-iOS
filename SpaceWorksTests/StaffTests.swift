@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import XCTest
 import SpaceWorksAPI
 @testable import SpaceWorks
@@ -18,6 +19,13 @@ private enum StaffFixture {
     }
 }
 
+private final class StaffObservationChanges: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+    var count: Int { lock.lock(); defer { lock.unlock() }; return value }
+    func record() { lock.lock(); value += 1; lock.unlock() }
+}
+
 #if DEBUG
 @MainActor final class StaffTests: XCTestCase {
     private func state(_ repository: DemoStaffRepository = DemoStaffRepository(), kits: Bool = false, actions: Set<String> = StaffFixture.actions) -> StaffState {
@@ -32,6 +40,19 @@ private enum StaffFixture {
         handover.setPhoto(photo); await handover.uploadPhoto(); await handover.prepareKits()
         return handover
     }
+    func testChildConstructionDoesNotInvalidateParentViewObservation() throws {
+        let parent = state()
+        let event: Components.Schemas.EventAdmin = try StaffFixture.decode(DebugStaffFixtures.event)
+        let changes = StaffObservationChanges()
+        let first = withObservationTracking {
+            StaffCheckInState(parent: parent, event: event)
+        } onChange: { changes.record() }
+        let second = StaffCheckInState(parent: parent, event: event)
+        XCTAssertEqual(changes.count, 0, "Registering cleanup must not rebuild a destination that constructs child state.")
+        parent.invalidate()
+        XCTAssertEqual(changes.count, 1, "Actual scope invalidation remains observable.")
+        XCTAssertEqual(first.eventTitle, ""); XCTAssertEqual(second.eventTitle, "")
+    }
     func testDemoStaffRowsMatchTheirActualSelectedMakerspace() async throws {
         let repository = DemoStaffRepository(makerspaceID: 8)
         let parent = StaffState(repository: repository, makerspaceID: 8, actions: StaffFixture.actions, features: [])
@@ -40,11 +61,78 @@ private enum StaffFixture {
         await parent.accept(row, quantities: [61: 2]); XCTAssertNil(parent.error)
         parent.queue = .accepted; await parent.loadQueue()
         XCTAssertTrue(parent.requests.allSatisfy { $0.makerspace_id == 8 })
+        for payload in ["DEMO-BOX", "DEMO-TOOL"] {
+            let resolved = try await repository.resolveQR(body: .init(payload: payload))
+            XCTAssertEqual(resolved.qr.makerspace, 8)
+        }
     }
     func testAcceptMovesActualRequestIntoAcceptedQueue() async throws {
         let parent = state(); await parent.loadQueue(); let row = try XCTUnwrap(parent.requests.first)
         await parent.accept(row, quantities: [61: 2]); XCTAssertNil(parent.error); XCTAssertTrue(parent.requests.isEmpty)
         parent.queue = .accepted; await parent.loadQueue(); XCTAssertTrue(parent.requests.contains { $0.id == row.id })
+    }
+    func testPartialAcceptancePersistsThroughIssueAndQueueRefetch() async throws {
+        let parent = state(); await parent.loadQueue(); let pending = try XCTUnwrap(parent.requests.first)
+        XCTAssertEqual(pending.items.first?.accepted_quantity, 0); XCTAssertEqual(pending.items.first?.issued_quantity, 0)
+        await parent.accept(pending, quantities: [61: 1]); XCTAssertNil(parent.error)
+        parent.queue = .accepted; await parent.loadQueue()
+        let accepted = try XCTUnwrap(parent.requests.first { $0.id == pending.id })
+        XCTAssertEqual(accepted.items.first?.accepted_quantity, 1); XCTAssertEqual(accepted.items.first?.issued_quantity, 0)
+        let handover = StaffHandoverState(parent: parent, mode: .issue(accepted))
+        await handover.scan("DEMO-BOX", box: true); handover.borrowerChecked = true
+        handover.setPhoto(photo); await handover.uploadPhoto(); XCTAssertTrue(handover.ready)
+        let evidence = handover.evidenceID
+        await handover.confirm(); XCTAssertNotNil(handover.receipt)
+        parent.queue = .active; await parent.loadQueue()
+        let issued = try XCTUnwrap(parent.requests.first { $0.id == pending.id })
+        XCTAssertEqual(issued.items.first?.accepted_quantity, 1); XCTAssertEqual(issued.items.first?.issued_quantity, 1)
+        XCTAssertEqual(issued.issue_evidence_id, evidence)
+    }
+    func testPartialRequestReturnKeepsOutstandingQuantityUntilFinalResolution() async throws {
+        let repository = DemoStaffRepository(); let parent = state(repository)
+        parent.queue = .active; await parent.loadQueue(); let initial = try XCTUnwrap(parent.requests.first)
+        let handover = StaffHandoverState(parent: parent, mode: .returnRequest(initial))
+        handover.returns[0].returned = 1; await handover.scan("DEMO-BOX", box: true)
+        handover.remark = "One item inspected and returned."; handover.setPhoto(photo); await handover.uploadPhoto()
+        XCTAssertTrue(handover.ready); await handover.confirm(); XCTAssertNotNil(handover.receipt)
+        await parent.loadQueue(); let partial = try XCTUnwrap(parent.requests.first { $0.id == initial.id })
+        XCTAssertEqual(partial.status, "issued"); XCTAssertEqual(partial.items[0].returned_quantity, 1)
+        XCTAssertEqual(partial.return_evidence_ids.count, 1)
+        XCTAssertEqual(StaffHandoverState(parent: parent, mode: .returnRequest(partial)).returns[0].remaining, 1)
+        for resolution in [Components.Schemas.ReturnItemResolution(item_id: 999, returned: 1), .init(item_id: 61, returned: 2)] {
+            do { _ = try await repository.returnRequest(id: initial.id, body: .init(evidence_id: 1400, box_code: "DEMO-BOX", remark: "Checked", resolutions: [resolution])); XCTFail("Invalid return changed sample records") }
+            catch {}
+        }
+        await parent.loadQueue(); XCTAssertEqual(parent.requests.first?.items[0].returned_quantity, 1)
+        let closed = try await repository.returnRequest(id: initial.id, body: .init(evidence_id: 1401, box_code: "DEMO-BOX", remark: "Remaining item missing.", resolutions: [.init(item_id: 61, missing: 1)]))
+        XCTAssertEqual(closed.status, "closed"); XCTAssertEqual(closed.items[0].returned_quantity, 1)
+        XCTAssertEqual(closed.items[0].missing_quantity, 1); XCTAssertEqual(closed.return_evidence_ids.count, 2)
+        await parent.loadQueue(); XCTAssertFalse(parent.requests.contains { $0.id == initial.id })
+    }
+    func testDirectSelectedAndScannedQuantitiesPersistAcrossPartialReturns() async throws {
+        let repository = DemoStaffRepository()
+        let one = try await repository.createDirect(body: .init(borrower_id: 51, evidence_id: 1401, items: [.init(product_id: 901, quantity: 1)]))
+        let two = try await repository.createDirect(body: .init(borrower_id: 51, evidence_id: 1402, items: [.init(product_id: 901, quantity: 2)]))
+        let scanned = try await repository.createDirect(body: .init(borrower_id: 51, evidence_id: 1403, qr_payloads: ["DEMO-TOOL"]))
+        XCTAssertEqual(one.items.first?.quantity, 1); XCTAssertEqual(two.items.first?.quantity, 2); XCTAssertEqual(scanned.items.first?.quantity, 1)
+        XCTAssertNotEqual(one.id, two.id); XCTAssertNotEqual(one.return_items.first?.item_id, two.return_items.first?.item_id)
+        XCTAssertEqual(two.issue_evidence_id, 1402)
+        let itemID = try XCTUnwrap(two.return_items.first?.item_id)
+        _ = try await repository.returnDirect(id: two.id, body: .init(evidence_id: 1404, notes: "One damaged item inspected.", resolutions: [.init(item_id: itemID, damaged: 1)]))
+        let refreshed = try await repository.directLoans(page: 1)
+        let partial = try XCTUnwrap(refreshed.results.first { $0.id == two.id })
+        XCTAssertEqual(partial.status, "active"); XCTAssertEqual(partial.return_items.first?.remaining_quantity, 1)
+        XCTAssertEqual(partial.return_evidence_id, 1404)
+        XCTAssertEqual(refreshed.results.first { $0.id == one.id }?.return_items.first?.remaining_quantity, 1)
+        for resolution in [Components.Schemas.ReturnItemResolution(item_id: 71, returned: 1), .init(item_id: itemID, returned: 2)] {
+            do { _ = try await repository.returnDirect(id: two.id, body: .init(evidence_id: 1405, notes: "Checked", resolutions: [resolution])); XCTFail("Invalid direct return changed sample records") }
+            catch {}
+        }
+        let final = try await repository.returnDirect(id: two.id, body: .init(evidence_id: 1406, notes: "Last item returned.", resolutions: [.init(item_id: itemID, returned: 1)]))
+        XCTAssertEqual(final.status, "returned"); XCTAssertEqual(final.return_items.first?.remaining_quantity, 0)
+        let finalList = try await repository.directLoans(page: 1)
+        XCTAssertEqual(finalList.results.first { $0.id == two.id }?.status, "returned")
+        XCTAssertEqual(finalList.results.first { $0.id == two.id }?.issue_evidence_id, 1402)
     }
     func testRejectionNeedsReasonAndSelectedCapability() async throws {
         let parent = state(); await parent.loadQueue(); let row = try XCTUnwrap(parent.requests.first)
