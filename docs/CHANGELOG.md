@@ -33,6 +33,13 @@ waiter continues. Add installation-epoch checks before publishing foreground/res
 cannot restore protected UI after session invalidation. Preserve privacy and draft state across app
 backgrounding, and retain scope-aware notification navigation across phone/tablet layout changes.
 
+Schedule the request-review countdown only when a Retry-After deadline exists; the normal review
+uses identical static submission controls and keeps the same busy, empty-cart and deadline guards.
+This removes needless scheduled work without claiming a proven cause for the phone scroll stall.
+Allow 120 minutes for the complete native suite and unsigned physical-device Release compilation;
+all tests, profiles, gestures and strict visibility assertions remain enabled. Native acceptance
+is still pending after the tablet passed and the phone request-review journey failed.
+
 Parity: Notifications / Enable notifications / Notifications are off for this device. / Open system
 settings / Open update. Local generation/capability/source checks pass; native state/API/UI tests and
 rendered phone/tablet evidence await the A4 compiler checkpoint. Real APNs delivery, server link files,

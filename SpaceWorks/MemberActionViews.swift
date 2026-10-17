@@ -39,12 +39,12 @@ struct RequestCartView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier("request-purpose")
                             Text("Up to 500 characters. Don't include sensitive information.").font(.caption).foregroundStyle(Color.swMuted)
                             if let error = state.error { SWError(message: error) }
-                            TimelineView(.periodic(from: .now, by: 1)) { tick in
-                                if let deadline = state.retryAfter, tick.date < deadline { Text("Try again in \(max(1, Int(ceil(deadline.timeIntervalSince(tick.date)))))s.").foregroundStyle(Color.swMuted) }
-                                Button(state.busy ? "Submitting…" : "Submit request") {
-                                    Task { await state.submit(); if state.receipt != nil { await completed() } }
-                                }.buttonStyle(SWPrimary()).disabled(state.busy || state.lines.isEmpty || (state.retryAfter ?? .distantPast) > tick.date)
-                                    .accessibilityIdentifier("submit-request")
+                            if state.retryAfter != nil {
+                                TimelineView(.periodic(from: .now, by: 1)) { tick in
+                                    submission(at: tick.date)
+                                }
+                            } else {
+                                submission(at: .now)
                             }
                         }
                     }
@@ -52,6 +52,13 @@ struct RequestCartView: View {
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("request-review-scroll")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.frame(minHeight: 48).disabled(state.busy) } }
         }.interactiveDismissDisabled(state.busy)
+    }
+    @ViewBuilder private func submission(at date: Date) -> some View {
+        if let deadline = state.retryAfter, date < deadline { Text("Try again in \(max(1, Int(ceil(deadline.timeIntervalSince(date)))))s.").foregroundStyle(Color.swMuted) }
+        Button(state.busy ? "Submitting…" : "Submit request") {
+            Task { await state.submit(); if state.receipt != nil { await completed() } }
+        }.buttonStyle(SWPrimary()).disabled(state.busy || state.lines.isEmpty || (state.retryAfter ?? .distantPast) > date)
+            .accessibilityIdentifier("submit-request")
     }
 }
 
