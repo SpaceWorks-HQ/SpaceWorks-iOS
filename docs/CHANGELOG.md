@@ -46,6 +46,13 @@ Parity: Payments / Review payment / Continue to payment / Payment pending / Paid
 desk / Refresh payment status / Receipts and credit notes / Share document / Done. Source adds22
 payment state/API cases and2 native payment journeys; these counts are intended, not evidence of a pass.
 
+The corrected compiler run executed all 188 native cases and all 20 inherited UI journeys on the
+phone successfully. Both new payment journeys then stopped in the native outcome popover: its
+separate title scroll area was incorrectly chosen by the generic app-content helper, despite the
+action being fully visible and hittable. Payment tests now assert the actual dialog title and the
+complete action frame, capture it, then use the native button activation. Shared scrolling and
+payment behavior are unchanged. The complete corrected phone/tablet and Release gate is pending.
+
 ## A4 Notifications and trusted routing — implementation checkpoint (2026-10-17)
 
 Native build evidence (visual follow-up pending): [`a989989` CI38998510266](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38998510266) passed 161 native state/API tests and 20 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The phone before-submit screenshot was rejected because midpoint activation left the second label line below the screen. The stricter request-only visibility check is included with A5; its complete native rerun and fully visible phone screenshot remain required before visual acceptance. These are fixture/compiler results; real backend/provider/device validation remains a release gate.

@@ -21,12 +21,26 @@ final class PaymentsFlowTests: XCTestCase {
         tap(app.buttons["payments-entry"], in: app)
         return app
     }
+    private func chooseDemoOutcome(_ title: String, in app: XCUIApplication) {
+        // A system confirmation popover exposes separate title/action scroll areas.
+        // Its flattened AX descendants are not an app-content scroll hierarchy.
+        XCTAssertTrue(app.staticTexts["Demo checkout · no money moves"].waitForExistence(timeout: 5))
+        let action = app.buttons[title]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertTrue(action.isHittable)
+        let frame = action.frame
+        XCTAssertGreaterThan(frame.width, 0)
+        XCTAssertGreaterThan(frame.height, 0)
+        XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        attach("Native demo checkout outcome")
+        action.tap()
+    }
     private func attach(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     func testDelayedPaymentRemainsPendingUntilDemoServerConfirmationThenOpensReceipt() {
         let app = member(); tap(app.buttons["payment-501"], in: app)
-        tap(app.buttons["payment-continue"], in: app); tap(app.buttons["Preview waiting for confirmation"], in: app)
+        tap(app.buttons["payment-continue"], in: app); chooseDemoOutcome("Preview waiting for confirmation", in: app)
         let awaiting = app.descendants(matching: .any)["payment-awaiting"].firstMatch
         XCTAssertTrue(awaiting.waitForExistence(timeout: 10)); XCTAssertFalse(app.buttons["payment-continue"].exists)
         attach("Payment awaiting authoritative confirmation")
@@ -39,7 +53,7 @@ final class PaymentsFlowTests: XCTestCase {
     }
     func testCancelledDemoCheckoutKeepsChargePendingAndAllowsExplicitRetry() {
         let app = member(); tap(app.buttons["payment-501"], in: app)
-        tap(app.buttons["payment-continue"], in: app); tap(app.buttons["Preview canceled checkout"], in: app)
+        tap(app.buttons["payment-continue"], in: app); chooseDemoOutcome("Preview canceled checkout", in: app)
         XCTAssertTrue(app.buttons["payment-continue"].waitForExistence(timeout: 10))
         XCTAssertFalse(app.descendants(matching: .any)["payment-confirmed"].firstMatch.exists)
         attach("Payment cancelled with pending charge")
