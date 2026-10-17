@@ -3,6 +3,15 @@ import UIKit
 
 /// UI-test runner policy. It never enters the application or its Release target.
 extension XCUIApplication {
+    func rotateToLandscapeAndWait(timeout: TimeInterval = 10) {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            self.frame.width > self.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [orientation], timeout: timeout), .completed,
+                       "Requested landscape orientation must actually be visible.")
+    }
+
     func launchForDeviceProfile() {
         let profiles: Set<String> = ["compact", "phone", "large", "tablet", "tablet-landscape", "large-tablet"]
         let profile = ProcessInfo.processInfo.environment["SPACEWORKS_TEST_PROFILE"] ?? "phone"

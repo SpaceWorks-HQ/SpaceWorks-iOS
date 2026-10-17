@@ -40,7 +40,7 @@ final class MainFlowTests: XCTestCase {
         credentials(app); selectSpace(app)
         XCTAssertTrue(app.staticTexts["Welcome back, Maker."].waitForExistence(timeout: 10))
         attach(app, "Home member portrait")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height)
         for name in ["Inventory", "Activity", "Inbox", "Profile"] { tab(app, name) }
         XCTAssertTrue(app.buttons["Sign out"].waitForExistence(timeout: 5))
@@ -52,9 +52,14 @@ final class MainFlowTests: XCTestCase {
     }
     func testMFAContinuesToMakerspaceSelection() {
         let app = launch(extra: ["--mfa"]); connect(app); credentials(app)
-        XCTAssertTrue(app.textFields["mfa-code"].waitForExistence(timeout: 10))
-        app.textFields["mfa-code"].tap(); app.textFields["mfa-code"].typeText("123456\n")
-        app.buttons["verify"].tap(); selectSpace(app)
+        let code = app.textFields["mfa-code"]
+        XCTAssertTrue(code.waitForExistence(timeout: 10))
+        NativeUIActions.tap(code, in: app)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        attach(app, "MFA authentication code ready")
+        code.typeText("123456\n")
+        XCTAssertEqual(code.value as? String, "123456")
+        NativeUIActions.tap(app.buttons["verify"], in: app); selectSpace(app)
         XCTAssertTrue(app.staticTexts["Welcome back, Maker."].waitForExistence(timeout: 10))
     }
     func testServerFailureRemainsReviewable() {
@@ -67,7 +72,7 @@ final class MainFlowTests: XCTestCase {
         let app = launch(extra: ["--ui-start-light", "--ui-start-portrait", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         app.buttons["appearance"].tap(); connect(app)
         app.swipeUp(); attach(app, "Sign in largest text dark portrait")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height)
         app.swipeDown(); XCTAssertTrue(app.textFields["username"].exists)
         app.swipeUp(); XCTAssertTrue(app.buttons["sign-in"].exists)

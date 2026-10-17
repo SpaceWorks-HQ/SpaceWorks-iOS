@@ -54,6 +54,17 @@ struct AccountAccessView: View {
                 }.disabled(form.busy)
             }.padding(24).frame(maxWidth: 508).frame(maxWidth: .infinity)
         }.background(Color.swBg).scrollDismissesKeyboard(.interactively)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if focused == "account-code" {
+                    HStack {
+                        Spacer()
+                        Button { focused = nil } label: {
+                            Text("Done").frame(minWidth: 48, minHeight: 48).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityIdentifier("account-code-keyboard-done")
+                    }.padding(.horizontal, 24).padding(.vertical, 8)
+                        .foregroundStyle(Color.swAccentInk).background(Color.swSurface)
+                }
+            }
             .interactiveDismissDisabled(form.busy)
             .onDisappear { form.clearSecrets() }
     }

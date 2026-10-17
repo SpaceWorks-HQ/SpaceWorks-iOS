@@ -142,7 +142,11 @@ final class AccountFlowTests: XCTestCase {
         confirmNativeDialog("Replace your recovery codes?", action: "Continue", in: app)
         XCTAssertTrue(app.staticTexts["Save your recovery codes"].waitForExistence(timeout: 10))
         let next = app.buttons["account-security-continue"]; XCTAssertFalse(next.isEnabled)
-        tap(app.switches["account-recovery-saved"], in: app); tap(next, in: app)
+        let saved = app.switches["account-recovery-saved"]
+        NativeUIActions.tap(saved, in: app, requireWholeFrame: true)
+        XCTAssertEqual(saved.value as? String, "1")
+        XCTAssertTrue(next.isEnabled)
+        NativeUIActions.tap(next, in: app, requireWholeFrame: true)
         XCTAssertTrue(app.textFields["demo-username"].waitForExistence(timeout: 10))
     }
     func testExportRequestStatusAndNativeArchivePresentation() {
@@ -159,7 +163,7 @@ final class AccountFlowTests: XCTestCase {
         openDataExports(in: app, captureBeforeTap: true); tap(app.buttons["account-request-export"], in: app)
         tap(app.buttons["account-check-export"], in: app); tap(app.buttons["account-download-export"], in: app)
         XCTAssertTrue(app.navigationBars["Data export"].waitForExistence(timeout: 10))
-        XCUIDevice.shared.orientation = .landscapeLeft
+        app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height)
         // NativeUIActions requires a real visible/hittable action after bounded scrolling.
         tap(app.buttons["account-share-export"], in: app)

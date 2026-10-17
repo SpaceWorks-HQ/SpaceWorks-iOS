@@ -52,10 +52,9 @@ final class MemberActionsFlowTests: XCTestCase {
                    element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
                     element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap(); return
                 }
-                // Off-screen accessibility frames can jump across the viewport after
-                // rotation. Reversing on their midpoint oscillated around hidden controls.
-                // Sweep consistently in each direction; activation still requires a real
-                // visible, hittable target. New screens normally start near their top.
+                // Follow observed target geometry while it remains available. A fixed
+                // half-budget reversal can move a still-offscreen control away again.
+                // Missing or unusable targets retain the bounded two-direction sweep.
                 if scroll.identifier == "request-review-scroll" {
                     // An unchanged far-offscreen target demonstrates a no-op coordinate
                     // pan. Exercise a native scroll gesture within this same search budget.
@@ -80,7 +79,14 @@ final class MemberActionsFlowTests: XCTestCase {
                         else if frame.maxY > viewport.maxY { reviewDown = false }
                     }
                     drag(scroll, app, target: element, down: reviewDown)
-                } else { drag(scroll, app, target: element, down: attempt >= 12) }
+                } else {
+                    var down = attempt >= 12
+                    if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0 {
+                        if frame.maxY <= viewport.minY || frame.minY < viewport.minY { down = true }
+                        else if frame.minY >= viewport.maxY || frame.maxY > viewport.maxY { down = false }
+                    }
+                    drag(scroll, app, target: element, down: down)
+                }
             } else {
                 drag(scroll, app, target: element, down: scroll.identifier == "request-review-scroll" ? reviewDown : attempt >= 12)
             }
@@ -255,7 +261,7 @@ final class MemberActionsFlowTests: XCTestCase {
         let app = demo(); tab(app, "Profile"); tap(app.buttons["Edit profile"], in: app)
         let name = app.textFields["profile-display-name"]; tap(name, in: app)
         let old = name.value as? String ?? ""; name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count) + "Meera Maker\n")
-        XCUIDevice.shared.orientation = .landscapeLeft
+        app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height); XCTAssertEqual(name.value as? String, "Meera Maker")
         tap(app.buttons["Save changes"], in: app); XCTAssertTrue(app.staticTexts["Profile saved."].waitForExistence(timeout: 5)); capture("Native profile saved landscape")
         let back = app.navigationBars.buttons["Profile"]; XCTAssertTrue(back.waitForExistence(timeout: 5)); back.tap()
@@ -282,7 +288,7 @@ final class MemberActionsFlowTests: XCTestCase {
         tap(app.buttons["Add to request"], in: app); tap(app.buttons["review-request"], in: app)
         tap(app.buttons["submit-request"], in: app)
         XCTAssertTrue(app.staticTexts["Request received"].waitForExistence(timeout: 5)); capture("Request receipt largest text dark portrait")
-        XCUIDevice.shared.orientation = .landscapeLeft; XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        app.rotateToLandscapeAndWait(); XCTAssertGreaterThan(app.frame.width, app.frame.height)
         tap(app.buttons["Done"], in: app)
         let add = app.buttons["Add to request"]
         revealFully(add, in: app)

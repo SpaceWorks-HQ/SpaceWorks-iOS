@@ -43,7 +43,10 @@ final class PaymentsFlowTests: XCTestCase {
             guard viewport.width > 32, viewport.height > 64 else { break }
             let down = frame.minY < viewport.minY
             let distance = min(200, viewport.height * 0.45)
-            let x = viewport.midX, y = down ? viewport.minY + 16 : viewport.maxY - 16
+            // Begin in the real content padding, outside outcome buttons and away
+            // from the phone's bottom system gesture edge.
+            let x = min(viewport.maxX - 12, max(viewport.minX + 12, frame.minX - 12))
+            let y = viewport.midY + (down ? -distance : distance) / 2
             let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y - app.frame.minY))
             let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y + (down ? distance : -distance) - app.frame.minY))
             start.press(forDuration: 0.1, thenDragTo: end, withVelocity: XCUIGestureVelocity(250), thenHoldForDuration: 0.3)

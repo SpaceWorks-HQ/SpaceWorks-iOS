@@ -2,20 +2,20 @@ import XCTest
 
 /// Native bars can overlap the accessibility scroll frame. Keep gestures in visible content.
 enum NativeUIActions {
-    static func tap(_ element: XCUIElement, in app: XCUIApplication) {
+    static func tap(_ element: XCUIElement, in app: XCUIApplication, requireWholeFrame: Bool = false) {
         var reviewDown = false
         for attempt in 0..<24 {
             let scroll = containingScroll(element, app)
             if element.exists {
                 let insideScroll = contains(element, scroll)
-                if element.isHittable && !insideScroll { element.tap(); return }
+                if element.isHittable && !insideScroll && !requireWholeFrame { element.tap(); return }
                 let frame = element.frame
                 let viewport = visibleContent(scroll, app)
                 let visible = frame.intersection(viewport)
                 print("Native action \(element.identifier.isEmpty ? element.label : element.identifier), attempt \(attempt), frame \(frame), viewport \(viewport), hittable \(element.isHittable)")
                 // A SwiftUI Toggle can expose a label rectangle that differs from its
                 // native UISwitch activation point. Let XCTest activate a visible switch.
-                if element.elementType == .switch, element.isHittable,
+                if !requireWholeFrame, element.elementType == .switch, element.isHittable,
                    !visible.isNull, visible.width > 4, visible.height > 4 { element.tap(); return }
                 // A fitting review button must reveal its entire label before activation.
                 // Its midpoint can be hittable while the second line is below the screen.
@@ -25,21 +25,22 @@ enum NativeUIActions {
                 // Gesture margins keep drags away from chrome; they are not clipping.
                 // Check the complete review control against the actual bar-adjusted
                 // viewport, with a 2pt safety margin, rather than its 8pt drag inset.
-                let positioned = fullReviewButton ? reviewViewport.insetBy(dx: 2, dy: 2).contains(frame)
-                    : viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY))
+                let positioned = requireWholeFrame
+                    ? visibleContent(scroll, app, gestureInset: 0).insetBy(dx: 2, dy: 2).contains(frame)
+                    : (fullReviewButton ? reviewViewport.insetBy(dx: 2, dy: 2).contains(frame)
+                       : viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)))
                 if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4, positioned {
                     // Use the native activation point. A wide Toggle's label centre is not
                     // its switch thumb; coordinates are only needed for clipped text fields.
                     element.tap(); return
                 }
-                if (element.elementType == .textField || element.elementType == .secureTextField),
+                if !requireWholeFrame, (element.elementType == .textField || element.elementType == .secureTextField),
                    element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
                     element.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: visible.midX - frame.minX, dy: visible.midY - frame.minY)).tap(); return
                 }
-                // Off-screen accessibility frames can jump across the viewport after
-                // rotation. Reversing on their midpoint oscillated around hidden controls.
-                // Sweep consistently in each direction; activation still requires a real
-                // visible, hittable target. New screens normally start near their top.
+                // Follow observed target geometry while it remains available. A fixed
+                // half-budget reversal can move a still-offscreen control away again.
+                // Missing or unusable targets retain the bounded two-direction sweep.
                 if scroll.identifier == "request-review-scroll" {
                     // Native geometry proves this target remains in the same modal.
                     // Some drags can make no progress; do not reverse a resumed
@@ -51,7 +52,14 @@ enum NativeUIActions {
                         else if frame.maxY > viewport.maxY { reviewDown = false }
                     }
                     drag(scroll, app, target: element, down: reviewDown)
-                } else { drag(scroll, app, target: element, down: attempt >= 12) }
+                } else {
+                    var down = attempt >= 12
+                    if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0 {
+                        if frame.maxY <= viewport.minY || frame.minY < viewport.minY { down = true }
+                        else if frame.minY >= viewport.maxY || frame.maxY > viewport.maxY { down = false }
+                    }
+                    drag(scroll, app, target: element, down: down)
+                }
             } else {
                 drag(scroll, app, target: element, down: scroll.identifier == "request-review-scroll" ? reviewDown : attempt >= 12)
             }
