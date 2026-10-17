@@ -14,10 +14,16 @@ final class StaffFlowTests: XCTestCase {
         tap(app.buttons["demo-sign-in"], in: app); tap(app.buttons["demo-space-0"], in: app)
         if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
         else {
-            let profile = app.descendants(matching: .any)["nav-Profile"].firstMatch
-            if !profile.isHittable {
-                let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-                if sidebar.exists { sidebar.tap() }
+            let profile = app.buttons["nav-Profile"]
+            let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+            let ready = XCTNSPredicateExpectation(predicate: readiness, object: profile)
+            if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
+                let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+                let sidebarReady = XCTNSPredicateExpectation(predicate: readiness, object: sidebar)
+                XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
+                sidebar.tap()
+                let opened = XCTNSPredicateExpectation(predicate: readiness, object: profile)
+                XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
             }
             tap(profile, in: app)
         }

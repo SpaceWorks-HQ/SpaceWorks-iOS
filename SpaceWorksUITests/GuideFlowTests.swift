@@ -16,10 +16,16 @@ final class GuideFlowTests: XCTestCase {
     }
     private func tab(_ name: String, app: XCUIApplication) {
         if app.tabBars.buttons[name].exists { tap(app.tabBars.buttons[name], in: app); return }
-        let target = app.descendants(matching: .any)["nav-\(name)"].firstMatch
-        if !target.isHittable {
-            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-            if sidebar.exists { sidebar.tap() }
+        let target = app.buttons["nav-\(name)"]
+        let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+        let ready = XCTNSPredicateExpectation(predicate: readiness, object: target)
+        if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
+            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+            let sidebarReady = XCTNSPredicateExpectation(predicate: readiness, object: sidebar)
+            XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
+            sidebar.tap()
+            let opened = XCTNSPredicateExpectation(predicate: readiness, object: target)
+            XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
         }
         tap(target, in: app)
     }
