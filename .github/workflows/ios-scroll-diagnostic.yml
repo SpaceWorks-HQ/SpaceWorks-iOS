@@ -1,0 +1,112 @@
+# Supplemental investigation only. Ordinary ios.yml remains the phase acceptance gate.
+name: iOS scroll diagnostics
+on:
+  push:
+    paths:
+      - .github/workflows/ios-scroll-diagnostic.yml
+      - SpaceWorks/Platform/ReviewScrollDiagnostics.swift
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-scroll-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    timeout-minutes: 40
+    name: Targeted scroll investigation (not phase acceptance)
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        device: [phone]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify pinned Xcode and SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-version
+      - name: Install project and icon generators
+        run: brew install xcodegen librsvg
+      - name: Restore Swift package sources
+        id: package-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-v2-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-spm-v2-
+            ${{ runner.os }}-${{ runner.arch }}-spm-
+      - name: Identify Xcode build cache
+        id: xcode-cache
+        shell: bash
+        run: |
+          XCODE_BUILD=$(xcodebuild -version | tr '\n' '-' | tr -cd '[:alnum:].-')
+          SIM_SDK_BUILD=$(xcrun --sdk iphonesimulator --show-sdk-build-version)
+          DEVICE_SDK_BUILD=$(xcrun --sdk iphoneos --show-sdk-build-version)
+          echo "identity=$XCODE_BUILD-$SIM_SDK_BUILD-$DEVICE_SDK_BUILD" >> "$GITHUB_OUTPUT"
+      - name: Cache compiled dependencies and build intermediates
+        id: compiled-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            DerivedData/Build
+            DerivedData/ModuleCache.noindex
+            DerivedData/SDKStatCaches.noindex
+          key: ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-${{ matrix.device }}-${{ github.sha }}
+          restore-keys: |
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-${{ matrix.device }}-
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-
+      - name: Generate and validate source inputs
+        run: |
+          python3 scripts/generate.py
+          python3 -m unittest discover -s scripts/tests -v
+          python3 scripts/lint.py
+          xcodegen generate
+      - name: Select phone or tablet simulator
+        run: |
+          python3 scripts/device-matrix.py '${{ matrix.device }}'
+      - name: Run the single failing journey for geometry diagnostics
+        run: |
+          set -o pipefail
+          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -only-testing:SpaceWorksUITests/MemberActionsFlowTests/testLargestTextDarkRequestReviewPortraitAndLandscape -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+      - name: Export UI screenshots
+        if: always()
+        run: |
+          if [ -d TestResults.xcresult ]; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
+          fi
+      - name: Archive supplementary diagnostics (not acceptance)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-scroll-diagnostic-${{ matrix.device }}
+          path: |
+            TestResults.xcresult
+            TestAttachments
+            build.log
+            validation-device.json
+            DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
+            SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+          retention-days: 7
+      - name: Save Swift package sources after validation
+        if: always() && !cancelled() && steps.package-cache.outputs.cache-primary-key != '' && steps.package-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: SourcePackages
+          key: ${{ steps.package-cache.outputs.cache-primary-key }}
+      - name: Save compiler cache after validation
+        if: always() && !cancelled() && steps.compiled-cache.outputs.cache-primary-key != '' && steps.compiled-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            DerivedData/Build
+            DerivedData/ModuleCache.noindex
+            DerivedData/SDKStatCaches.noindex
+          key: ${{ steps.compiled-cache.outputs.cache-primary-key }}

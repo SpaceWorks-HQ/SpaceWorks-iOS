@@ -14,7 +14,13 @@ final class MemberActionsFlowTests: XCTestCase {
                 let viewport = visibleContent(scroll, app)
                 let visible = frame.intersection(viewport)
                 if scroll.identifier == "request-review-scroll" {
+                    if attempt == 0 {
+                        let diagnostics = app.descendants(matching: .any)["review-scroll-diagnostics"].firstMatch
+                        print("Initial native review metadata: \(diagnostics.exists ? String(describing: diagnostics.value) : "probe unavailable")")
+                    }
                     if !capturedReviewStall, previousReviewFrame == frame {
+                        let diagnostics = app.descendants(matching: .any)["review-scroll-diagnostics"].firstMatch
+                        print("Native review metadata: \(diagnostics.exists ? String(describing: diagnostics.value) : "probe unavailable")")
                         capture("Review scroll stalled before " + element.identifier)
                         capturedReviewStall = true
                     }
