@@ -2,6 +2,8 @@
 
 ## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
 
+The `32c69d9` phone native checkpoint compiled and executed all 294 native cases. One A8 boundary-copy expectation failed because native localized integer interpolation correctly inserted digit-grouping separators. The test now checks the exact representable decimal value independently of grouping (including non-ASCII decimal digits), while retaining the expected English retry prefix/suffix and every invalid/nonfinite/overflow case. Production formatting and deadlines are unchanged. All shared A7 account/auth/email ownership cases passed in this checkpoint; complete A7 and corrected A8 native/UI/Release acceptance remain pending.
+
 The first merged A8 [`7455146` matrix](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018807936) stopped during compilation before tests because SwiftUI exposes Reduce Motion as a read-only environment value. The introduction now reads the OS value and combines it locally with the Debug-only UI-test launch flag; Release continues to use the OS setting. The global environment is unchanged, including introduction replay. This compiler checkpoint provides no native test or screenshot acceptance; the corrected exact-head matrix remains required.
 
 The diagnostic `96c25e6` matrix was canceled after its started profiles all stopped in the same account retry test before UI testing. It includes no native acceptance. The candidate now normally merges actual corrected dev `e94a5c8`, including complete successful-refresh fixtures and bounded test synchronization; A7 and A8 native acceptance remain pending.

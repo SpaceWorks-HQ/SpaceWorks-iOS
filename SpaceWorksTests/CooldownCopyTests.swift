@@ -21,6 +21,11 @@ final class CooldownCopyTests: XCTestCase {
             XCTAssertEqual(CooldownCopy.retryMessage(until: deadline, now: now), "Try again later.")
         }
         let representable = Date(timeIntervalSince1970: Double(Int.max).nextDown)
-        XCTAssertEqual(CooldownCopy.retryMessage(until: representable, now: now), "Try again in 9223372036854774784s.")
+        let rendered = CooldownCopy.retryMessage(until: representable, now: now)
+        XCTAssertTrue(rendered.hasPrefix("Try again in "))
+        XCTAssertTrue(rendered.hasSuffix("s."))
+        // Native localized integer interpolation may insert grouping separators.
+        let decimalDigits = rendered.compactMap(\.wholeNumberValue).map { String($0) }.joined()
+        XCTAssertEqual(decimalDigits, "9223372036854774784")
     }
 }
