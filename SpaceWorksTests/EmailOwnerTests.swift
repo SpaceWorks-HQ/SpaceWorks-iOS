@@ -160,7 +160,7 @@ private final class EmailOwnerServer: @unchecked Sendable {
         case "/api/v1/auth/me": body = DebugAuthFixtures.user
         case "/api/v1/auth/device/attestation-challenge": body = #"{"challenge":"fixture-challenge","expires_in":120}"#
         case "/api/v1/auth/device/login": body = DebugAuthFixtures.tokens.replacingOccurrences(of: "test-access", with: "new-access").replacingOccurrences(of: "test-refresh", with: "new-refresh")
-        case "/api/v1/auth/device/refresh": body = #"{"access":"rotated-access","refresh":"rotated-refresh"}"#
+        case "/api/v1/auth/device/refresh": body = DeviceRefreshFixture.rotated
         case Self.confirm, Self.resend: body = #"{"detail":"Accepted."}"#
         default: XCTFail("Unexpected email-owner API call: " + path); source.respond(status: 500, json: "{}"); return
         }

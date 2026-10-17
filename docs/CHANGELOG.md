@@ -1,5 +1,11 @@
 # Phase notes
 
+## A7 native test fixture correction
+
+- Canceled the previous A7 validation after native diagnostics showed an incomplete successful-refresh fixture prevented the held management retry from being reached. No UI tests had started; that run is not acceptance evidence.
+- Share a schema-complete refresh response across account, email and required-password tests, and decode it through the generated `DeviceRefreshResponse` in the existing operation test. The stale-management test now waits at most five seconds for retry arrival or early completion, always releases its held response, and awaits the operation so early decoding errors surface.
+- Intended native/UI/Python counts remain 285/34/21. Full phone/tablet tests and unsigned Release must pass at the corrected head before A7 acceptance.
+
 ## A7 Account and localization — implementation checkpoint (2026-10-17)
 
 The initial [`d05dcfc` native checkpoint](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39017485631) stopped during compilation before tests: the localized staff menu wrapper accepted only a localization key, while a booking row supplied its server-provided space name. The wrapper now accepts a Text presentation: app-owned literal titles stay localized and the remote name is explicitly verbatim. The complete native gate remains pending; this compiler checkpoint is not acceptance.
