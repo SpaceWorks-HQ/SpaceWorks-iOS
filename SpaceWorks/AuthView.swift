@@ -150,7 +150,16 @@ struct SignInView: View {
                                     .accessibilityIdentifier("sign-in")
                             }
                             if auth.signupEnabled {
-                                HStack { Text("New here?").foregroundStyle(Color.swMuted); Button("Create account") { accountForm = auth.accountForm(.signUp) }.frame(minHeight: 48) }
+                                if typeSize.isAccessibilitySize {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("New here?").foregroundStyle(Color.swMuted)
+                                        Button("Create account") { accountForm = auth.accountForm(.signUp) }
+                                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                                            .accessibilityIdentifier("create-account")
+                                    }
+                                } else {
+                                    HStack { Text("New here?").foregroundStyle(Color.swMuted); Button("Create account") { accountForm = auth.accountForm(.signUp) }.frame(minHeight: 48).accessibilityIdentifier("create-account") }
+                                }
                             }
                             }
                         }.disabled(auth.busy)
@@ -166,7 +175,7 @@ struct SignInView: View {
                             .accessibilityHidden(true)
                     }
                 }.padding(24).frame(maxWidth: .infinity, minHeight: geometry.size.height)
-            }.background(Color.swBg).scrollDismissesKeyboard(.interactively)
+            }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("sign-in-scroll")
         }
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { auth.username = form.email; accountForm = nil } }
     }

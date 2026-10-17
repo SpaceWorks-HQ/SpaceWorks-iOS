@@ -76,11 +76,37 @@ final class MainFlowTests: XCTestCase {
     func testDarkModeLargestTextPortraitAndLandscape() {
         let app = launch(extra: ["--ui-start-light", "--ui-start-portrait", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         app.buttons["appearance"].tap(); connect(app)
-        app.swipeUp(); attach(app, "Sign in largest text dark portrait")
+        let scroll = app.scrollViews["sign-in-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        func revealActions() {
+            let signIn = app.buttons["sign-in"]
+            let create = app.buttons["create-account"]
+            XCTAssertTrue(signIn.waitForExistence(timeout: 5))
+            XCTAssertTrue(create.waitForExistence(timeout: 5))
+            for attempt in 0..<24 {
+                let viewport = scroll.frame.intersection(app.frame).insetBy(dx: 2, dy: 2)
+                let signInFrame = signIn.frame
+                let createFrame = create.frame
+                let frames = [viewport, signInFrame, createFrame]
+                XCTAssertTrue(frames.allSatisfy { [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) && $0.width > 0 && $0.height > 0 })
+                print("Sign-in actions attempt=\(attempt) signIn=\(signInFrame) create=\(createFrame) viewport=\(viewport)")
+                if viewport.contains(signInFrame), viewport.contains(createFrame) {
+                    XCTAssertTrue(signIn.isEnabled && signIn.isHittable)
+                    XCTAssertTrue(create.isEnabled && create.isHittable)
+                    XCTAssertEqual(app.state, .runningForeground)
+                    return
+                }
+                XCTAssertTrue(scroll.isHittable)
+                if signInFrame.union(createFrame).minY < viewport.minY { scroll.swipeDown(velocity: .slow) }
+                else { scroll.swipeUp(velocity: .slow) }
+            }
+            XCTFail("Sign-in and Create account actions must both fit the visible sign-in scroll viewport")
+        }
+        revealActions(); attach(app, "Sign in largest text dark portrait")
         app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height)
-        app.swipeDown(); XCTAssertTrue(app.textFields["username"].exists)
-        app.swipeUp(); XCTAssertTrue(app.buttons["sign-in"].exists)
+        scroll.swipeDown(velocity: .slow); XCTAssertTrue(app.textFields["username"].exists)
+        revealActions(); XCTAssertTrue(app.buttons["sign-in"].exists)
         attach(app, "Sign in largest text dark landscape")
     }
     func testExploreDemoIsIsolatedAndExitsToServerSetup() {
