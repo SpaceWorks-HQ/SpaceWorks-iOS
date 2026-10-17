@@ -51,7 +51,7 @@ struct RequestCartView: View {
                 }.padding(24).frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity).disabled(state.busy)
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("request-review-scroll")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.frame(minHeight: 48).disabled(state.busy) } }
-        }.interactiveDismissDisabled(state.busy)
+        }.interactiveDismissDisabled(state.busy).nativeFeedback(state.feedback)
     }
     @ViewBuilder private func submission(at date: Date) -> some View {
         if let deadline = state.retryAfter, date < deadline { Text(CooldownCopy.retryMessage(until: deadline, now: date)).foregroundStyle(Color.swMuted) }

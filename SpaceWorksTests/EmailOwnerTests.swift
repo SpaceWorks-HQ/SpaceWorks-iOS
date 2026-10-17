@@ -27,7 +27,7 @@ import SpaceWorksAPI
         await replace(auth)
         let baseline = server.requests.count
         await old.confirmEmail(); await old.resendEmail()
-        XCTAssertEqual(server.requests.count, baseline); XCTAssertNil(old.notice)
+        XCTAssertEqual(server.requests.count, baseline); XCTAssertNil(old.notice); XCTAssertNil(old.feedback)
         XCTAssertTrue(auth.accountForm(.emailVerification).canResend)
         XCTAssertEqual(auth.selectedID, 8); XCTAssertEqual(auth.stage, .signedIn)
         await auth.invalidateSession(message: "Test finished.")
@@ -50,7 +50,7 @@ import SpaceWorksAPI
         let baseline = server.requests.count
         server.release(); await request.value
         XCTAssertEqual(server.requests.count, baseline, "An old acknowledgement must not issue a new-owner /me")
-        XCTAssertNil(old.notice); XCTAssertTrue(auth.accountForm(.emailVerification).canResend)
+        XCTAssertNil(old.notice); XCTAssertNil(old.feedback); XCTAssertTrue(auth.accountForm(.emailVerification).canResend)
         XCTAssertEqual(auth.stage, .signedIn); XCTAssertEqual(auth.selectedID, 8)
         let pair = await auth.service.refresh.current(); XCTAssertEqual(pair?.access, "new-access")
         await auth.invalidateSession(message: "Test finished.")
@@ -61,6 +61,7 @@ import SpaceWorksAPI
         let form = auth.accountForm(.emailVerification); form.code = "123456"
         await form.confirmEmail()
         XCTAssertEqual(form.notice, "Email confirmed."); XCTAssertNil(form.error)
+        XCTAssertEqual(form.feedback?.kind, .success)
         await form.resendEmail(); XCTAssertNil(form.error); XCTAssertFalse(form.canResend)
         let calls = server.requests
         XCTAssertEqual(calls.filter { $0.path == "/api/v1/auth/device/refresh" }.count, 1)

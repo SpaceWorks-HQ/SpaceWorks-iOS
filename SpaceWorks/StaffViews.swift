@@ -191,6 +191,7 @@ private struct StaffCheckInView: View {
             }
             }
         }.padding(24).frame(maxWidth: 720).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle("Check-in").navigationBarTitleDisplayMode(.inline)
+            .nativeFeedback(state.feedback)
             .sheet(isPresented: $scanner) { NativeQRScanner(title: String(localized: "Check-in code")) { value in scanner = false; Task { await state.resolve(value) } } }
     }
 }

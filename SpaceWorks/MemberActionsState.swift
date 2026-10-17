@@ -33,6 +33,7 @@ final class RequestCartState {
     private(set) var error: String?
     private(set) var retryAfter: Date?
     private(set) var attemptKey = UUID().uuidString
+    private(set) var feedback: NativeFeedbackEvent?
     private var generation = 0
     private var active = true
     let repository: any MemberActionsRepository
@@ -65,12 +66,13 @@ final class RequestCartState {
             let result = try await repository.submit(items: items, purpose: purpose.trimmingCharacters(in: .whitespacesAndNewlines), key: attemptKey)
             guard active, generation == expected else { return }
             lines = []; purpose = ""; receipt = result
-            attemptKey = UUID().uuidString; retryAfter = nil
+            attemptKey = UUID().uuidString; retryAfter = nil; feedback = .init(.success)
         } catch {
             guard active, generation == expected else { return }
             self.error = APIError.display(error); retryAfter = APIError.retryDeadline(error)
+            if !APIError.isCancellation(error) { feedback = .init(.error) }
         }
     }
-    func invalidate() { active = false; generation += 1; lines = []; purpose = ""; receipt = nil; error = nil; retryAfter = nil }
+    func invalidate() { feedback = nil; active = false; generation += 1; lines = []; purpose = ""; receipt = nil; error = nil; retryAfter = nil }
     private func changed() { generation += 1; attemptKey = UUID().uuidString; receipt = nil; error = nil }
 }

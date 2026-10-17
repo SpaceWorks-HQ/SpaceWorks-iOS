@@ -7,12 +7,16 @@ import SpaceWorksAPI
         let repository = DemoMemberActionsRepository(scenario: .refused)
         let state = RequestCartState(repository: repository)
         state.add(try await DemoMemberRepository().product(1))
+        XCTAssertNil(state.feedback)
         let first = state.attemptKey
         await state.submit(); XCTAssertEqual(state.attemptKey, first); XCTAssertNil(state.receipt); XCTAssertEqual(state.lines.count, 1)
+        XCTAssertEqual(state.feedback?.kind, .error)
         state.purpose = "Make a circuit"; XCTAssertNotEqual(state.attemptKey, first)
         let second = state.attemptKey; await state.submit(); XCTAssertEqual(state.attemptKey, second)
         await repository.preview(.success); await state.submit()
         XCTAssertEqual(state.receipt?.status, "pending"); XCTAssertTrue(state.lines.isEmpty); XCTAssertNotEqual(state.attemptKey, second)
+        XCTAssertEqual(state.feedback?.kind, .success)
+        state.invalidate(); await state.submit(); XCTAssertNil(state.feedback)
     }
     func testDuplicateDemoRequestKeyReturnsSameReceiptAndOnlyOneHistoryRow() async throws {
         let store = DemoMemberStore(); let repository = DemoMemberActionsRepository(store: store)

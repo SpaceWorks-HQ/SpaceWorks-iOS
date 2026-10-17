@@ -64,6 +64,7 @@ struct StaffReturnDraft {
 @MainActor @Observable
 final class StaffHandoverState {
     private(set) var mode: StaffHandoverMode
+    private(set) var feedback: NativeFeedbackEvent?
     let parent: StaffState
     var step = 0
     var borrowerID: Int?
@@ -161,7 +162,7 @@ final class StaffHandoverState {
         if case .directIssue = mode { return members.contains { $0.user_id == borrowerID } }
         return borrowerChecked
     }
-    func invalidate() { active = false; generation += 1; photo = nil; evidenceID = nil; scans = [:]; members = []; products = []; returns = []; receipt = nil; error = nil; mode = .directIssue; boxCode = ""; boxLabel = ""; remark = ""; borrowerID = nil; kits = []; kitCounts = [:] }
+    func invalidate() { feedback = nil; active = false; generation += 1; photo = nil; evidenceID = nil; scans = [:]; members = []; products = []; returns = []; receipt = nil; error = nil; mode = .directIssue; boxCode = ""; boxLabel = ""; remark = ""; borrowerID = nil; kits = []; kitCounts = [:] }
     func loadBorrowers(more: Bool = false) async {
         guard canRequest, !more || membersNext != nil else { return }; busy = true
         let page = more ? membersNext! : 1
@@ -277,9 +278,11 @@ final class StaffHandoverState {
             }
             guard active else { return }; receipt = "\(mode.isReturn ? "Return" : "Issue") #\(id) recorded"
             notice = String(localized: "Evidence photo #\(evidenceID) is attached."); busy = false; step = steps.count - 1
+            feedback = .init(.success)
             await parent.loadQueue(); await parent.loadDirect()
         } catch {
             guard active else { return }; needsReload = true; fail(error)
+            if active, !APIError.isCancellation(error) { feedback = .init(.error) }
             if assignmentRecorded { notice = String(localized: "Box assignment was recorded; issue still needs to complete. Check the latest request before retrying.") }
         }
     }

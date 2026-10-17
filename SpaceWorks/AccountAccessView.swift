@@ -66,7 +66,8 @@ struct AccountAccessView: View {
                 }
             }
             .interactiveDismissDisabled(form.busy)
-            .onDisappear { form.clearSecrets() }
+            .nativeFeedback(form.feedback)
+            .onDisappear { form.retireFeedback(); form.clearSecrets() }
     }
     private var heading: String {
         switch form.step {

@@ -31,7 +31,7 @@ struct IntroductionView: View {
                     HStack {
                         Text("\(page + 1) of 3").foregroundStyle(Color.swMuted).accessibilityLabel("Introduction, page \(page + 1) of 3")
                         Spacer()
-                        Button("Skip introduction", action: finish).frame(minHeight: 48)
+                        Button("Skip introduction") { NativeFeedback.play(.success); finish() }.frame(minHeight: 48)
                     }
                     VStack(alignment: .leading, spacing: 24) {
                         if geometry.size.height >= 650 && !typeSize.isAccessibilitySize {
@@ -45,13 +45,13 @@ struct IntroductionView: View {
                         }
                         Text(headings[page]).brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                         Text(details[page]).brandFont(.title3).foregroundStyle(Color.swMuted)
-                    }.id(page).transition(.opacity)
+                    }.id(page).transition(reduceMotion ? .identity : .opacity.combined(with: .offset(y: 8)))
                     Spacer(minLength: 16)
                     Button(page == 2 ? "Get started" : "Next") {
-                        if page == 2 { finish() }
-                        else { withAnimation(reduceMotion ? nil : MobileMotion.expandAnimation) { page += 1 } }
+                        if page == 2 { NativeFeedback.play(.success); finish() }
+                        else { NativeFeedback.play(.selection); withAnimation(reduceMotion ? nil : MobileMotion.expandAnimation) { page += 1 } }
                     }.buttonStyle(SWPrimary()).accessibilityIdentifier("intro-next")
-                    Button("Back") { withAnimation(reduceMotion ? nil : MobileMotion.expandAnimation) { page -= 1 } }
+                    Button("Back") { NativeFeedback.play(.selection); withAnimation(reduceMotion ? nil : MobileMotion.expandAnimation) { page -= 1 } }
                         .frame(minHeight: 48).opacity(page == 0 ? 0 : 1)
                         .disabled(page == 0).accessibilityHidden(page == 0)
                 }.padding(24).frame(maxWidth: 600).frame(minHeight: geometry.size.height, alignment: .topLeading)

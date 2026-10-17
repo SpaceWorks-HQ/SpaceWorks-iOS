@@ -78,70 +78,83 @@ final class MainFlowTests: XCTestCase {
         app.buttons["appearance"].tap(); connect(app)
         let scroll = app.scrollViews["sign-in-scroll"]
         XCTAssertTrue(scroll.waitForExistence(timeout: 5))
-        func revealActions() {
-            let signIn = app.buttons["sign-in"]
-            let create = app.buttons["create-account"]
-            XCTAssertTrue(signIn.waitForExistence(timeout: 5))
-            XCTAssertTrue(create.waitForExistence(timeout: 5))
-            for attempt in 0..<24 {
-                let applicationFrame = app.frame
-                let scrollFrame = scroll.frame.intersection(applicationFrame)
-                let appearance = app.buttons["appearance"]
-                XCTAssertTrue(appearance.exists)
-                let headerFrame = appearance.frame
-                let signInFrame = signIn.frame
-                let createFrame = create.frame
-                let frames = [applicationFrame, scrollFrame, headerFrame, signInFrame, createFrame]
-                XCTAssertTrue(frames.allSatisfy { [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) && $0.width > 0 && $0.height > 0 })
-                XCTAssertTrue(appearance.isHittable)
-                let visibleTop = max(scrollFrame.minY, headerFrame.maxY)
-                let viewport = CGRect(x: scrollFrame.minX + 2, y: visibleTop + 2,
-                                      width: scrollFrame.width - 4, height: scrollFrame.maxY - visibleTop - 4)
-                XCTAssertGreaterThan(viewport.width, 0)
-                XCTAssertGreaterThan(viewport.height, 0)
-                print("Sign-in actions attempt=\(attempt) signIn=\(signInFrame) create=\(createFrame) viewport=\(viewport)")
-                if viewport.contains(signInFrame), viewport.contains(createFrame) {
-                    XCTAssertTrue(signIn.isEnabled && signIn.isHittable)
-                    XCTAssertTrue(create.isEnabled && create.isHittable)
-                    XCTAssertEqual(app.state, .runningForeground)
-                    return
-                }
-                XCTAssertTrue(scroll.isHittable)
-                let actionsFrame = signInFrame.union(createFrame)
-                // Center the two controls within real slack instead of repeatedly aligning a clipped edge.
-                let translation = viewport.midY - actionsFrame.midY
-                let adjustmentLimit = min(120, viewport.height * 0.4)
-                if abs(translation) <= adjustmentLimit {
-                    let movement = (translation < 0 ? -1.0 : 1.0) * min(max(abs(translation), 12), adjustmentLimit)
-                    let x = viewport.minX + 12
-                    let startY = viewport.midY - movement / 2
-                    let endY = viewport.midY + movement / 2
-                    let dragFrame = CGRect(x: x - 2, y: min(startY, endY) - 2, width: 4, height: abs(movement) + 4)
-                    XCTAssertTrue(viewport.contains(dragFrame) && scrollFrame.contains(dragFrame))
-                    let controls = app.buttons.allElementsBoundByIndex + app.textFields.allElementsBoundByIndex
-                        + app.secureTextFields.allElementsBoundByIndex + app.textViews.allElementsBoundByIndex
-                    for control in controls where control.exists {
-                        let frame = control.frame
-                        if [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite), frame.width > 0, frame.height > 0 {
-                            XCTAssertFalse(frame.intersects(dragFrame), "The reveal gutter must not intersect an interactive control")
-                        }
-                    }
-                    print("Sign-in short reveal path=\(dragFrame) visibleViewport=\(viewport)")
-                    let origin = app.coordinate(withNormalizedOffset: .zero)
-                    origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: startY - applicationFrame.minY)).press(forDuration: 0.05,
-                        thenDragTo: origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: endY - applicationFrame.minY)),
-                        withVelocity: .slow, thenHoldForDuration: 0.3)
-                } else if translation > 0 { scroll.swipeDown(velocity: .slow) }
-                else { scroll.swipeUp(velocity: .slow) }
-            }
-            XCTFail("Sign-in and Create account actions must both fit the visible sign-in scroll viewport")
-        }
-        revealActions(); attach(app, "Sign in largest text dark portrait")
+        revealSignInActions(app); attach(app, "Sign in largest text dark portrait")
         app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height)
         scroll.swipeDown(velocity: .slow); XCTAssertTrue(app.textFields["username"].exists)
-        revealActions(); XCTAssertTrue(app.buttons["sign-in"].exists)
+        revealSignInActions(app); XCTAssertTrue(app.buttons["sign-in"].exists)
         attach(app, "Sign in largest text dark landscape")
+    }
+    private func revealSignInActions(_ app: XCUIApplication) {
+        let scroll = app.scrollViews["sign-in-scroll"]
+        let signIn = app.buttons["sign-in"]
+        let create = app.buttons["create-account"]
+        XCTAssertTrue(signIn.waitForExistence(timeout: 5))
+        XCTAssertTrue(create.waitForExistence(timeout: 5))
+        for attempt in 0..<24 {
+            let applicationFrame = app.frame
+            let scrollFrame = scroll.frame.intersection(applicationFrame)
+            let appearance = app.buttons["appearance"]
+            XCTAssertTrue(appearance.exists)
+            let headerFrame = appearance.frame
+            let signInFrame = signIn.frame
+            let createFrame = create.frame
+            let frames = [applicationFrame, scrollFrame, headerFrame, signInFrame, createFrame]
+            XCTAssertTrue(frames.allSatisfy { [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) && $0.width > 0 && $0.height > 0 })
+            XCTAssertTrue(appearance.isHittable)
+            let visibleTop = max(scrollFrame.minY, headerFrame.maxY)
+            let viewport = CGRect(x: scrollFrame.minX + 2, y: visibleTop + 2,
+                                  width: scrollFrame.width - 4, height: scrollFrame.maxY - visibleTop - 4)
+            XCTAssertGreaterThan(viewport.width, 0)
+            XCTAssertGreaterThan(viewport.height, 0)
+            print("Sign-in actions attempt=\(attempt) signIn=\(signInFrame) create=\(createFrame) viewport=\(viewport)")
+            if viewport.contains(signInFrame), viewport.contains(createFrame) {
+                XCTAssertTrue(signIn.isEnabled && signIn.isHittable)
+                XCTAssertTrue(create.isEnabled && create.isHittable)
+                XCTAssertEqual(app.state, .runningForeground)
+                return
+            }
+            XCTAssertTrue(scroll.isHittable)
+            let actionsFrame = signInFrame.union(createFrame)
+            // Center the two controls within real slack instead of repeatedly aligning a clipped edge.
+            let translation = viewport.midY - actionsFrame.midY
+            let adjustmentLimit = min(120, viewport.height * 0.4)
+            if abs(translation) <= adjustmentLimit {
+                let movement = (translation < 0 ? -1.0 : 1.0) * min(max(abs(translation), 12), adjustmentLimit)
+                let x = viewport.minX + 12
+                let startY = viewport.midY - movement / 2
+                let endY = viewport.midY + movement / 2
+                let dragFrame = CGRect(x: x - 2, y: min(startY, endY) - 2, width: 4, height: abs(movement) + 4)
+                XCTAssertTrue(viewport.contains(dragFrame) && scrollFrame.contains(dragFrame))
+                let controls = app.buttons.allElementsBoundByIndex + app.textFields.allElementsBoundByIndex
+                    + app.secureTextFields.allElementsBoundByIndex + app.textViews.allElementsBoundByIndex
+                for control in controls where control.exists {
+                    let frame = control.frame
+                    if [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite), frame.width > 0, frame.height > 0 {
+                        XCTAssertFalse(frame.intersects(dragFrame), "The reveal gutter must not intersect an interactive control")
+                    }
+                }
+                print("Sign-in short reveal path=\(dragFrame) visibleViewport=\(viewport)")
+                let origin = app.coordinate(withNormalizedOffset: .zero)
+                origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: startY - applicationFrame.minY)).press(forDuration: 0.05,
+                    thenDragTo: origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: endY - applicationFrame.minY)),
+                    withVelocity: .slow, thenHoldForDuration: 0.3)
+            } else if translation > 0 { scroll.swipeDown(velocity: .slow) }
+            else { scroll.swipeUp(velocity: .slow) }
+        }
+        XCTFail("Sign-in and Create account actions must both fit the visible sign-in scroll viewport")
+    }
+    func testRegularTextDarkLandscapeSignInUsesNativeBrandPanel() {
+        let app = launch(extra: ["--ui-start-light", "--ui-start-portrait", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"])
+        app.buttons["appearance"].tap(); connect(app)
+        app.rotateToLandscapeAndWait()
+        XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        XCTAssertEqual(app.buttons["appearance"].label, "Light mode")
+        XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.secureTextFields["password"].exists)
+        revealSignInActions(app)
+        XCTAssertEqual(app.state, .runningForeground)
+        attach(app, "Sign in regular text dark landscape")
     }
     func testExploreDemoIsIsolatedAndExitsToServerSetup() {
         let app = launch(); app.buttons["explore-demo"].tap()

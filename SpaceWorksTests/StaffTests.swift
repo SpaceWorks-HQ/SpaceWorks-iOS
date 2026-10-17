@@ -147,6 +147,9 @@ private final class StaffObservationChanges: @unchecked Sendable {
         handover.setPhoto(photo); await handover.uploadPhoto(); XCTAssertFalse(handover.ready)
         handover.borrowerChecked = true; XCTAssertTrue(handover.ready)
         await handover.confirm(); XCTAssertNotNil(handover.receipt); XCTAssertTrue(parent.requests.isEmpty)
+        XCTAssertEqual(handover.feedback?.kind, .success)
+        let feedback = handover.feedback
+        await parent.loadQueue(); XCTAssertEqual(handover.feedback, feedback, "A refresh must not replay a confirmation")
     }
     func testKitCountsStartEmptyAndRequireAnExplicitCountIncludingZero() async throws {
         let parent = state(kits: true); let handover = try await issue(parent)
@@ -255,8 +258,11 @@ private final class StaffObservationChanges: @unchecked Sendable {
         let parent = state(); await parent.loadEvents(); let event = try XCTUnwrap(parent.events.first)
         let checkin = StaffCheckInState(parent: parent, event: event); await checkin.resolve("DEMO-EVENT")
         XCTAssertTrue(checkin.canConfirm); XCTAssertEqual(checkin.person?.status, "registered"); XCTAssertNil(checkin.confirmation)
+        XCTAssertEqual(checkin.feedback?.kind, .selection)
         await checkin.resolve("DEMO-EVENT"); XCTAssertEqual(checkin.person?.status, "registered")
         await checkin.confirm(); XCTAssertNotNil(checkin.confirmation); XCTAssertNil(checkin.person)
+        XCTAssertEqual(checkin.feedback?.kind, .success)
+        let feedback = checkin.feedback; await checkin.confirm(); XCTAssertEqual(checkin.feedback, feedback)
         await checkin.resolve("DEMO-EVENT"); XCTAssertEqual(checkin.person?.status, "attended"); XCTAssertFalse(checkin.canConfirm)
     }
     func testWaitlistedRegistrationCannotBeConfirmed() async throws {
@@ -277,6 +283,7 @@ private final class StaffObservationChanges: @unchecked Sendable {
         parent.invalidate(); XCTAssertNil(handover.photo); XCTAssertNil(handover.evidenceID); XCTAssertTrue(handover.scans.isEmpty)
         XCTAssertNil(checkin.person); XCTAssertTrue(parent.requests.isEmpty); XCTAssertTrue(parent.events.isEmpty)
         await handover.confirm(); XCTAssertNil(handover.receipt); await checkin.confirm(); XCTAssertNil(checkin.confirmation)
+        XCTAssertNil(handover.feedback); XCTAssertNil(checkin.feedback)
     }
     func testBookingDecisionUsesReturnedServerState() async throws {
         let parent = state(); await parent.loadBookings(spaceID: 901); let row = try XCTUnwrap(parent.bookings.first)

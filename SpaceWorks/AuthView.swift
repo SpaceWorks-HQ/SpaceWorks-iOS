@@ -32,6 +32,7 @@ struct AuthRoot: View {
             }
             }
         }
+        .nativeFeedback(auth.feedback)
         .task { await auth.restore(); bindRouting() }
         .onChange(of: auth.stage) { _, _ in bindRouting() }
         .onChange(of: auth.user?.id) { _, _ in bindRouting() }

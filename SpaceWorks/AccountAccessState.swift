@@ -17,6 +17,7 @@ final class AccountAccessCooldown {
 @MainActor @Observable
 final class AccountAccessState: Identifiable {
     let id = UUID()
+    private(set) var feedback: NativeFeedbackEvent?
     let isDemo: Bool
     enum Step: Equatable { case signUp, created, requestReset, confirmReset, resetComplete, unavailable, emailVerification }
     var step: Step
@@ -45,6 +46,7 @@ final class AccountAccessState: Identifiable {
     private let resendVerification: () async throws -> Void
     private let now: () -> Date
     private let ownerIsCurrent: () -> Bool
+    private var feedbackGeneration = 0
 
     init(step: Step, now: @escaping () -> Date = Date.init, cooldown: AccountAccessCooldown? = nil, isDemo: Bool = false,
          create: @escaping (String, String, String, String) async throws -> Void,
@@ -61,20 +63,20 @@ final class AccountAccessState: Identifiable {
     func signUp() async {
         guard !busy, now() >= submitAfter else { return }
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= 200 else { error = String(localized: "Enter your name (up to 200 characters)."); return }
-        guard validEmail else { error = String(localized: "Enter a valid email address."); return }
+        guard !trimmed.isEmpty, trimmed.count <= 200 else { reject(String(localized: "Enter your name (up to 200 characters).")); return }
+        guard validEmail else { reject(String(localized: "Enter a valid email address.")); return }
         guard validatePasswords() else { return }
-        guard password.count <= 128 else { error = String(localized: "Use a password with no more than 128 characters."); return }
-        guard phone.count <= 32 else { error = String(localized: "Use a phone number with no more than 32 characters."); return }
-        await perform {
+        guard password.count <= 128 else { reject(String(localized: "Use a password with no more than 128 characters.")); return }
+        guard phone.count <= 32 else { reject(String(localized: "Use a phone number with no more than 32 characters.")); return }
+        await perform(feedback: .success) {
             try await self.create(trimmed, self.email.trimmingCharacters(in: .whitespacesAndNewlines), self.password, self.phone)
             self.clearSecrets(); self.step = .created
         }
     }
     func requestCode(resending: Bool = false) async {
         guard !busy, now() >= resendAfter, now() >= submitAfter else { return }
-        guard validEmail else { error = String(localized: "Enter a valid email address."); return }
-        await perform {
+        guard validEmail else { reject(String(localized: "Enter a valid email address.")); return }
+        await perform(feedback: .selection) {
             try await self.request(self.email.trimmingCharacters(in: .whitespacesAndNewlines))
             self.resendAfter = self.now().addingTimeInterval(60)
             self.notice = String(localized: "If an account matches this email, a recovery code will arrive. Delivery may take a few minutes.")
@@ -83,23 +85,26 @@ final class AccountAccessState: Identifiable {
     }
     func confirmReset() async {
         guard !busy, now() >= submitAfter else { return }
-        guard isSixDigits else { error = String(localized: "Enter the six-digit verification code."); return }
+        guard isSixDigits else { reject(String(localized: "Enter the six-digit verification code.")); return }
         guard validatePasswords() else { return }
+        let generation = feedbackGeneration
         busy = true; error = nil
         defer { busy = false }
         do {
             try await reset(email.trimmingCharacters(in: .whitespacesAndNewlines), code, password)
             clearSecrets(); step = .resetComplete
+            if generation == feedbackGeneration, ownerIsCurrent() { feedback = .init(.success) }
         } catch {
             // Every server rejection is identical: don't expose an OTP/account-existence oracle.
             self.error = String(localized: "Invalid or expired verification code.")
             preserveCooldown(error)
+            if generation == feedbackGeneration, ownerIsCurrent(), !APIError.isCancellation(error) { feedback = .init(.error) }
         }
     }
     func confirmEmail() async {
         guard !busy, now() >= submitAfter else { return }
-        guard isSixDigits else { error = String(localized: "Enter the six-digit verification code."); return }
-        await perform {
+        guard isSixDigits else { reject(String(localized: "Enter the six-digit verification code.")); return }
+        await perform(feedback: .success) {
             try await self.verify(self.code)
             guard self.ownerIsCurrent() else { throw CancellationError() }
             self.code = ""; self.notice = String(localized: "Email confirmed.")
@@ -107,7 +112,7 @@ final class AccountAccessState: Identifiable {
     }
     func resendEmail() async {
         guard canResend, now() >= submitAfter else { return }
-        await perform {
+        await perform(feedback: .selection) {
             try await self.resendVerification()
             guard self.ownerIsCurrent() else { throw CancellationError() }
             self.resendAfter = self.now().addingTimeInterval(60)
@@ -119,15 +124,17 @@ final class AccountAccessState: Identifiable {
         clearSecrets(); error = nil; notice = nil; step = .requestReset
         // Operation cooldown deliberately survives editing and navigation.
     }
+    func retireFeedback() { feedbackGeneration += 1; feedback = nil }
     func clearSecrets() { password = ""; confirmation = ""; code = "" }
+    private func reject(_ message: String) { error = message; feedback = .init(.error) }
     private var isSixDigits: Bool { code.count == 6 && code.allSatisfy { $0.isASCII && $0.isNumber } }
     private var validEmail: Bool {
         let value = email.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.count <= 254 && value.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
     private func validatePasswords() -> Bool {
-        guard password.count >= 8 else { error = String(localized: "Use at least 8 characters."); return false }
-        guard password == confirmation else { error = String(localized: "Passwords don't match."); return false }
+        guard password.count >= 8 else { reject(String(localized: "Use at least 8 characters.")); return false }
+        guard password == confirmation else { reject(String(localized: "Passwords don't match.")); return false }
         return true
     }
     private func preserveCooldown(_ failure: Error) {
@@ -135,11 +142,16 @@ final class AccountAccessState: Identifiable {
             submitAfter = max(submitAfter, deadline); resendAfter = max(resendAfter, deadline)
         }
     }
-    private func perform(_ operation: () async throws -> Void) async {
+    private func perform(feedback kind: NativeFeedbackEvent.Kind, _ operation: () async throws -> Void) async {
+        let generation = feedbackGeneration
         busy = true; error = nil
         defer { busy = false }
-        do { try await operation() } catch {
+        do {
+            try await operation()
+            if generation == feedbackGeneration, ownerIsCurrent() { feedback = .init(kind) }
+        } catch {
             guard ownerIsCurrent() else { return }
+            if generation == feedbackGeneration, !APIError.isCancellation(error) { feedback = .init(.error) }
             preserveCooldown(error)
             if APIError.code(error) == "recovery_unavailable" { step = .unavailable; clearSecrets() }
             else { self.error = APIError.display(error) }

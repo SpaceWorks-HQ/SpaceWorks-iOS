@@ -54,16 +54,19 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
     func testPasswordSignInPersistsBeforeIdentitySelectsAndLogsOut() async throws {
         let storage = MemoryTokens()
         let auth = state(storage: storage, handler: response)
-        await auth.restore(); XCTAssertEqual(auth.stage, .signIn)
+        await auth.restore(); XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(auth.feedback)
         auth.username = " maker "; auth.password = "password-fixture"
         await auth.signIn()
         XCTAssertEqual(auth.stage, .signedIn); XCTAssertNotNil(auth.acceptedCredentials)
+        XCTAssertEqual(auth.feedback?.kind, .success)
+        let feedback = auth.feedback
+        await auth.foreground(); XCTAssertEqual(auth.feedback, feedback, "Identity refresh must remain quiet")
         XCTAssertEqual(try storage.load(), TokenPair(access: "test-access", refresh: "test-refresh"))
         XCTAssertEqual(auth.memberships.count, 2); XCTAssertNil(auth.selectedID)
         await auth.select(7); XCTAssertEqual(auth.selectedID, 7)
         XCTAssertEqual(auth.password, ""); XCTAssertFalse(auth.staffToolsAvailable)
         await auth.signOut(); XCTAssertNil(try storage.load()); XCTAssertNil(auth.user); XCTAssertNil(auth.acceptedCredentials)
-        XCTAssertEqual(auth.stage, .signIn)
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(auth.feedback)
     }
     func testFailureCallbackChecksAcceptedIdentityAfterMainActorHop() async throws {
         let probe = OwnedRepositoryProbe()

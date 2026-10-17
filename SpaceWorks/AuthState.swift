@@ -6,6 +6,7 @@ import SpaceWorksAPI
 final class AuthState {
     enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, passwordChange, securityCompletion, signedIn }
     private(set) var stage: Stage = .restoring
+    private(set) var feedback: NativeFeedbackEvent?
     var username = ""
     var password = ""
     var code = ""
@@ -150,8 +151,9 @@ final class AuthState {
     func signIn() async {
         guard !busy, (retryAfter ?? .distantPast) <= Date() else { return }
         guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !password.isEmpty else {
-            error = String(localized: "Enter your email or username and password."); return
+            error = String(localized: "Enter your email or username and password."); feedback = .init(.error); return
         }
+        let feedbackGeneration = identityGeneration
         busy = true; error = nil
         defer { busy = false; password = "" }
         do {
@@ -165,20 +167,26 @@ final class AuthState {
             switch result {
             case .DeviceTokenResponse(let tokens):
                 try await accept(TokenPair(access: tokens.access, refresh: tokens.refresh))
+                await authenticationFeedback(generation: feedbackGeneration)
             case .MFAChallengeResponse(let challenge):
                 mfa = challenge
                 mfaExpires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
                 if challenge.enrollment_required { enrollment = try await service.enroll(challenge: challenge.challenge) }
                 stage = .mfa
+                if identityGeneration == feedbackGeneration { feedback = .init(.selection) }
             }
-        } catch { fail(error) }
+        } catch {
+            fail(error)
+            if identityGeneration == feedbackGeneration, !APIError.isCancellation(error) { feedback = .init(.error) }
+        }
     }
     func verify() async {
         guard !busy, let mfa, (retryAfter ?? .distantPast) <= Date() else { return }
         guard (mfaExpires ?? .distantPast) > Date() else {
             backToSignIn(); error = String(localized: "Your sign-in expired. Try again."); return
         }
-        guard code.count >= 6 else { error = String(localized: "Enter your authenticator or recovery code."); return }
+        guard code.count >= 6 else { error = String(localized: "Enter your authenticator or recovery code."); feedback = .init(.error); return }
+        let feedbackGeneration = identityGeneration
         busy = true; error = nil
         defer { busy = false; code = "" }
         do {
@@ -192,7 +200,11 @@ final class AuthState {
             recoveryCodes = result.recovery_codes ?? []
             try await accept(TokenPair(access: result.access, refresh: refresh))
             if !recoveryCodes.isEmpty { stage = .recoveryCodes }
-        } catch { fail(error) }
+            await authenticationFeedback(generation: feedbackGeneration)
+        } catch {
+            fail(error)
+            if identityGeneration == feedbackGeneration, !APIError.isCancellation(error) { feedback = .init(.error) }
+        }
     }
     func confirmRecoveryCodes() { recoveryCodes = []; stage = user?.must_change_password == true ? .passwordChange : .signedIn }
     func backToSignIn() {
@@ -339,6 +351,12 @@ final class AuthState {
             fail(error)
             if isUnauthorized(error) { await invalidateSession(message: APIError.display(error)) }
         }
+    }
+    private func authenticationFeedback(generation: Int) async {
+        guard identityGeneration == generation, let credentials = acceptedCredentials else { return }
+        guard await service.refresh.isCurrent(credentials), identityGeneration == generation,
+              acceptedCredentials != nil, user != nil else { return }
+        feedback = .init(stage == .signedIn ? .success : .selection)
     }
     private func accept(_ pair: TokenPair) async throws {
         guard !pair.access.isEmpty, !pair.refresh.isEmpty else {
@@ -489,6 +507,7 @@ final class AuthState {
         for clear in holders.values { clear() }
     }
     private func clearLocalIdentity() {
+        feedback = nil
         identityGeneration += 1; identityFlight?.cancel(); identityFlight = nil; clearPrivateHolders()
         settings.removeObject(forKey: selectionKey)
         locallyLeftMemberships = []; securityMessage = nil; acceptedCredentials = nil

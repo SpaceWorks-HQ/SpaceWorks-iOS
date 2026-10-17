@@ -52,6 +52,7 @@ struct StaffHandoverView: View {
             }.padding(24).frame(maxWidth: 760).frame(maxWidth: .infinity)
         }.background(Color.swBg).foregroundStyle(Color.swInk).tint(Color.swAccentInk)
             .navigationTitle(state.mode.title).navigationBarTitleDisplayMode(.inline)
+            .nativeFeedback(state.feedback)
             .interactiveDismissDisabled(state.busy)
             .navigationBarBackButtonHidden(state.busy)
             .task {
