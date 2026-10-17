@@ -75,9 +75,10 @@ final class PreviewHealthProtocol: URLProtocol {
             case "/api/v1/bootstrap": body = DebugMemberFixtures.bootstrap
             case "/api/v1/auth/device/attestation-challenge": body = #"{"challenge":"fresh-test-challenge","expires_in":120}"#
             case "/api/v1/auth/device/login": body = arguments.contains("--mfa") ? DebugAuthFixtures.mfa : DebugAuthFixtures.tokens
-            case "/api/v1/auth/me": body = DebugAuthFixtures.user
+            case "/api/v1/auth/me": body = arguments.contains("--temporary-password") ? DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true") : DebugAuthFixtures.user
             case "/api/v1/auth/mfa/verify": body = "{\"access\":\"test-access\",\"refresh\":\"test-refresh\",\"device_grant\":\(DebugAuthFixtures.grant),\"surface\":\"member\",\"user\":\(DebugAuthFixtures.user)}"
             case "/api/v1/auth/device/logout": body = #"{"detail":"Signed out."}"#
+            case "/api/v1/auth/change-password": body = #"{"detail":"Password updated."}"#
             case "/api/v1/auth/member-sign-up", "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password",
                  "/api/v1/auth/email-verification/confirm", "/api/v1/auth/email-verification/resend": body = #"{"detail":"Check your email."}"#
             default: body = #"{"status":"ok"}"#

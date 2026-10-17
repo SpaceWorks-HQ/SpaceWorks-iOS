@@ -26,7 +26,7 @@ actor DemoPaymentRepository: DemoPaymentControlling {
         return [first, second]
     }
     func intent(paymentID: Int) async throws -> Components.Schemas.MobilePaymentIntentResponse {
-        throw APIError(status: 0, code: "demo_no_sdk", detail: "Demo mode never opens a payment provider.")
+        throw APIError(status: 0, code: "demo_no_sdk", detail: String(localized: "Demo mode never opens a payment provider."))
     }
     func simulate(paymentID: Int, scenario: DemoPaymentScenario) async {
         guard paymentID == 501 else { return }
@@ -40,7 +40,7 @@ actor DemoPaymentRepository: DemoPaymentControlling {
     }
     func documentPDF(documentID: Int) async throws -> Data {
         guard documentID == 902 || (confirmed && documentID == 901) else {
-            throw APIError(status: 404, code: "not_found", detail: "Demo document unavailable.")
+            throw APIError(status: 404, code: "not_found", detail: String(localized: "Demo document unavailable."))
         }
         return await MainActor.run {
             let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842))

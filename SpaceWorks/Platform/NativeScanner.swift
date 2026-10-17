@@ -60,7 +60,7 @@ struct NativeQRScanner: View {
 
     private func prepareCamera() async {
         guard AVCaptureDevice.default(for: .video) != nil else {
-            message = "Camera scanning is unavailable on this device. Enter the code below."
+            message = String(localized: "Camera scanning is unavailable on this device. Enter the code below.")
             return
         }
         var allowed = AVCaptureDevice.authorizationStatus(for: .video) == .authorized
@@ -69,12 +69,12 @@ struct NativeQRScanner: View {
         }
         useDataScanner = DataScannerViewController.isSupported && DataScannerViewController.isAvailable
         cameraReady = allowed
-        if !cameraReady { message = "Camera access is unavailable. Enter the code below, or allow Camera in Settings." }
+        if !cameraReady { message = String(localized: "Camera access is unavailable. Enter the code below, or allow Camera in Settings.") }
     }
 
     private func cameraUnavailable() {
         cameraReady = false
-        message = "Camera scanning is unavailable. Enter the code below."
+        message = String(localized: "Camera scanning is unavailable. Enter the code below.")
     }
 
     private func complete(_ value: String) {
@@ -82,7 +82,7 @@ struct NativeQRScanner: View {
         let code = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !code.isEmpty, code.utf8.count <= 2048,
               code.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
-            message = "Enter a valid code and try again."
+            message = String(localized: "Enter a valid code and try again.")
             return
         }
         submitted = true

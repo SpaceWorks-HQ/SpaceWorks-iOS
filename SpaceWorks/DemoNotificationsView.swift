@@ -22,7 +22,7 @@ struct DemoNotificationsView: View {
                     Toggle("Preview permission denied", isOn: $state.permissionDenied).frame(minHeight: 48)
                     if state.permissionDenied {
                         Text("Notifications are off for this device.").font(.headline)
-                        Button("Open system settings") { state.feedback = "In a connected app, this opens notification settings for your device." }.frame(minHeight: 48)
+                        Button("Open system settings") { state.feedback = String(localized: "In a connected app, this opens notification settings for your device.") }.frame(minHeight: 48)
                     } else {
                         Button(state.enabled ? "Turn off demo notifications" : "Enable notifications") { state.enabled.toggle(); state.feedback = state.enabled ? "Demo notifications are enabled." : "Demo notifications are off." }
                             .buttonStyle(SWPrimary()).accessibilityIdentifier("enable-demo-notifications")
@@ -37,7 +37,7 @@ struct DemoNotificationsView: View {
                     Button("Preview older notification") { route(.init(makerspaceID: makerspaceID, destination: .inbox)) }.frame(minHeight: 48)
                     Button("Preview unavailable item") { route(.init(makerspaceID: makerspaceID, destination: .product(99999))) }.frame(minHeight: 48)
                     Button("Preview unauthorized makerspace") { route(.init(makerspaceID: 999, destination: .inbox)) }.frame(minHeight: 48).accessibilityIdentifier("demo-push-denied")
-                    Button("Preview device refresh") { state.rotations += 1; state.feedback = "Demo notification settings refreshed. No notifications were sent." }.frame(minHeight: 48)
+                    Button("Preview device refresh") { state.rotations += 1; state.feedback = String(localized: "Demo notification settings refreshed. No notifications were sent.") }.frame(minHeight: 48)
                 }.disabled(!state.enabled || state.permissionDenied)
             }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg).navigationTitle("Notifications")

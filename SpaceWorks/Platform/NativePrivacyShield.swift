@@ -52,7 +52,7 @@ import UIKit
         controller.view.backgroundColor = UIColor(named: "bg") ?? .systemBackground
         controller.view.isOpaque = true
         controller.view.accessibilityIdentifier = "private-app-snapshot"
-        controller.view.accessibilityLabel = "Space Works"
+        controller.view.accessibilityLabel = Brand.appName
         controller.view.accessibilityViewIsModal = true
         cover.rootViewController = controller
         cover.isOpaque = true

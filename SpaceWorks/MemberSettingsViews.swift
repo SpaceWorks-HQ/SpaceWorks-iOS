@@ -18,10 +18,10 @@ struct ProfileEditorView: View {
                 Text("Edit profile").font(.largeTitle.bold())
                 Text("Your contact details in this makerspace. Changing a phone number here doesn't verify it for sign-in.").foregroundStyle(Color.swMuted)
                 if state.loaded {
-                    field("Display name", value: $state.displayName, identifier: "profile-display-name", content: .name)
-                    field("First name", value: $state.firstName, identifier: "profile-first-name", content: .givenName)
-                    field("Last name", value: $state.lastName, identifier: "profile-last-name", content: .familyName)
-                    field("Phone number", value: $state.phone, identifier: "profile-phone", content: .telephoneNumber)
+                    field(String(localized: "Display name"), value: $state.displayName, identifier: "profile-display-name", content: .name)
+                    field(String(localized: "First name"), value: $state.firstName, identifier: "profile-first-name", content: .givenName)
+                    field(String(localized: "Last name"), value: $state.lastName, identifier: "profile-last-name", content: .familyName)
+                    field(String(localized: "Phone number"), value: $state.phone, identifier: "profile-phone", content: .telephoneNumber)
                     if state.dirty { Text("Unsaved changes").font(.caption).foregroundStyle(Color.swMuted) }
                     else if let notice = state.notice { Label(notice, systemImage: "checkmark.circle").foregroundStyle(Color.swAccentInk) }
                     if let error = state.error { SWError(message: error) }
@@ -76,7 +76,7 @@ struct CommunicationPreferencesView: View {
                 } else if state.cells.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(Array(state.cells.enumerated()), id: \.offset) { _, cell in
                     SWCard {
-                        Text(cell.feature.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
+                        Text(NativeStatusCopy.label(cell.feature.rawValue)).font(.headline)
                         TimelineView(.periodic(from: .now, by: 1)) { tick in
                             Toggle(channel(cell.channel.rawValue), isOn: Binding(get: { cell.enabled }, set: { value in Task { await state.set(cell, enabled: value) } }))
                                 .accessibilityIdentifier("preference-\(cell.feature.rawValue)-\(cell.channel.rawValue)")
@@ -88,7 +88,7 @@ struct CommunicationPreferencesView: View {
                         }
                         if !cell.available { Text("Unavailable in this makerspace.").font(.caption).foregroundStyle(Color.swMuted) }
                         if !cell.mandatory_events.isEmpty {
-                            Text("Always-on safety messages: " + cell.mandatory_events.map { $0.replacingOccurrences(of: "_", with: " ") }.joined(separator: ", ")).font(.caption).foregroundStyle(Color.swMuted)
+                            Text("Always-on safety messages: \(cell.mandatory_events.map(NativeStatusCopy.label).joined(separator: ", "))").font(.caption).foregroundStyle(Color.swMuted)
                         }
                     }
                 }
@@ -96,6 +96,6 @@ struct CommunicationPreferencesView: View {
         }.background(Color.swBg).navigationTitle("Communication").task(id: digestsEnabled) { state.digestsAllowed = digestsEnabled; await state.load() }
     }
     private func channel(_ value: String) -> String {
-        switch value { case "email": return "Email"; case "in_app": return "In-app inbox"; case "native_push": return "Push notifications"; default: return value }
+        switch value { case "email": return String(localized: "Email"); case "in_app": return String(localized: "In-app inbox"); case "native_push": return String(localized: "Push notifications"); default: return value }
     }
 }

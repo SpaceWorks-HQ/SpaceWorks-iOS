@@ -30,7 +30,7 @@ struct StaffView: View {
 }
 
 private struct StaffMenuRow: View {
-    let title: String; let detail: String; let symbol: String
+    let title: LocalizedStringKey; let detail: LocalizedStringKey; let symbol: String
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: symbol).font(.title2).accessibilityHidden(true)
@@ -56,7 +56,7 @@ struct StaffRequestsView: View {
                     NavigationLink { StaffRequestDetail(state: state, row: row) } label: {
                         SWCard {
                             Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).font(.headline).foregroundStyle(Color.swInk)
-                            Text("Request #\(row.id) · \(row.status.replacingOccurrences(of: "_", with: " ").capitalized)").foregroundStyle(Color.swMuted)
+                            Text("Request #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                             ForEach(row.items, id: \.id) { item in Text("\(item.product_name) × \(state.queue == .pending ? item.requested_quantity : item.accepted_quantity)").foregroundStyle(Color.swInk) }
                             Label("Review details", systemImage: "chevron.right").font(.subheadline)
                         }
@@ -80,7 +80,7 @@ private struct StaffRequestDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).font(.largeTitle.bold())
-                Text("Request #\(row.id) · \(row.status.replacingOccurrences(of: "_", with: " ").capitalized)").foregroundStyle(Color.swMuted)
+                Text("Request #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                 ForEach(row.items, id: \.id) { item in
                     SWCard {
                         Text(item.product_name).font(.headline)
@@ -125,7 +125,7 @@ private struct StaffDirectLoansView: View {
                 StaffFeedback(load: state.directLoad) { await state.loadDirect() }
                 ForEach(state.directLoans, id: \.id) { row in
                     SWCard {
-                        Text(row.target_label).font(.headline); Text("Loan #\(row.id) · \(row.status.capitalized)").foregroundStyle(Color.swMuted)
+                        Text(row.target_label).font(.headline); Text("Loan #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                         if let due = row.due_at { Text("Due \(due.formatted(date: .abbreviated, time: .shortened))") }
                         if row.status == "active" && state.canReturn {
                             NavigationLink("Record return") { StaffHandoverView(state: StaffHandoverState(parent: state, mode: .directReturn(row))) }.frame(minHeight: 48)
@@ -162,7 +162,7 @@ private struct StaffCheckInView: View {
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
             if !state.parent.isActive {
-                SWError(message: state.parent.error ?? "Your access changed. Return to your makerspace before continuing.")
+                SWError(message: state.parent.error ?? String(localized: "Your access changed. Return to your makerspace before continuing."))
                 Button("Close") { dismiss() }.buttonStyle(SWPrimary())
             } else {
             Text(state.eventTitle).font(.largeTitle.bold())
@@ -173,15 +173,15 @@ private struct StaffCheckInView: View {
             if let confirmation = state.confirmation { Label(confirmation, systemImage: "checkmark.circle").font(.headline).accessibilityIdentifier("staff-attendance-recorded") }
             if let person = state.person {
                 SWCard {
-                    Text(person.name).font(.title2.bold()); Text(person.status.replacingOccurrences(of: "_", with: " ").capitalized)
-                    Text("Payment: \((person.payment_status ?? "Unavailable").replacingOccurrences(of: "_", with: " "))").foregroundStyle(Color.swMuted)
+                    Text(person.name).font(.title2.bold()); Text(NativeStatusCopy.label(person.status))
+                    Text("Payment: \((person.payment_status ?? String(localized: "Unavailable")).replacingOccurrences(of: "_", with: " "))").foregroundStyle(Color.swMuted)
                     if state.canConfirm { Button("Confirm attendance") { Task { await state.confirm() } }.buttonStyle(SWPrimary()).accessibilityIdentifier("staff-confirm-attendance") }
                     else { Text("This registration cannot be checked in. Scan another code or ask the event manager.").foregroundStyle(Color.swMuted) }
                 }
             }
             }
         }.padding(24).frame(maxWidth: 720).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle("Check-in").navigationBarTitleDisplayMode(.inline)
-            .sheet(isPresented: $scanner) { NativeQRScanner(title: "Check-in code") { value in scanner = false; Task { await state.resolve(value) } } }
+            .sheet(isPresented: $scanner) { NativeQRScanner(title: String(localized: "Check-in code")) { value in scanner = false; Task { await state.resolve(value) } } }
     }
 }
 
@@ -211,7 +211,7 @@ private struct StaffBookingsView: View {
             ForEach(state.bookings, id: \.id) { row in
                 SWCard {
                     Text(row.name).font(.headline); Text(row.starts_at, format: .dateTime.day().month().hour().minute())
-                    Text(row.status.value1.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
+                    Text(NativeStatusCopy.label(row.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                     if !row.note.isEmpty { Text(row.note) }
                     if row.status.value1.rawValue == "pending" {
                         Button("Approve booking") { decision = (row, true) }.buttonStyle(SWPrimary()).disabled(!state.canRequest)

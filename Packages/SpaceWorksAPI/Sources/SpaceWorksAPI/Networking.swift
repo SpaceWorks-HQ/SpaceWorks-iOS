@@ -17,7 +17,7 @@ public struct ServerOrigin: Sendable, Equatable {
               parts.query == nil, parts.fragment == nil, ["", "/"].contains(parts.path),
               parts.port == nil || (1...65535).contains(parts.port!),
               parts.scheme == "https" || (localHTTP && parts.scheme == "http" && ["localhost", "127.0.0.1", "::1"].contains(host))
-        else { throw APIError(status: 0, code: "invalid_server_url", detail: "Enter a valid HTTPS server URL.") }
+        else { throw APIError(status: 0, code: "invalid_server_url", detail: APILocalCopy.text("Enter a valid HTTPS server URL.")) }
         parts.path = ""
         guard let url = parts.url else { throw URLError(.badURL) }
         self.url = url
@@ -33,7 +33,7 @@ public struct ServerOrigin: Sendable, Equatable {
               parts.user == nil, parts.password == nil, parts.fragment == nil,
               candidate.path.hasPrefix("/api/"),
               !(parts.percentEncodedPath.removingPercentEncoding ?? "").split(separator: "/").contains(where: { $0 == "." || $0 == ".." })
-        else { throw APIError(status: 0, code: "invalid_next_page", detail: "The server returned an invalid next page.") }
+        else { throw APIError(status: 0, code: "invalid_next_page", detail: APILocalCopy.text("The server returned an invalid next page.")) }
         return candidate
     }
 }
@@ -48,9 +48,9 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
     }
     public var errorDescription: String? {
         switch code {
-        case "device_superadmin_not_supported": return "Use the web console"
-        case "payment_rail_conflict": return "Finish this payment on the web."
-        case "payments_unavailable": return "Online payment is unavailable. Try again later or pay at the desk."
+        case "device_superadmin_not_supported": return APILocalCopy.text("Use the web console")
+        case "payment_rail_conflict": return APILocalCopy.text("Finish this payment on the web.")
+        case "payments_unavailable": return APILocalCopy.text("Online payment is unavailable. Try again later or pay at the desk.")
         default: return detail
         }
     }
@@ -64,7 +64,7 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
     public static func display(_ error: Error) -> String {
         if let error = error as? APIError { return error.errorDescription ?? error.detail }
         if let error = error as? ClientError { return display(error.underlyingError) }
-        return "Couldn't connect. Try again."
+        return APILocalCopy.text("Couldn't connect. Try again.")
     }
     public static func retryDeadline(_ error: Error) -> Date? {
         if let error = error as? APIError { return error.retryAfter }
@@ -121,7 +121,7 @@ public actor RefreshCoordinator {
     }
     public func recover(rejected snapshot: CredentialSnapshot) async throws -> TokenPair {
         guard generation == snapshot.epoch, let rejectedAccess = snapshot.pair?.access else { throw CancellationError() }
-        guard let current = pair else { throw APIError(status: 401, code: "signed_out", detail: "Sign in to continue.") }
+        guard let current = pair else { throw APIError(status: 401, code: "signed_out", detail: APILocalCopy.text("Sign in to continue.")) }
         if current.access != rejectedAccess { return current }
         if let flight { return try await flight.value }
         let rotate = self.rotate
@@ -161,7 +161,7 @@ public actor MakerspaceContext {
     /// A1 supplies active membership IDs from the generated /auth/me response.
     public func select(_ id: Int?, activeMemberships: Set<Int>) throws {
         guard id == nil || activeMemberships.contains(id!) else {
-            throw APIError(status: 403, code: "inactive_membership", detail: "Select an active makerspace membership.")
+            throw APIError(status: 403, code: "inactive_membership", detail: APILocalCopy.text("Select an active makerspace membership."))
         }
         activeDirectMemberships = activeMemberships
         selected = id
@@ -206,14 +206,14 @@ private func checked(_ result: (HTTPResponse, HTTPBody?)) async throws -> (HTTPR
     if response.status.code == 429, retry == nil { retry = Date().addingTimeInterval(60) }
     let fallback: String
     switch response.status.code {
-    case 400: fallback = "Check the details and try again."
-    case 401: fallback = "Please sign in again."
-    case 403: fallback = "You do not have permission to do this."
-    case 404: fallback = "This item wasn't found."
-    case 409: fallback = "This changed. Refresh and try again."
-    case 429: fallback = "Too many requests. Try again later."
-    case 503: fallback = "The server is unavailable. Try again later."
-    default: fallback = "Couldn't connect. Try again."
+    case 400: fallback = APILocalCopy.text("Check the details and try again.")
+    case 401: fallback = APILocalCopy.text("Please sign in again.")
+    case 403: fallback = APILocalCopy.text("You do not have permission to do this.")
+    case 404: fallback = APILocalCopy.text("This item wasn't found.")
+    case 409: fallback = APILocalCopy.text("This changed. Refresh and try again.")
+    case 429: fallback = APILocalCopy.text("Too many requests. Try again later.")
+    case 503: fallback = APILocalCopy.text("The server is unavailable. Try again later.")
+    default: fallback = APILocalCopy.text("Couldn't connect. Try again.")
     }
     let message: String
     if let detail, !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { message = detail }
@@ -240,6 +240,7 @@ private enum DeviceRequestScope {
     @TaskLocal static var makerspace: Int?
     @TaskLocal static var credentials: CredentialSnapshot?
     @TaskLocal static var pushMakerspace: Int?
+    @TaskLocal static var globalAccount = false
 }
 
 public struct SessionMiddleware: ClientMiddleware {
@@ -260,7 +261,12 @@ public struct SessionMiddleware: ClientMiddleware {
             guard ["api_v1_integrations_push_devices_create", "api_v1_integrations_push_devices_destroy"].contains(operationID),
                   await makerspace.authorizesPush(push) else { throw CancellationError() }
         }
-        request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.pushMakerspace ?? DeviceRequestScope.makerspace ?? selected).map(String.init)
+        if DeviceRequestScope.globalAccount {
+            guard operationID.hasPrefix("api_v1_auth_"), DeviceRequestScope.pushMakerspace == nil else { throw CancellationError() }
+            request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = nil
+        } else {
+            request.headerFields[HTTPField.Name("X-Makerspace-Id")!] = (DeviceRequestScope.pushMakerspace ?? DeviceRequestScope.makerspace ?? selected).map(String.init)
+        }
         let result = try await next(request, body, baseURL)
         if result.0.status.code == 401, pair != nil {
             let updated = try await refresh.recover(rejected: credentials)
@@ -297,7 +303,7 @@ public enum DeviceSession {
 
 public final class SpaceWorksService: Sendable {
     let client: Client
-    private let publicClient: Client
+    let publicClient: Client
     public let refresh: RefreshCoordinator
     public let makerspace: MakerspaceContext
     public init(origin: ServerOrigin, session: URLSession = DeviceSession.make(), initialTokens: TokenPair? = nil,
@@ -327,7 +333,7 @@ public final class SpaceWorksService: Sendable {
         if let expectedCredentials {
             guard await refresh.isSameInstallation(expectedCredentials) else { throw CancellationError() }
             guard await refresh.isCurrent(expectedCredentials) else {
-                throw APIError(status: 401, code: "signed_out", detail: "Please sign in again.")
+                throw APIError(status: 401, code: "signed_out", detail: APILocalCopy.text("Please sign in again."))
             }
         }
         let credentials: CredentialSnapshot
@@ -335,7 +341,26 @@ public final class SpaceWorksService: Sendable {
         else if let expectedCredentials { credentials = expectedCredentials }
         else { credentials = await refresh.snapshot() }
         return try await DeviceRequestScope.$credentials.withValue(credentials) {
-            try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
+            try await DeviceRequestScope.$globalAccount.withValue(false) {
+                try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
+            }
+        }
+    }
+
+    /// Account security remains available before joining or selecting a makerspace. This scope
+    /// carries the device session epoch and permits only generated auth operations, without a maker header.
+    public func withSession<T: Sendable>(expectedCredentials: CredentialSnapshot? = nil, operation: @Sendable () async throws -> T) async throws -> T {
+        guard DeviceRequestScope.pushMakerspace == nil else { throw CancellationError() }
+        if let expectedCredentials, !(await refresh.isCurrent(expectedCredentials)) { throw CancellationError() }
+        let credentials: CredentialSnapshot
+        if let existing = DeviceRequestScope.credentials { credentials = existing }
+        else if let expectedCredentials { credentials = expectedCredentials }
+        else { credentials = await refresh.snapshot() }
+        guard await refresh.isCurrent(credentials) else { throw CancellationError() }
+        return try await DeviceRequestScope.$credentials.withValue(credentials) {
+            try await DeviceRequestScope.$globalAccount.withValue(true) {
+                try await DeviceRequestScope.$makerspace.withValue(nil, operation: operation)
+            }
         }
     }
 
@@ -348,8 +373,12 @@ public final class SpaceWorksService: Sendable {
         else { credentials = await refresh.snapshot() }
         guard await refresh.isCurrent(credentials) else { throw CancellationError() }
         return try await DeviceRequestScope.$credentials.withValue(credentials) {
-            try await DeviceRequestScope.$pushMakerspace.withValue(id) {
-                try await DeviceRequestScope.$makerspace.withValue(nil, operation: operation)
+            // Global account security can end its session while still owning push cleanup.
+            // This explicit narrower scope must not inherit the auth-only operation flag.
+            try await DeviceRequestScope.$globalAccount.withValue(false) {
+                try await DeviceRequestScope.$pushMakerspace.withValue(id) {
+                    try await DeviceRequestScope.$makerspace.withValue(nil, operation: operation)
+                }
             }
         }
     }

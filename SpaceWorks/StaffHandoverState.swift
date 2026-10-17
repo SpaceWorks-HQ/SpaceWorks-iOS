@@ -27,7 +27,7 @@ enum StaffHandoverMode {
     var request: Components.Schemas.AdminRequest? { switch self { case .issue(let row), .returnRequest(let row): return row; default: return nil } }
     var loan: Components.Schemas.DirectLoan? { if case .directReturn(let row) = self { return row }; return nil }
     var isDirect: Bool { switch self { case .directIssue, .directReturn: return true; default: return false } }
-    var title: String { switch self { case .issue: return "Issue equipment"; case .returnRequest, .directReturn: return "Return equipment"; case .directIssue: return "Direct handout" } }
+    var title: String { switch self { case .issue: return String(localized: "Issue equipment"); case .returnRequest, .directReturn: return String(localized: "Return equipment"); case .directIssue: return String(localized: "Direct handout") } }
 }
 
 /// Editable return counts are UI state. Only generated ReturnItemResolution is sent to the API.
@@ -101,7 +101,7 @@ final class StaffHandoverState {
                     guard let data = try? JSONEncoder().encode(value),
                           let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                           let id = StaffMetadata.positiveID(object["asset_id"]) else { return nil }
-                    return (id, object["asset_tag"] as? String ?? "Asset #\(id)")
+                    return (id, object["asset_tag"] as? String ?? String(localized: "Asset #\(id)"))
                 }
                 let remaining = StaffMetadata.remaining(issued: item.issued_quantity, returned: item.returned_quantity, damaged: item.damaged_quantity, missing: item.missing_quantity)
                 let metadataValid = remaining != nil && (!item.requires_asset_qr || remaining == 0 || (!assets.isEmpty && assets.count == item.issued_assets.count && Set(assets.map(\.id)).count == assets.count))
@@ -183,7 +183,7 @@ final class StaffHandoverState {
     func scan(_ raw: String, box: Bool) async {
         guard canRequest, !assignmentRecorded else { return }
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, value.utf8.count <= 2048, !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { error = "Enter a valid QR payload."; return }
+        guard !value.isEmpty, value.utf8.count <= 2048, !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { error = String(localized: "Enter a valid QR payload."); return }
         busy = true; error = nil
         do {
             let result = try await parent.repository.resolveQR(body: .init(payload: value)); guard active else { return }
@@ -198,7 +198,7 @@ final class StaffHandoverState {
                     if type == "box" { guard result.qr.target_id == loan.container_id else { throw validation("Scan the container for this loan.") } }
                     if type == "asset" { guard loan.return_items.flatMap(\.assets).contains(where: { $0.asset_id == result.qr.target_id }) else { throw validation("Scan an asset from this loan.") } }
                 } else { guard type == "box" else { throw validation("Scan the container for this handover.") } }
-                boxCode = canonical; boxLabel = result.target.additionalProperties["label"]?.value as? String ?? "Container #\(result.qr.target_id)"
+                boxCode = canonical; boxLabel = result.target.additionalProperties["label"]?.value as? String ?? String(localized: "Container #\(result.qr.target_id)")
             } else {
                 guard type != "box" else { throw validation("Scan an equipment or asset code here.") }
                 if mode.request != nil {
@@ -234,7 +234,7 @@ final class StaffHandoverState {
         guard active, !busy, receipt == nil, !needsReload else { return }
         generation += 1; evidenceID = nil; error = nil
         photo = data.count <= 5 * 1024 * 1024 && data.starts(with: [0xff, 0xd8, 0xff]) ? data : nil
-        if photo == nil { error = "Choose a JPEG photo up to 5 MB." }
+        if photo == nil { error = String(localized: "Choose a JPEG photo up to 5 MB.") }
     }
     func uploadPhoto() async {
         guard canRequest, let photo else { return }; busy = true; evidenceID = nil; error = nil
@@ -251,7 +251,7 @@ final class StaffHandoverState {
     func confirm() async {
         guard ready, let evidenceID else { return }
         let permission = mode.isReturn ? "return_request" : (mode.isDirect ? "issue_direct_loan" : "issue_request")
-        guard parent.can(permission), parent.can("upload_evidence"), mode.isDirect || mode.isReturn || parent.can("assign_box") else { error = "You no longer have permission for this handover."; return }
+        guard parent.can(permission), parent.can("upload_evidence"), mode.isDirect || mode.isReturn || parent.can("assign_box") else { error = String(localized: "You no longer have permission for this handover."); return }
         busy = true; error = nil
         do {
             let id: Int
@@ -276,11 +276,11 @@ final class StaffHandoverState {
                     notes: remark.trimmingCharacters(in: .whitespacesAndNewlines), qr_payload: boxCode.isEmpty ? nil : boxCode, resolutions: returns.map(\.body))).id
             }
             guard active else { return }; receipt = "\(mode.isReturn ? "Return" : "Issue") #\(id) recorded"
-            notice = "Evidence photo #\(evidenceID) is attached."; busy = false; step = steps.count - 1
+            notice = String(localized: "Evidence photo #\(evidenceID) is attached."); busy = false; step = steps.count - 1
             await parent.loadQueue(); await parent.loadDirect()
         } catch {
             guard active else { return }; needsReload = true; fail(error)
-            if assignmentRecorded { notice = "Box assignment was recorded; issue still needs to complete. Check the latest request before retrying." }
+            if assignmentRecorded { notice = String(localized: "Box assignment was recorded; issue still needs to complete. Check the latest request before retrying.") }
         }
     }
     private func validation(_ detail: String) -> APIError { APIError(status: 0, code: "handover_validation", detail: detail) }

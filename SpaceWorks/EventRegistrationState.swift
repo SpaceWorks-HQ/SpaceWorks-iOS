@@ -23,14 +23,14 @@ final class EventRegistrationState {
     }
     func submit(now: Date = Date()) async {
         guard active, !busy, result == nil, (retryAfter ?? .distantPast) <= now else { return }
-        guard event.registration_open else { error = "Registration is closed."; return }
-        guard !event.ticket_selection_required || ticket != nil else { error = "Choose a ticket type."; return }
-        if let ticket, !event.ticket_types.contains(where: { $0.id == ticket }) { error = "Choose an available ticket type."; return }
-        guard phone.count <= 64, invite.count <= 128, promo.count <= 128 else { error = "Check your contact details and codes, then try again."; return }
+        guard event.registration_open else { error = String(localized: "Registration is closed."); return }
+        guard !event.ticket_selection_required || ticket != nil else { error = String(localized: "Choose a ticket type."); return }
+        if let ticket, !event.ticket_types.contains(where: { $0.id == ticket }) { error = String(localized: "Choose an available ticket type."); return }
+        guard phone.count <= 64, invite.count <= 128, promo.count <= 128 else { error = String(localized: "Check your contact details and codes, then try again."); return }
         let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard normalizedEmail.isEmpty || (normalizedEmail.contains("@") && !normalizedEmail.contains(where: { $0.isWhitespace })) else { error = "Enter a valid email address."; return }
-        guard event.registration_audience.value1 != .invite || !invite.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = "Enter your invitation code."; return }
-        guard let answers = form.validatedAnswers() else { error = form.unavailable ? "This form isn't supported in the app yet." : "Check the highlighted questions."; return }
+        guard normalizedEmail.isEmpty || (normalizedEmail.contains("@") && !normalizedEmail.contains(where: { $0.isWhitespace })) else { error = String(localized: "Enter a valid email address."); return }
+        guard event.registration_audience.value1 != .invite || !invite.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { error = String(localized: "Enter your invitation code."); return }
+        guard let answers = form.validatedAnswers() else { error = form.unavailable ? String(localized: "This form isn't supported in the app yet.") : String(localized: "Check the highlighted questions."); return }
         var body: [String: Any] = ["custom_answers": answers]
         for (key, value) in [("phone", phone), ("email", email), ("invite_code", invite), ("promo_code", promo)] where !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             body[key] = value.trimmingCharacters(in: .whitespacesAndNewlines)

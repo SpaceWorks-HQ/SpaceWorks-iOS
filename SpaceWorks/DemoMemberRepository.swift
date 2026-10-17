@@ -29,7 +29,7 @@ actor DemoMemberRepository: MemberRepository {
     }
     func product(_ id: Int) async throws -> Components.Schemas.PublicProduct {
         let inventory = try decode(Components.Schemas.PaginatedPublicProductList.self, DebugMemberFixtures.inventory)
-        guard let product = inventory.results.first(where: { $0.id == id }) else { throw APIError(status: 404, code: "not_found", detail: "This item is no longer available.") }
+        guard let product = inventory.results.first(where: { $0.id == id }) else { throw APIError(status: 404, code: "not_found", detail: String(localized: "This item is no longer available.")) }
         return product
     }
     func categories() async throws -> [Components.Schemas.PublicCategory] { try decode([Components.Schemas.PublicCategory].self, DebugMemberFixtures.categories) }
@@ -48,7 +48,7 @@ actor DemoMemberRepository: MemberRepository {
     func events() async throws -> [Components.Schemas.PublicEvent] { try decode([Components.Schemas.PublicEvent].self, scenario == .empty ? "[]" : DebugMemberFixtures.events) }
     func spaces() async throws -> [Components.Schemas.PublicBookableSpace] { try decode([Components.Schemas.PublicBookableSpace].self, scenario == .empty ? "[]" : DebugMemberFixtures.spaces) }
     func card() async throws -> Components.Schemas.OwnMemberCard {
-        if scenario == .empty { throw APIError(status: 404, code: "not_issued", detail: "A membership card hasn't been issued yet.") }
+        if scenario == .empty { throw APIError(status: 404, code: "not_issued", detail: String(localized: "A membership card hasn't been issued yet.")) }
         var object = try JSONSerialization.jsonObject(with: Data(DebugMemberFixtures.card.utf8)) as! [String: Any]
         object["printed_name"] = name
         if scenario == .revokedCard { object["is_active"] = false; object["qr_active"] = false }

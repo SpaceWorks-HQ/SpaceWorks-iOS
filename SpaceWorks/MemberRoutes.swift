@@ -13,6 +13,11 @@ struct MemberRouteView: View {
     let isDemo: Bool
     var payments: PaymentsState? = nil
     var staff: StaffState? = nil
+    var account: AccountState? = nil
+    #if DEBUG
+    var onDemoDelete: (() -> Void)? = nil
+    var onDemoFix: ((DemoDeletionState.Blocker) -> Void)? = nil
+    #endif
     var profileSaved: () async -> Void = {}
     var body: some View {
         switch route {
@@ -28,6 +33,14 @@ struct MemberRouteView: View {
             } else { missing("Event unavailable", load: member.eventsLoad) { await member.loadEvents() }.task { if member.eventsLoad == .idle { await member.loadEvents() } } }
         case .booking(let token): BookingDestination(member: member, repository: actions, token: token, isDemo: isDemo)
         case .registration(let id): RegistrationDestination(member: member, repository: actions, id: id, isDemo: isDemo, drafts: drafts)
+        case .account:
+            if let account {
+                #if DEBUG
+                AccountView(state: account, privacyURL: Brand.privacyURL.flatMap(URL.init(string:)), supportURL: Brand.supportURL.flatMap(URL.init(string:)), onDemoDelete: onDemoDelete, onDemoFix: onDemoFix)
+                #else
+                AccountView(state: account, privacyURL: Brand.privacyURL.flatMap(URL.init(string:)), supportURL: Brand.supportURL.flatMap(URL.init(string:)))
+                #endif
+            } else { disabledFeature("Sign in again to manage this account.") }
         case .staff:
             if let staff { StaffView(state: staff) }
             else { disabledFeature("Staff tools require an authorized native staff session.") }

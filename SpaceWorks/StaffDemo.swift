@@ -49,7 +49,7 @@ actor DemoStaffRepository: StaffRepository {
         return try self.page(rows, page: page)
     }
     private func changed() -> APIError {
-        APIError(status: 409, code: "changed", detail: "This changed. Refresh and try again.")
+        APIError(status: 409, code: "changed", detail: String(localized: "This changed. Refresh and try again."))
     }
     private func request(_ id: Int) throws -> Components.Schemas.AdminRequest {
         try checked()
@@ -92,7 +92,7 @@ actor DemoStaffRepository: StaffRepository {
     }
     func issue(id: Int, body: Components.Schemas.IssueRequest) throws -> Components.Schemas.AdminRequest {
         var row = try request(id)
-        if scenario == .issueConflict { throw APIError(status: 409, code: "issue_conflict", detail: "The request changed before issue completed.") }
+        if scenario == .issueConflict { throw APIError(status: 409, code: "issue_conflict", detail: String(localized: "The request changed before issue completed.")) }
         guard row.status == "accepted", assignments.contains(id), body.evidence_id > 0,
               row.items.contains(where: { $0.accepted_quantity > 0 }) else { throw changed() }
         row.items = row.items.map { initial in var item = initial; item.issued_quantity = item.accepted_quantity; return item }
@@ -127,7 +127,7 @@ actor DemoStaffRepository: StaffRepository {
         return save(row)
     }
     func resolveQR(body: Components.Schemas.QrResolve) throws -> Components.Schemas.QrResolveResult {
-        guard ["DEMO-BOX", "DEMO-TOOL"].contains(body.payload) else { throw APIError(status: 404, code: "not_found", detail: "Use DEMO-BOX or DEMO-TOOL in this sample.") }
+        guard ["DEMO-BOX", "DEMO-TOOL"].contains(body.payload) else { throw APIError(status: 404, code: "not_found", detail: String(localized: "Use DEMO-BOX or DEMO-TOOL in this sample.")) }
         var object = try JSONSerialization.jsonObject(with: Data(DebugStaffFixtures.qr.utf8)) as! [String: Any]
         var scopedQR = object["qr"] as! [String: Any]; scopedQR["makerspace"] = makerspaceID; object["qr"] = scopedQR
         if body.payload == "DEMO-TOOL" {
@@ -192,7 +192,7 @@ actor DemoStaffRepository: StaffRepository {
     func evidence(body: Components.Schemas.EvidenceUrlRequest) async throws -> Components.Schemas.EvidenceUrlResponse {
         await beforeEvidence()
         try checked()
-        if scenario == .uploadRefused { throw APIError(status: 403, code: "upload_refused", detail: "The sample evidence upload was refused.") }
+        if scenario == .uploadRefused { throw APIError(status: 403, code: "upload_refused", detail: String(localized: "The sample evidence upload was refused.")) }
         evidenceCounter += 1
         return try decode(#"{"evidence_id":0,"upload_url":"https://storage.example.invalid/demo-only","object_key":"demo-only","fields":{}}"#, changes: ["evidence_id": evidenceCounter])
     }
@@ -203,14 +203,14 @@ actor DemoStaffRepository: StaffRepository {
         return try self.page([row], page: page, extra: ["default_registration_audience": "members"])
     }
     func resolveCheckIn(eventID: Int, body: Components.Schemas.EventCheckInResolveRequest) throws -> Components.Schemas.EventCheckInResolveResponse {
-        guard eventID == 801, body.checkin_token == "DEMO-EVENT" else { throw APIError(status: 404, code: "not_found", detail: "That is not a check-in code for this event.") }
+        guard eventID == 801, body.checkin_token == "DEMO-EVENT" else { throw APIError(status: 404, code: "not_found", detail: String(localized: "That is not a check-in code for this event.")) }
         let status = attended ? "attended" : scenario == .waitlisted ? "waitlisted" : "registered"
         return try decode(DebugStaffFixtures.checkin, changes: ["status": status, "confirmable": status == "registered"])
     }
     func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) throws -> Components.Schemas.EventRegistrationAdmin {
         try checked()
-        if scenario == .attendanceConflict { throw APIError(status: 409, code: "changed", detail: "This registration changed.") }
-        guard registrationID == 1101, !attended, scenario != .waitlisted else { throw APIError(status: 409, code: "changed", detail: "This registration changed.") }
+        if scenario == .attendanceConflict { throw APIError(status: 409, code: "changed", detail: String(localized: "This registration changed.")) }
+        guard registrationID == 1101, !attended, scenario != .waitlisted else { throw APIError(status: 409, code: "changed", detail: String(localized: "This registration changed.")) }
         attended = true; return try decode(DebugStaffFixtures.registration, changes: ["status": "attended"])
     }
     func spaces(page: Int) throws -> Components.Schemas.BookableSpaceListResponse {
@@ -223,7 +223,7 @@ actor DemoStaffRepository: StaffRepository {
     }
     func approveBooking(id: Int) throws -> Components.Schemas.BookingAdmin {
         try checked(); bookingStatus = "confirmed"
-        if scenario == .bookingConflict { throw APIError(status: 409, code: "changed", detail: "This booking changed. Refresh its status.") }
+        if scenario == .bookingConflict { throw APIError(status: 409, code: "changed", detail: String(localized: "This booking changed. Refresh its status.")) }
         return try decode(DebugStaffFixtures.booking, changes: ["status": bookingStatus])
     }
     func rejectBooking(id: Int) throws -> Components.Schemas.BookingAdmin { try checked(); bookingStatus = "rejected"; return try decode(DebugStaffFixtures.booking, changes: ["status": bookingStatus]) }

@@ -23,7 +23,7 @@ struct StaffHandoverView: View {
                 if let notice = state.notice { Label(notice, systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 if state.busy { ProgressView("Working…") }
                 if !state.parent.isActive {
-                    SWError(message: state.parent.error ?? "Your access changed. Return to your makerspace before continuing.")
+                    SWError(message: state.parent.error ?? String(localized: "Your access changed. Return to your makerspace before continuing."))
                     Button("Close") { dismiss() }.buttonStyle(SWPrimary())
                 } else if let receipt = state.receipt {
                     SWCard {
@@ -58,14 +58,14 @@ struct StaffHandoverView: View {
                 if directIssue { await state.loadBorrowers(); await state.loadProducts() }
             }
             .sheet(item: $scanner) { kind in
-                NativeQRScanner(title: kind == .box ? "Check handover code" : "Add equipment") { value in
+                NativeQRScanner(title: kind == .box ? String(localized: "Check handover code") : String(localized: "Add equipment")) { value in
                     scanner = nil; Task { await state.scan(value, box: kind == .box) }
                 }
             }
             .fullScreenCover(isPresented: $camera) {
                 NativeEvidenceCamera(onPhoto: { result in
                     camera = false
-                    switch result { case .success(let photo): state.setPhoto(photo); case .failure: cameraMessage = "This photo could not be prepared. Take another photo." }
+                    switch result { case .success(let photo): state.setPhoto(photo); case .failure: cameraMessage = String(localized: "This photo could not be prepared. Take another photo.") }
                 }, onCancel: { camera = false }).ignoresSafeArea()
             }
             .confirmationDialog(state.mode.isReturn ? "Record this return?" : "Record this handout?", isPresented: $confirm, titleVisibility: .visible) {
@@ -133,10 +133,10 @@ struct StaffHandoverView: View {
             }
             Button("Scan equipment code") { scanner = .equipment }.frame(minHeight: 48).disabled(state.busy)
             Text("\(state.scans.count) equipment codes checked").font(.subheadline).foregroundStyle(Color.swMuted)
-            if !state.duplicateProducts.isEmpty { SWError(message: "This equipment is both scanned and selected by quantity. Remove one selection before continuing.") }
+            if !state.duplicateProducts.isEmpty { SWError(message: String(localized: "This equipment is both scanned and selected by quantity. Remove one selection before continuing.")) }
             ForEach(state.scans.keys.sorted(), id: \.self) { payload in
                 HStack(alignment: .top) {
-                    Text(state.scans[payload]?.target.additionalProperties["label"]?.value as? String ?? "Equipment code added").frame(maxWidth: .infinity, alignment: .leading)
+                    Text(state.scans[payload]?.target.additionalProperties["label"]?.value as? String ?? String(localized: "Equipment code added")).frame(maxWidth: .infinity, alignment: .leading)
                     Button("Remove") { state.removeScan(payload) }.frame(minHeight: 48).accessibilityLabel("Remove \(state.scans[payload]?.target.additionalProperties["label"]?.value as? String ?? "equipment code")")
                 }
             }
@@ -147,7 +147,7 @@ struct StaffHandoverView: View {
             SWCard {
                 Text(state.returns[index].label).font(.headline)
                 Text("Remaining: \(state.returns[index].remaining)").foregroundStyle(Color.swMuted)
-                if !state.returns[index].metadataValid { SWError(message: "Asset details are unavailable. Refresh this loan before recording a return.") }
+                if !state.returns[index].metadataValid { SWError(message: String(localized: "Asset details are unavailable. Refresh this loan before recording a return.")) }
                 else if state.returns[index].assets.isEmpty {
                     countStepper("Returned", index: index, keyPath: \.returned)
                     countStepper("Damaged", index: index, keyPath: \.damaged)
@@ -204,11 +204,11 @@ struct StaffHandoverView: View {
         do {
             switch try await NativeCameraAccess.request() {
             case .ready: cameraMessage = nil; camera = true
-            case .denied: cameraMessage = "Allow Camera in Settings to take an evidence photo."
-            case .restricted: cameraMessage = "Camera access is restricted on this device. Ask an administrator or use another device."
-            case .unavailable: cameraMessage = "This device has no available camera. Use a device with a camera to record this handover."
+            case .denied: cameraMessage = String(localized: "Allow Camera in Settings to take an evidence photo.")
+            case .restricted: cameraMessage = String(localized: "Camera access is restricted on this device. Ask an administrator or use another device.")
+            case .unavailable: cameraMessage = String(localized: "This device has no available camera. Use a device with a camera to record this handover.")
             }
-        } catch { cameraMessage = "Camera request cancelled." }
+        } catch { cameraMessage = String(localized: "Camera request cancelled.") }
     }
     #if DEBUG
     private func samplePhoto() {

@@ -40,10 +40,10 @@ final class RequestCartState {
     func add(_ product: Components.Schemas.PublicProduct) {
         guard !busy, active else { return }
         if let index = lines.firstIndex(where: { $0.id == product.id }) {
-            guard lines[index].quantity < 99 else { error = "Choose up to 99 of each item."; return }
+            guard lines[index].quantity < 99 else { error = String(localized: "Choose up to 99 of each item."); return }
             lines[index].quantity += 1
         } else {
-            guard lines.count < 20 else { error = "Request up to 20 different items at once."; return }
+            guard lines.count < 20 else { error = String(localized: "Request up to 20 different items at once."); return }
             lines.append(Line(product: product, quantity: 1))
         }
         changed()
@@ -55,8 +55,8 @@ final class RequestCartState {
     }
     func submit(now: Date = Date()) async {
         guard active, !busy, (retryAfter ?? .distantPast) <= now else { return }
-        guard !lines.isEmpty else { error = "Add an item before submitting your request."; return }
-        guard purpose.count <= 500 else { error = "Keep the purpose to 500 characters or fewer."; return }
+        guard !lines.isEmpty else { error = String(localized: "Add an item before submitting your request."); return }
+        guard purpose.count <= 500 else { error = String(localized: "Keep the purpose to 500 characters or fewer."); return }
         busy = true; error = nil; receipt = nil
         let expected = generation
         let items = lines.map { Components.Schemas.RequestItemInput(product_id: $0.id, quantity: $0.quantity) }

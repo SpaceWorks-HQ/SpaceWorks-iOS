@@ -15,12 +15,12 @@ import SpaceWorksAPI
         switch state.load {
         case .ready:
             if let id {
-                guard state.record(id) != nil else { throw APIError(status: 404, code: "payment_link_missing", detail: "This charge is no longer available. Refresh your payments.") }
+                guard state.record(id) != nil else { throw APIError(status: 404, code: "payment_link_missing", detail: String(localized: "This charge is no longer available. Refresh your payments.")) }
                 navigation.open(.payment(id), tab: .profile)
             } else { navigation.open(.payments, tab: .profile) }
         case .failed(let message):
             throw APIError(status: state.retryAfter > Date() ? 429 : 0, code: "payment_link_failed", detail: message, retryAfter: state.retryAfter > Date() ? state.retryAfter : nil)
-        default: throw APIError(status: 0, code: "payment_link_wait", detail: "Payments are still loading. Try again in a moment.")
+        default: throw APIError(status: 0, code: "payment_link_wait", detail: String(localized: "Payments are still loading. Try again in a moment."))
         }
     }
 }

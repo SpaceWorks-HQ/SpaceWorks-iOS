@@ -17,7 +17,7 @@ enum NativeAttestor {
         #else
         let service = DCAppAttestService.shared
         guard service.isSupported else {
-            throw APIError(status: 0, code: "attestation_unavailable", detail: "This device cannot verify this app. Try a supported iPhone.")
+            throw APIError(status: 0, code: "attestation_unavailable", detail: String(localized: "This device cannot verify this app. Try a supported iPhone."))
         }
         let key = try await service.generateKey()
         let proof = try await service.attestKey(key, clientDataHash: Data(SHA256.hash(data: Data(challenge.utf8))))

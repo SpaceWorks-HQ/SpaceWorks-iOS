@@ -74,7 +74,7 @@ import SpaceWorksAPI
         } catch { router.destinationFailed(value, error: error) }
     }
     private static func root(_ tab: AppTab, _ navigation: MemberNavigation) { navigation.path(tab).wrappedValue = []; navigation.selected = tab }
-    private static var missing: APIError { APIError(status: 404, code: "link_item_unavailable", detail: "This item is no longer available. Open your inbox for the latest update.") }
+    private static var missing: APIError { APIError(status: 404, code: "link_item_unavailable", detail: String(localized: "This item is no longer available. Open your inbox for the latest update.")) }
     private static func available(_ member: MemberState, _ role: String) throws {
         guard member.canLoad(role) else { throw unavailable(deadline: member.deadline(role)) }
     }
@@ -84,6 +84,6 @@ import SpaceWorksAPI
         throw unavailable("This update is still loading. Try again in a moment.", deadline: deadline)
     }
     private static func unavailable(_ message: String? = nil, deadline: Date? = nil) -> APIError {
-        APIError(status: deadline == nil ? 0 : 429, code: "link_unavailable", detail: message ?? "Couldn't open this update. Try again.", retryAfter: deadline)
+        APIError(status: deadline == nil ? 0 : 429, code: "link_unavailable", detail: message ?? String(localized: "Couldn't open this update. Try again."), retryAfter: deadline)
     }
 }

@@ -33,13 +33,13 @@ final class ProfileEditorState {
     }
     func save(now: Date = Date()) async {
         guard active, !busy, loaded, dirty, (retryAfter ?? .distantPast) <= now else { return }
-        guard displayName.count <= 200 else { error = "Keep your display name to 200 characters or fewer."; return }
-        guard firstName.count <= 150, lastName.count <= 150 else { error = "Keep each name to 150 characters or fewer."; return }
-        guard phone.count <= 32 else { error = "Keep your phone number to 32 characters or fewer."; return }
+        guard displayName.count <= 200 else { error = String(localized: "Keep your display name to 200 characters or fewer."); return }
+        guard firstName.count <= 150, lastName.count <= 150 else { error = String(localized: "Keep each name to 150 characters or fewer."); return }
+        guard phone.count <= 32 else { error = String(localized: "Keep your phone number to 32 characters or fewer."); return }
         busy = true; error = nil; notice = nil; defer { busy = false }
         do {
             let value = try await repository.updateProfile(.init(display_name: displayName, first_name: firstName, last_name: lastName, phone: phone))
-            guard active else { return }; original = value; discard(); notice = "Profile saved."
+            guard active else { return }; original = value; discard(); notice = String(localized: "Profile saved.")
         } catch { if active { self.error = APIError.display(error); retryAfter = APIError.retryDeadline(error) } }
     }
     func invalidate() { active = false; original = nil; displayName = ""; firstName = ""; lastName = ""; phone = ""; error = nil; notice = nil }
@@ -64,7 +64,7 @@ final class CommunicationPreferencesState {
     func set(_ cell: Components.Schemas.PreferenceCell, enabled: Bool, now: Date = Date()) async {
         guard active, !busy, (retryAfter ?? .distantPast) <= now else { return }
         guard cells.contains(where: { $0.feature == cell.feature && $0.channel == cell.channel && $0.enabled == cell.enabled }) else { return }
-        guard !enabled || cell.available else { error = "This notification option isn't available in your makerspace."; return }
+        guard !enabled || cell.available else { error = String(localized: "This notification option isn't available in your makerspace."); return }
         await write(.init(feature: cell.feature, channel: cell.channel, enabled: enabled))
     }
     func digest(_ cell: Components.Schemas.PreferenceCell, enabled: Bool, now: Date = Date()) async {

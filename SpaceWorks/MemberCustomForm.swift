@@ -43,28 +43,28 @@ final class MemberCustomForm {
             let value = (text[question.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let choices = multiple[question.id] ?? []
             let empty = question.kind == "multi_choice" ? choices.isEmpty : value.isEmpty
-            if empty { if question.required { errors[question.id] = "This question is required." }; continue }
+            if empty { if question.required { errors[question.id] = String(localized: "This question is required.") }; continue }
             if question.kind == "multi_choice" {
-                guard choices.isSubset(of: Set(question.options)) else { errors[question.id] = "Choose one of the available options."; continue }
+                guard choices.isSubset(of: Set(question.options)) else { errors[question.id] = String(localized: "Choose one of the available options."); continue }
                 values[question.id] = choices.sorted()
             } else if question.kind == "number" {
                 let normalized = value.replacingOccurrences(of: Locale.current.decimalSeparator ?? ".", with: ".")
                 guard normalized.range(of: #"^[+-]?[0-9]+(?:\.[0-9]+)?$"#, options: .regularExpression) != nil,
-                      let decimal = Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")) else { errors[question.id] = "Enter a valid number."; continue }
+                      let decimal = Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")) else { errors[question.id] = String(localized: "Enter a valid number."); continue }
                 let number = NSDecimalNumber(decimal: decimal)
-                guard number.doubleValue.isFinite else { errors[question.id] = "Enter a valid number."; continue }
+                guard number.doubleValue.isFinite else { errors[question.id] = String(localized: "Enter a valid number."); continue }
                 values[question.id] = number
             } else if question.kind == "date" {
                 let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.calendar = Calendar(identifier: .gregorian)
                 formatter.dateFormat = "yyyy-MM-dd"; formatter.isLenient = false
                 guard value.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"#, options: .regularExpression) != nil,
-                      let date = formatter.date(from: value), formatter.string(from: date) == value else { errors[question.id] = "Enter a date as YYYY-MM-DD."; continue }
+                      let date = formatter.date(from: value), formatter.string(from: date) == value else { errors[question.id] = String(localized: "Enter a date as YYYY-MM-DD."); continue }
                 values[question.id] = value
             } else if question.kind == "yes_no" {
-                guard ["true", "false"].contains(value) else { errors[question.id] = "Choose Yes or No."; continue }
+                guard ["true", "false"].contains(value) else { errors[question.id] = String(localized: "Choose Yes or No."); continue }
                 values[question.id] = value == "true"
             } else if ["single_choice", "dropdown"].contains(question.kind) {
-                guard question.options.contains(value) else { errors[question.id] = "Choose one of the available options."; continue }
+                guard question.options.contains(value) else { errors[question.id] = String(localized: "Choose one of the available options."); continue }
                 values[question.id] = value
             } else { values[question.id] = value }
         }
@@ -76,11 +76,11 @@ struct MemberCustomFields: View {
     @Bindable var form: MemberCustomForm
     var body: some View {
         if form.unavailable {
-            SWError(message: "This form uses a question type the app doesn't support yet. Use the web console or ask your makerspace for help.")
+            SWError(message: String(localized: "This form uses a question type the app doesn't support yet. Use the web console or ask your makerspace for help."))
         } else {
             ForEach(form.questions) { question in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(question.label + (question.required ? " (required)" : "")).font(.headline)
+                    Text(question.label + (question.required ? String(localized: " (required)") : "")).font(.headline)
                     field(question)
                     if let error = form.errors[question.id] { Text(error).foregroundStyle(Color.swDanger) }
                 }

@@ -95,14 +95,14 @@ struct SpaceBookingView: View {
     }
     private func book() async {
         formError = nil
-        guard let answers = form.validatedAnswers() else { formError = "Check the highlighted questions."; return }
+        guard let answers = form.validatedAnswers() else { formError = String(localized: "Check the highlighted questions."); return }
         do {
             let format = ISO8601DateFormatter()
             let body: [String: Any] = ["starts_at": format.string(from: state.start), "ends_at": format.string(from: state.end), "custom_answers": answers.isEmpty ? NSNull() : answers]
             let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
             let input = try decoder.decode(Components.Schemas.PublicBookingInput.self, from: JSONSerialization.data(withJSONObject: body))
             await state.confirm(input: input); if state.result != nil { await completed() }
-        } catch { formError = "These booking details could not be prepared. Check your answers and try again." }
+        } catch { formError = String(localized: "These booking details could not be prepared. Check your answers and try again.") }
     }
 }
 
@@ -131,7 +131,7 @@ struct MemberBookingDetailView: View {
                 Text(current.space_name).font(.largeTitle.bold())
                 Text(intervalLabel(current.starts_at, current.ends_at, timezone: current.timezone))
                 Text(current.timezone).font(.caption).foregroundStyle(Color.swMuted)
-                Text(current.status.value1.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
+                Text(NativeStatusCopy.label(current.status.value1.rawValue)).font(.headline)
                 Text("Booking reference").font(.headline); Text(current.public_token).font(.body.monospaced()).textSelection(.enabled)
                 if let error { SWError(message: error) }
                 if current.can_cancel {

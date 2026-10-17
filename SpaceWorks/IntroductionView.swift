@@ -5,10 +5,10 @@ struct IntroductionView: View {
     @State private var page = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
-    private let headings = ["Make room.", "Borrow with confidence.", "One place for your making."]
-    private let details = ["Find tools, book a space, and see what's next at your makerspace.",
-                           "Request what you need and keep an eye on your loans and due dates.",
-                           "Keep bookings, event tickets, payments, and updates together."]
+    private let headings = [String(localized: "Make room."), String(localized: "Borrow with confidence."), String(localized: "One place for your making.")]
+    private let details = [String(localized: "Find tools, book a space, and see what's next at your makerspace."),
+                           String(localized: "Request what you need and keep an eye on your loans and due dates."),
+                           String(localized: "Keep bookings, event tickets, payments, and updates together.")]
     private let symbols = [["wrench.and.screwdriver", "shippingbox", "hammer"],
                            ["list.clipboard", "calendar", "checkmark.seal"],
                            ["calendar", "ticket", "tray"]]

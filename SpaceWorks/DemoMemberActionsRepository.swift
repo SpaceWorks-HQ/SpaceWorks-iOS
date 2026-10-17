@@ -18,7 +18,7 @@ actor DemoMemberStore {
     func renewed(_ request: Int, due: Date) throws -> Int {
         var value = try object(activityJSON)
         var rows = value["active_hardware_loans"] as? [[String: Any]] ?? []
-        guard let index = rows.firstIndex(where: { $0["request_id"] as? Int == request }) else { throw APIError(status: 404, code: "demo_not_found", detail: "This loan wasn't found.") }
+        guard let index = rows.firstIndex(where: { $0["request_id"] as? Int == request }) else { throw APIError(status: 404, code: "demo_not_found", detail: String(localized: "This loan wasn't found.")) }
         rows[index]["due_at"] = ISO8601DateFormatter().string(from: due); rows[index]["renewal_count"] = (rows[index]["renewal_count"] as? Int ?? 0) + 1
         value["active_hardware_loans"] = rows; activityJSON = try json(value)
         return rows[index]["renewal_count"] as? Int ?? 1
@@ -41,14 +41,14 @@ actor DemoMemberStore {
     }
     func cancelBooking(_ token: String) throws -> Components.Schemas.MemberBooking {
         var value = try object(bookingsJSON); var rows = value["results"] as? [[String: Any]] ?? []
-        guard let index = rows.firstIndex(where: { $0["public_token"] as? String == token }), rows[index]["can_cancel"] as? Bool == true else { throw APIError(status: 409, code: "demo_booking_conflict", detail: "This booking can no longer be cancelled.") }
+        guard let index = rows.firstIndex(where: { $0["public_token"] as? String == token }), rows[index]["can_cancel"] as? Bool == true else { throw APIError(status: 409, code: "demo_booking_conflict", detail: String(localized: "This booking can no longer be cancelled.")) }
         rows[index]["status"] = "cancelled"; rows[index]["can_cancel"] = false; value["results"] = rows; bookingsJSON = try json(value)
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(Components.Schemas.MemberBooking.self, from: JSONSerialization.data(withJSONObject: rows[index]))
     }
     func cancelled(_ id: Int) throws {
         var value = try object(activityJSON); var rows = value["event_registrations"] as? [[String: Any]] ?? []
-        guard let index = rows.firstIndex(where: { $0["registration_id"] as? Int == id }) else { throw APIError(status: 404, code: "demo_not_found", detail: "This registration wasn't found.") }
+        guard let index = rows.firstIndex(where: { $0["registration_id"] as? Int == id }) else { throw APIError(status: 404, code: "demo_not_found", detail: String(localized: "This registration wasn't found.")) }
         rows[index]["status"] = "cancelled"; rows[index]["checkin_token"] = NSNull(); rows[index]["can_cancel"] = false
         value["event_registrations"] = rows; activityJSON = try json(value)
     }
@@ -60,6 +60,7 @@ actor DemoMemberActionsRepository: MemberActionsRepository {
     enum Scenario: String, CaseIterable { case success = "Success", refused = "Refused", conflict = "Conflict", throttled = "Rate limited", pending = "Awaiting approval", waitlisted = "Waitlisted" }
     let store: DemoMemberStore
     private let bootstrapJSON: String
+    private let makerspaceID: Int?
     private(set) var scenario: Scenario
     private var receipts: [String: (Data, Components.Schemas.RequestSubmitResponse)] = [:]
     private var savedProfile: Components.Schemas.AccountProfile
@@ -68,29 +69,35 @@ actor DemoMemberActionsRepository: MemberActionsRepository {
         .init(feature: .events, channel: .in_app, enabled: true, available: true, mandatory_events: []),
         .init(feature: .events, channel: .native_push, enabled: false, available: false, mandatory_events: [])
     ])
-    init(store: DemoMemberStore = DemoMemberStore(), scenario: Scenario = .success, name: String = "Meera Nair", bootstrapJSON: String = DebugMemberFixtures.bootstrap) {
-        self.store = store; self.scenario = scenario; self.bootstrapJSON = bootstrapJSON
+    init(store: DemoMemberStore = DemoMemberStore(), scenario: Scenario = .success, name: String = "Meera Nair", bootstrapJSON: String = DebugMemberFixtures.bootstrap, makerspaceID: Int? = nil) {
+        self.store = store; self.scenario = scenario; self.bootstrapJSON = bootstrapJSON; self.makerspaceID = makerspaceID
         let parts = name.split(separator: " ", maxSplits: 1).map(String.init)
         savedProfile = .init(display_name: name, first_name: parts.first ?? name, last_name: parts.count > 1 ? parts[1] : "", phone: "")
     }
     func preview(_ scenario: Scenario) { self.scenario = scenario }
     private func check() throws {
         switch scenario {
-        case .refused: throw APIError(status: 403, code: "demo_refused", detail: "This action isn't available for your membership.")
-        case .conflict: throw APIError(status: 409, code: "demo_conflict", detail: "This changed. Refresh and try again.")
-        case .throttled: throw APIError(status: 429, code: "demo_throttled", detail: "Too many requests. Try again later.", retryAfter: Date().addingTimeInterval(5))
+        case .refused: throw APIError(status: 403, code: "demo_refused", detail: String(localized: "This action isn't available for your membership."))
+        case .conflict: throw APIError(status: 409, code: "demo_conflict", detail: String(localized: "This changed. Refresh and try again."))
+        case .throttled: throw APIError(status: 429, code: "demo_throttled", detail: String(localized: "Too many requests. Try again later."), retryAfter: Date().addingTimeInterval(5))
         default: break
         }
     }
     func bootstrap() async throws -> Components.Schemas.TenantBootstrap {
-        return try JSONDecoder().decode(Components.Schemas.TenantBootstrap.self, from: Data(bootstrapJSON.utf8))
+        guard let makerspaceID else { return try JSONDecoder().decode(Components.Schemas.TenantBootstrap.self, from: Data(bootstrapJSON.utf8)) }
+        var object = try JSONSerialization.jsonObject(with: Data(bootstrapJSON.utf8)) as! [String: Any]
+        var maker = object["makerspace"] as! [String: Any]; maker["id"] = makerspaceID
+        maker["name"] = makerspaceID == 7 ? "Fab Lab Kochi" : "Maker Space Bengaluru"
+        maker["slug"] = makerspaceID == 7 ? "fab-lab-kochi" : "maker-space-bengaluru"
+        object["makerspace"] = maker
+        return try JSONDecoder().decode(Components.Schemas.TenantBootstrap.self, from: JSONSerialization.data(withJSONObject: object))
     }
     func submit(items: [Components.Schemas.RequestItemInput], purpose: String, key: String) async throws -> Components.Schemas.RequestSubmitResponse {
         try check()
         let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
         let payload = try encoder.encode(Components.Schemas.RequestSubmit(requested_for: purpose, items: items))
         if let existing = receipts[key] {
-            guard existing.0 == payload else { throw APIError(status: 409, code: "idempotency_conflict", detail: "This request changed. Review it again.") }
+            guard existing.0 == payload else { throw APIError(status: 409, code: "idempotency_conflict", detail: String(localized: "This request changed. Review it again.")) }
             return existing.1
         }
         let result = Components.Schemas.RequestSubmitResponse(public_token: UUID().uuidString, status: "pending")
@@ -121,7 +128,7 @@ actor DemoMemberActionsRepository: MemberActionsRepository {
         let json = await store.activity()
         let activity = try decoder.decode(Components.Schemas.MemberActivity.self, from: Data(json.utf8))
         guard activity.event_registrations?.contains(where: { $0.registration_id == registration && $0.status == "registered" }) == true else {
-            throw APIError(status: 403, code: "demo_ticket_unavailable", detail: "A ticket is available only after registration is confirmed.")
+            throw APIError(status: 403, code: "demo_ticket_unavailable", detail: String(localized: "A ticket is available only after registration is confirmed."))
         }
         return Data(#"<svg viewBox="0 0 8 8"><path d="M2 2h2v2H2z"/></svg>"#.utf8)
     }
@@ -133,10 +140,10 @@ actor DemoMemberActionsRepository: MemberActionsRepository {
     func preferences() async throws -> Components.Schemas.PreferenceResponse { try check(); return savedPreferences }
     func updatePreference(_ input: Components.Schemas.PatchedPreferenceWrite) async throws -> Components.Schemas.PreferenceResponse {
         try check()
-        guard let index = savedPreferences.cells.firstIndex(where: { $0.feature == input.feature && $0.channel == input.channel }) else { throw APIError(status: 404, code: "demo_not_found", detail: "This option wasn't found.") }
+        guard let index = savedPreferences.cells.firstIndex(where: { $0.feature == input.feature && $0.channel == input.channel }) else { throw APIError(status: 404, code: "demo_not_found", detail: String(localized: "This option wasn't found.")) }
         var cell = savedPreferences.cells[index]
         if let enabled = input.enabled {
-            guard !enabled || cell.available else { throw APIError(status: 400, code: "demo_unavailable", detail: "This option isn't available in this makerspace.") }
+            guard !enabled || cell.available else { throw APIError(status: 400, code: "demo_unavailable", detail: String(localized: "This option isn't available in this makerspace.")) }
             cell.enabled = enabled
         }
         if let daily = input.daily_digest { cell.daily_digest = daily }

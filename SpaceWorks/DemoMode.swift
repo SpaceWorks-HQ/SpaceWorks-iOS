@@ -8,9 +8,9 @@ final class DemoSession {
     enum Role: String, CaseIterable { case member = "Member", staff = "Staff" }
     enum Scenario: String, CaseIterable {
         case password = "Password", mfa = "MFA", enrollment = "Enrollment", expired = "Expired challenge"
-        case offline = "Offline", throttled = "Too many requests", superadmin = "Superadmin", updateRequired = "Update required"
+        case noMemberships = "No makerspaces", offline = "Offline", throttled = "Too many requests", superadmin = "Superadmin", updateRequired = "Update required"
     }
-    enum Stage: Equatable { case welcome, signIn, mfa, recovery, makerspace, shell, webConsole, updateRequired }
+    enum Stage: Equatable { case welcome, signIn, mfa, recovery, makerspace, shell, webConsole, updateRequired, noMakerspaces, securityCompletion, emailVerification }
     var role = Role.member
     var scenario = Scenario.password
     var stage = Stage.welcome
@@ -20,6 +20,19 @@ final class DemoSession {
     var error: String?
     var retryAfter: Date?
     var selectedSpace = 0
+    var availableSpaces: Set<Int> = [0, 1]
+    var accountScenario = DemoAccountScenario.populated
+    var accountCooldown = AccountAccessCooldown()
+    var emailCooldown = AccountAccessCooldown()
+    var demoEmailConfirmed = false
+    var emailFlowID = UUID()
+    var securityEnrollment = false
+    var securityCodes: [String] = []
+    var securityMessage: String?
+    var fixNotice: String?
+    var pendingAccountFix: DemoDeletionState.Blocker?
+    @ObservationIgnored var globalAccountRepository: DemoAccountRepository?
+    @ObservationIgnored var memberAccountRepositories: [Int: DemoAccountRepository] = [:]
     var notificationState = DemoNotificationState()
     @ObservationIgnored private var paymentRepositories: [Int: DemoPaymentRepository] = [:]
     var staffScenario = DemoStaffScenario.populated
@@ -27,10 +40,13 @@ final class DemoSession {
     var profileDisplayName: String?
     var memberScenario = DemoMemberRepository.Scenario.populated
     let spaces = ["Fab Lab Kochi", "Maker Space Bengaluru"]
+    var membershipStage: Stage { availableSpaces.isEmpty ? .noMakerspaces : .makerspace }
     var name: String { profileDisplayName ?? (role == .member ? "Meera Nair" : "Arjun Rao") }
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         if arguments.contains("--ui-testing") {
+            if arguments.contains("--demo-no-memberships") { scenario = .noMemberships }
+            if arguments.contains("--demo-account-no-mfa") { accountScenario = .noMFA }
             if arguments.contains("--demo-empty") { memberScenario = .empty }
             if arguments.contains("--demo-error") { memberScenario = .offline }
             if arguments.contains("--demo-revoked") { memberScenario = .revokedCard }
@@ -42,29 +58,33 @@ final class DemoSession {
         }
     }
     func signIn() {
-        guard !username.isEmpty, !password.isEmpty else { error = "Enter your email or username and password."; return }
+        guard !username.isEmpty, !password.isEmpty else { error = String(localized: "Enter your email or username and password."); return }
         guard (retryAfter ?? .distantPast) <= Date() else { return }
         error = nil; password = ""
+        if scenario == .password, username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "unverified", !demoEmailConfirmed {
+            emailFlowID = UUID(); stage = .emailVerification; return
+        }
         switch scenario {
-        case .offline: error = "Couldn't connect. Try again."
-        case .throttled: error = "Too many requests. Try again later."; retryAfter = Date().addingTimeInterval(10)
-        case .expired: error = "Your sign-in expired. Try again."
+        case .offline: error = String(localized: "Couldn't connect. Try again.")
+        case .throttled: error = String(localized: "Too many requests. Try again later."); retryAfter = Date().addingTimeInterval(10)
+        case .expired: error = String(localized: "Your sign-in expired. Try again.")
         case .superadmin: stage = .webConsole
         case .updateRequired: stage = .updateRequired
-        case .password: stage = .makerspace
+        case .noMemberships: availableSpaces = []; stage = .noMakerspaces
+        case .password: stage = membershipStage
         case .mfa, .enrollment: stage = .mfa
         }
     }
     func verify() {
-        guard code == "123456" || code == "sample-recovery" else { error = "That code didn’t work. Try again."; return }
-        code = ""; error = nil; stage = scenario == .enrollment ? .recovery : .makerspace
+        guard code == "123456" || code == "sample-recovery" else { error = String(localized: "That code didn’t work. Try again."); return }
+        code = ""; error = nil; stage = scenario == .enrollment ? .recovery : membershipStage
     }
-    func acceptDemoProvider() { error = nil; stage = scenario == .enrollment || scenario == .mfa ? .mfa : .makerspace }
+    func acceptDemoProvider() { error = nil; if scenario == .noMemberships { availableSpaces = []; stage = .noMakerspaces } else { stage = scenario == .enrollment || scenario == .mfa ? .mfa : membershipStage } }
     func paymentRepository(for makerspaceID: Int) -> DemoPaymentRepository {
         if let repository = paymentRepositories[makerspaceID] { return repository }
         let repository = DemoPaymentRepository(); paymentRepositories[makerspaceID] = repository; return repository
     }
-    func reset() { paymentRepositories = [:]; notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
+    func reset() { accountCooldown = AccountAccessCooldown(); emailCooldown = AccountAccessCooldown(); demoEmailConfirmed = false; emailFlowID = UUID(); fixNotice = nil; availableSpaces = [0, 1]; globalAccountRepository = nil; memberAccountRepositories = [:]; securityEnrollment = false; securityCodes = []; securityMessage = nil; pendingAccountFix = nil; paymentRepositories = [:]; notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
 }
 
 enum DemoProvider: String, CaseIterable, Identifiable {
@@ -86,6 +106,10 @@ struct DemoRoot: View {
             if session.stage == .shell {
                 DemoShell(session: session, linkRouter: linkRouter).id("\(session.role.rawValue).\(session.selectedSpace).\(session.memberScenario.rawValue)")
             }
+            else if session.stage == .emailVerification { DemoEmailVerificationView(session: session).id(session.emailFlowID) }
+            else if session.stage == .securityCompletion {
+                AccountSecurityCompletionView(codes: session.securityCodes, message: session.securityMessage ?? String(localized: "Sign in again to continue."), continueToSignIn: session.finishSecurityTransition)
+            } else if session.stage == .noMakerspaces { DemoAccountLandingView(session: session) }
             else { DemoAuthView(session: session) }
         }.background(Color.swBg)
             .safeAreaInset(edge: .bottom) { MobileLinkNotice(router: linkRouter) }
@@ -97,13 +121,13 @@ struct DemoRoot: View {
         guard session.stage == .shell else { linkRouter.unbind(); return }
         linkRouter.bind(account: "demo." + session.role.rawValue, refresh: {
             guard session.stage == .shell else { throw CancellationError() }
-            return [7, 8]
+            return Set(session.availableSpaces.map { $0 + 7 })
         }, select: { id in
-            guard session.stage == .shell, [7, 8].contains(id) else { throw CancellationError() }
+            guard session.stage == .shell, session.availableSpaces.contains(id - 7) else { throw CancellationError() }
             session.selectedSpace = id == 7 ? 0 : 1
         }, resolveLegacy: { legacy in
             guard session.stage == .shell, !legacy.staffInbox || session.role == .staff,
-                  let id = ["fab-lab-kochi": 7, "maker-space-bengaluru": 8][legacy.slug] else { throw CancellationError() }
+                  let id = ["fab-lab-kochi": 7, "maker-space-bengaluru": 8][legacy.slug], session.availableSpaces.contains(id - 7) else { throw CancellationError() }
             return MobileLink(makerspaceID: id, destination: legacy.staffInbox ? .inbox : .home)
         })
         Task { await linkRouter.process() }
@@ -124,11 +148,12 @@ struct DemoAuthView: View {
                     case .welcome:
                         Text("Make yourself at home.").font(.largeTitle.bold())
                         Text("Explore sample makerspaces and complete app flows. Nothing is sent to a server.").foregroundStyle(Color.swMuted)
-                        Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text($0.rawValue) } }
+                        Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                             .pickerStyle(.segmented).accessibilityIdentifier("demo-role")
-                        Picker("Sign-in preview", selection: $session.scenario) { ForEach(DemoSession.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
-                        Picker("Staff data preview", selection: $session.staffScenario) { ForEach(DemoStaffScenario.allCases, id: \.self) { Text($0.rawValue) } }
-                        Picker("App data preview", selection: $session.memberScenario) { ForEach(DemoMemberRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
+                        Picker("Sign-in preview", selection: $session.scenario) { ForEach(DemoSession.Scenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
+                        Picker("Account data preview", selection: $session.accountScenario) { ForEach(DemoAccountScenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
+                        Picker("Staff data preview", selection: $session.staffScenario) { ForEach(DemoStaffScenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
+                        Picker("App data preview", selection: $session.memberScenario) { ForEach(DemoMemberRepository.Scenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                         Button("Continue as \(session.role.rawValue.lowercased())") { session.stage = .signIn }.buttonStyle(SWPrimary())
                     case .signIn:
                         Text("Welcome back.").font(.largeTitle.bold())
@@ -147,8 +172,9 @@ struct DemoAuthView: View {
                         TextField("Email or username", text: $session.username, prompt: Text("Email or username").foregroundColor(Color.swMuted)).textInputAutocapitalization(.never)
                             .autocorrectionDisabled().submitLabel(.next).onSubmit { passwordFocused = true }
                             .demoField().accessibilityIdentifier("demo-username")
-                        PasswordControl(title: "Password", text: $session.password, identifier: "demo-password", focus: $passwordFocused)
+                        PasswordControl(title: String(localized: "Password"), text: $session.password, identifier: "demo-password", focus: $passwordFocused)
                         Text("Use any email and password in this demo.").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Use unverified to preview email confirmation.").font(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Button("Sign in") { session.signIn() }.buttonStyle(SWPrimary()).accessibilityIdentifier("demo-sign-in")
@@ -162,7 +188,7 @@ struct DemoAuthView: View {
                         if session.scenario == .enrollment {
                             QRCodeView(value: "otpauth://totp/SpaceWorks:demo?secret=JBSWY3DPEHPK3PXP&issuer=SpaceWorks")
                             Text("Can't scan? Enter this key").font(.headline)
-                            Text("JBSWY3DPEHPK3PXP").font(.body.monospaced()).textSelection(.enabled)
+                            Text(verbatim: "JBSWY3DPEHPK3PXP").font(.body.monospaced()).textSelection(.enabled)
                         }
                         Text("Authenticator or recovery code").font(.headline)
                         TextField("Authenticator or recovery code", text: $session.code).demoField()
@@ -174,11 +200,11 @@ struct DemoAuthView: View {
                     case .recovery:
                         Text("Save your recovery codes").font(.largeTitle.bold())
                         Text("Sample codes for this demo. Real codes appear once after enrollment.").foregroundStyle(Color.swMuted)
-                        Text("sample-recovery\nsample-backup").font(.body.monospaced()).textSelection(.enabled)
-                        Button("I saved my codes. Continue") { session.stage = .makerspace }.buttonStyle(SWPrimary())
+                        Text(verbatim: "sample-recovery\nsample-backup").font(.body.monospaced()).textSelection(.enabled)
+                        Button("I saved my codes. Continue") { if session.securityEnrollment { session.securityEnded(codes: [], message: "Two-step sign-in was set up. Sign in again to continue.") } else { session.stage = session.membershipStage } }.buttonStyle(SWPrimary())
                     case .makerspace:
                         Text("Choose a makerspace").font(.largeTitle.bold())
-                        ForEach(session.spaces.indices, id: \.self) { index in
+                        ForEach(session.spaces.indices.filter { session.availableSpaces.contains($0) }, id: \.self) { index in
                             Button { session.selectedSpace = index; session.stage = .shell } label: {
                                 Label(session.spaces[index], systemImage: "building.2").frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                             }.buttonStyle(.plain).accessibilityIdentifier("demo-space-\(index)")
@@ -191,7 +217,7 @@ struct DemoAuthView: View {
                         Text("Update required").font(.largeTitle.bold())
                         Text("Update the app to keep using this server. This is a preview of the server's minimum-version gate.").foregroundStyle(Color.swMuted)
                         Button("Back to demo") { session.reset() }.buttonStyle(SWPrimary())
-                    case .shell: EmptyView()
+                    case .shell, .noMakerspaces, .securityCompletion, .emailVerification: EmptyView()
                     }
                 }
             }.padding(24).frame(maxWidth: 600).frame(maxWidth: .infinity)
@@ -238,7 +264,7 @@ struct DemoProviderView: View {
                     } else {
                         Label(session.name, systemImage: "person.crop.circle").font(.title2)
                     }
-                    Picker("Preview result", selection: $state.outcome) { ForEach(DemoProviderState.Outcome.allCases, id: \.self) { Text($0.rawValue) } }
+                    Picker("Preview result", selection: $state.outcome) { ForEach(DemoProviderState.Outcome.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                     if let error = state.error { SWError(message: error) }
                     if provider != .phone || state.step == .code {
                         Button(provider == .phone ? "Verify" : "Continue demo account") {
@@ -262,19 +288,21 @@ struct DemoShell: View {
     @State private var capabilities: MemberCapabilities
     @State private var payments: PaymentsState
     @State private var staff: StaffState?
+    @State private var account: AccountState
     @State private var actions: DemoMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     init(session: DemoSession, linkRouter: MobileLinkRouter) {
         self.session = session; self.linkRouter = linkRouter
+        _account = State(initialValue: session.accountState(makerspaceID: session.selectedSpace + 7))
         _staff = State(initialValue: session.role == .staff ? StaffState(repository: DemoStaffRepository(scenario: session.staffScenario, makerspaceID: session.selectedSpace + 7), makerspaceID: session.selectedSpace + 7,
             actions: ["accept_request", "reject_request", "assign_box", "issue_request", "return_request", "upload_evidence", "issue_direct_loan", "manage_events", "manage_bookings"], features: ["loans.kit_checklist"]) : nil)
         _payments = State(initialValue: PaymentsState(repository: session.paymentRepository(for: session.selectedSpace + 7), isDemo: true, sleep: { _ in }))
         let store = DemoMemberStore()
-        let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name)
+        let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name, makerspaceID: session.selectedSpace + 7)
         _actions = State(initialValue: actions)
         _cart = State(initialValue: RequestCartState(repository: actions))
         _drafts = State(initialValue: MemberActionDrafts(repository: actions))
-        _capabilities = State(initialValue: MemberCapabilities(repository: actions, makerspaceID: 7))
+        _capabilities = State(initialValue: MemberCapabilities(repository: actions, makerspaceID: session.selectedSpace + 7))
         _member = State(initialValue: MemberState(repository: DemoMemberRepository(scenario: session.memberScenario, name: session.name, store: store)))
     }
     var body: some View {
@@ -283,7 +311,7 @@ struct DemoShell: View {
         if sizeClass == .regular {
             NavigationSplitView(columnVisibility: $columns) {
                 List(AppTab.allCases) { tab in
-                    Button(tab.rawValue) {
+                    Button(LocalizedStringKey(tab.rawValue)) {
                         navigation.selected = tab
                         columns = geometry.size.width >= 1000 ? .all : .detailOnly
                     }.frame(minHeight: 48).accessibilityIdentifier("nav-\(tab.rawValue)")
@@ -295,7 +323,7 @@ struct DemoShell: View {
             TabView(selection: $navigation.selected) {
                 ForEach(AppTab.allCases) { tab in
                     destination(tab)
-                        .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }.tag(tab)
+                        .tabItem { Label(LocalizedStringKey(tab.rawValue), systemImage: tab.symbol) }.tag(tab)
                         .badge(tab == .inbox ? member.unreadCount ?? 0 : 0)
                 }
             }
@@ -305,7 +333,7 @@ struct DemoShell: View {
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); staff?.invalidate() }
+        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); staff?.invalidate(); account.invalidate() }
         .task(id: linkRouter.approved?.id) {
             if let approved = linkRouter.approved, approved.link.makerspaceID == session.selectedSpace + 7 {
                 await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts, payment: { id in
@@ -313,14 +341,45 @@ struct DemoShell: View {
                 })
             }
         }
+        .onChange(of: capabilities.selfService, initial: true) { _, _ in account.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
+        .onChange(of: capabilities.exports, initial: true) { _, _ in account.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
+        .task(id: session.pendingAccountFix?.id) { await routePendingAccountFix() }
+        .safeAreaInset(edge: .bottom) {
+            if let message = session.fixNotice {
+                HStack { Text(verbatim: message).foregroundStyle(Color.swMuted); Button("Done") { session.fixNotice = nil }.frame(minHeight: 48) }.padding(16).background(Color.swSurface)
+            }
+        }
         .onChange(of: session.actionScenario) { _, scenario in Task { await actions.preview(scenario) } }
         .onChange(of: sizeClass) { _, value in if value == .compact { navigation.compactInventory() } }
     }
+    private func routePendingAccountFix() async {
+        guard let blocker = session.pendingAccountFix, session.stage == .shell else { return }
+        let maker = session.selectedSpace
+        switch blocker.destination {
+        case .payments: navigation.open(.payments, tab: .profile)
+        case .activity: await member.loadActivity(); navigation.path(.activity).wrappedValue = []; navigation.selected = .activity
+        case .bookings:
+            await member.loadBookings()
+            guard session.selectedSpace == maker, session.pendingAccountFix?.id == blocker.id else { return }
+            if let row = member.bookings.first { navigation.open(.booking(row.public_token), tab: .activity) }
+            else { navigation.selected = .activity }
+        case .events:
+            await member.loadActivity()
+            guard session.selectedSpace == maker, session.pendingAccountFix?.id == blocker.id else { return }
+            if let row = member.activity?.event_registrations?.first { navigation.open(.registration(row.registration_id), tab: .activity) }
+            else { navigation.selected = .activity }
+        case .staff:
+            if staff != nil { navigation.open(.staff, tab: .profile) }
+            else { navigation.open(.account, tab: .profile); session.fixNotice = String(localized: "Ask your makerspace to update staff responsibilities before deleting.") }
+        case .support: navigation.open(.account, tab: .profile); session.fixNotice = blocker.detail + String(localized: " Ask your makerspace for help.")
+        }
+        if session.selectedSpace == maker, session.pendingAccountFix?.id == blocker.id { session.pendingAccountFix = nil }
+    }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, payments: payments, staff: staff, linkRouter: linkRouter)
+            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, payments: payments, staff: staff, account: account, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
-                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true, payments: payments, staff: staff) {
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true, payments: payments, staff: staff, account: account, onDemoDelete: session.reset, onDemoFix: session.routeAccountBlocker) {
                         if let profile = try? await actions.profile() { session.profileDisplayName = profile.display_name }
                     }
                 }
@@ -338,6 +397,7 @@ struct DemoDestination: View {
     let drafts: MemberActionDrafts
     let payments: PaymentsState
     let staff: StaffState?
+    let account: AccountState
     let linkRouter: MobileLinkRouter
     var body: some View {
         Group {
@@ -357,6 +417,7 @@ struct DemoDestination: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        NavigationLink("Account and security", value: MemberRoute.account).frame(minHeight: 48).accessibilityIdentifier("account-entry")
                         if staff != nil { NavigationLink("Staff tools", value: MemberRoute.staff).frame(minHeight: 48).accessibilityIdentifier("staff-tools") }
                         NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-entry")
                         NavigationLink("Notifications") {
@@ -368,18 +429,18 @@ struct DemoDestination: View {
                             }
                         }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
                         Picker("Action preview result", selection: Binding(get: { session.actionScenario }, set: { session.actionScenario = $0 })) {
-                            ForEach(DemoMemberActionsRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) }
+                            ForEach(DemoMemberActionsRepository.Scenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) }
                         }.frame(minHeight: 48).accessibilityIdentifier("action-preview-result")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out") { session.reset() }.frame(minHeight: 48)
                 }
             }.padding(24).frame(maxWidth: 960).frame(maxWidth: .infinity)
         } }
-        }.background(Color.swBg).navigationTitle(tab.rawValue)
+        }.background(Color.swBg).navigationTitle(LocalizedStringKey(tab.rawValue))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
-                        ForEach(session.spaces.indices, id: \.self) { index in Button(session.spaces[index]) { linkRouter.cancelIntent(); session.selectedSpace = index } }
+                        ForEach(session.spaces.indices.filter { session.availableSpaces.contains($0) }, id: \.self) { index in Button(session.spaces[index]) { linkRouter.cancelIntent(); session.selectedSpace = index } }
                     } label: { Label(session.spaces[session.selectedSpace], systemImage: "building.2") }
                 }
             }

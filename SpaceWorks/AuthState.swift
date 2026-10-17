@@ -4,7 +4,7 @@ import SpaceWorksAPI
 
 @MainActor @Observable
 final class AuthState {
-    enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, passwordChange, signedIn }
+    enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, passwordChange, securityCompletion, signedIn }
     private(set) var stage: Stage = .restoring
     var username = ""
     var password = ""
@@ -17,6 +17,8 @@ final class AuthState {
     private(set) var mfa: Components.Schemas.MFAChallengeResponse?
     private(set) var enrollment: Components.Schemas.MFAEnrollment?
     private(set) var recoveryCodes: [String] = []
+    private(set) var securityMessage: String?
+    private var locallyLeftMemberships = Set<Int>()
     private(set) var selectedID: Int?
     private(set) var configuration: Components.Schemas.PublicConfig?
     let service: SpaceWorksService
@@ -57,7 +59,7 @@ final class AuthState {
     }
     var memberships: [Components.Schemas.AuthMembership] {
         // Organization-derived authority is excluded by the mobile scope. /me supplies active memberships.
-        user?.makerspaces.filter { $0.source == .membership } ?? []
+        user?.makerspaces.filter { $0.source == .membership && !locallyLeftMemberships.contains($0.id) } ?? []
     }
     var selectedMembership: Components.Schemas.AuthMembership? { memberships.first { $0.id == selectedID } }
     var displayName: String { user?.display_name.isEmpty == false ? user!.display_name : user?.username ?? "" }
@@ -83,15 +85,52 @@ final class AuthState {
     }
     func accountForm(_ step: AccountAccessState.Step) -> AccountAccessState {
         let service = service
+        let generation = identityGeneration
+        let accountID = user?.id
+        let credentials = acceptedCredentials
         let task = step == .signUp ? "signup" : step == .emailVerification ? "email" : "password-recovery"
-        let form = AccountAccessState(step: step, cooldown: AccountAccessCooldown.scoped(serverScope + "." + task),
+        let scope = serverScope + "." + task + (step == .emailVerification ? ".\(accountID ?? 0)" : "")
+        let form = AccountAccessState(step: step, cooldown: AccountAccessCooldown.scoped(scope),
             create: { try await service.createAccount(name: $0, email: $1, password: $2, phone: $3) },
             request: { try await service.requestPasswordReset(email: $0) },
             reset: { try await service.resetPassword(email: $0, code: $1, new: $2) },
-            verify: { [weak self] code in try await service.confirmEmail(code: code); await self?.foreground() },
-            resendVerification: { try await service.resendEmailVerification() })
+            verify: { [weak self] code in
+                guard let self else { throw CancellationError() }
+                try await self.emailOperation(generation: generation, accountID: accountID, credentials: credentials) {
+                    try await service.confirmEmail(code: code)
+                }
+                await self.foreground()
+            },
+            resendVerification: { [weak self] in
+                guard let self else { throw CancellationError() }
+                try await self.emailOperation(generation: generation, accountID: accountID, credentials: credentials) {
+                    try await service.resendEmailVerification()
+                }
+            }, ownerIsCurrent: { [weak self] in
+                guard step == .emailVerification else { return true }
+                guard let self, let accountID else { return false }
+                return self.identityGeneration == generation && self.user?.id == accountID && self.stage == .signedIn
+            })
         form.email = user?.email ?? username
         return form
+    }
+
+    private func emailOperation(generation: Int, accountID: Int?, credentials: CredentialSnapshot?,
+                                operation: @Sendable () async throws -> Void) async throws {
+        guard let accountID, let credentials,
+              identityGeneration == generation, user?.id == accountID, stage == .signedIn else { throw CancellationError() }
+        do { try await service.withSession(expectedCredentials: credentials, operation: operation) }
+        catch {
+            let hasNoCredentials = await service.refresh.current() == nil
+            let sameInstallation = await service.refresh.isSameInstallation(credentials)
+            guard !APIError.isCancellation(error), sameInstallation,
+                  identityGeneration == generation, user?.id == accountID, stage == .signedIn else { throw CancellationError() }
+            if APIError.status(error) == 401 || hasNoCredentials { await invalidateSession(message: APIError.display(error)) }
+            else if APIError.status(error) == 403 { await foreground() }
+            throw error
+        }
+        guard await service.refresh.isCurrent(credentials),
+              identityGeneration == generation, user?.id == accountID, stage == .signedIn else { throw CancellationError() }
     }
 
     func restore() async {
@@ -111,7 +150,7 @@ final class AuthState {
     func signIn() async {
         guard !busy, (retryAfter ?? .distantPast) <= Date() else { return }
         guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !password.isEmpty else {
-            error = "Enter your email or username and password."; return
+            error = String(localized: "Enter your email or username and password."); return
         }
         busy = true; error = nil
         defer { busy = false; password = "" }
@@ -119,7 +158,7 @@ final class AuthState {
             let challenge = try await service.challenge(appID: Brand.bundleID, development: NativeAttestor.development)
             let expires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
             let proof = try await attest(challenge.challenge)
-            guard Date() < expires else { throw APIError(status: 0, code: "challenge_expired", detail: "Your sign-in expired. Try again.") }
+            guard Date() < expires else { throw APIError(status: 0, code: "challenge_expired", detail: String(localized: "Your sign-in expired. Try again.")) }
             let result = try await service.signIn(appID: Brand.bundleID, development: NativeAttestor.development,
                 username: username.trimmingCharacters(in: .whitespacesAndNewlines), password: password,
                 challenge: challenge.challenge, attestationJSON: proof)
@@ -137,9 +176,9 @@ final class AuthState {
     func verify() async {
         guard !busy, let mfa, (retryAfter ?? .distantPast) <= Date() else { return }
         guard (mfaExpires ?? .distantPast) > Date() else {
-            backToSignIn(); error = "Your sign-in expired. Try again."; return
+            backToSignIn(); error = String(localized: "Your sign-in expired. Try again."); return
         }
-        guard code.count >= 6 else { error = "Enter your authenticator or recovery code."; return }
+        guard code.count >= 6 else { error = String(localized: "Enter your authenticator or recovery code."); return }
         busy = true; error = nil
         defer { busy = false; code = "" }
         do {
@@ -148,7 +187,7 @@ final class AuthState {
             let grant = grantData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
             guard let refresh = result.refresh, !refresh.isEmpty, !result.access.isEmpty,
                   result.surface != "verification_only", let grantID = grant?["id"] as? String, UUID(uuidString: grantID) != nil else {
-                throw APIError(status: 0, code: "native_session_missing", detail: "This server did not provide a device session. Contact your makerspace.")
+                throw APIError(status: 0, code: "native_session_missing", detail: String(localized: "This server did not provide a device session. Contact your makerspace."))
             }
             recoveryCodes = result.recovery_codes ?? []
             try await accept(TokenPair(access: result.access, refresh: refresh))
@@ -203,28 +242,107 @@ final class AuthState {
         do {
             try await service.refresh.install(nil)
             await clear()
-            if revocationFailed { error = "Signed out on this device. Server revocation could not be confirmed." }
+            if revocationFailed { error = String(localized: "Signed out on this device. Server revocation could not be confirmed.") }
         } catch { await clear(); fail(error) }
     }
     func changePassword(current: String, new: String, confirmation: String) async {
-        guard !busy, (retryAfter ?? .distantPast) <= Date() else { return }
+        guard stage == .passwordChange, !busy, (retryAfter ?? .distantPast) <= Date(), let accountID = user?.id, let credentials = acceptedCredentials else { return }
         guard !current.isEmpty, !new.isEmpty, new == confirmation else {
-            error = "Enter your current password and matching new passwords."; return
+            error = String(localized: "Enter your current password and matching new passwords."); return
         }
+        let generation = identityGeneration
         busy = true; error = nil
         defer { busy = false }
+        let repository = LiveAccountRepository(service: service, expectedCredentials: credentials, makerspaceID: nil, origin: origin,
+            onUnauthorized: { [weak self] message in await self?.accountRefused(message, accountID: accountID, generation: generation) },
+            onForbidden: { [weak self] in await self?.accountAuthorityChanged(accountID: accountID, generation: generation) })
         do {
-            try await service.changePassword(current: current, new: new)
-            try await loadIdentity()
-            if stage == .passwordChange { error = "Your account still requires a password update. Try again or contact your makerspace." }
+            try await repository.updateTemporaryPassword(current: current, new: new)
+            guard identityGeneration == generation, stage == .passwordChange, user?.id == accountID else { return }
+            // The required temporary-password gate always returns to native authentication.
+            // Release busy synchronously so signOut can immediately claim teardown ownership.
+            busy = false; await signOut()
+            if stage == .signIn, user == nil { error = String(localized: "Password updated. Sign in again.") }
         } catch {
+            guard identityGeneration == generation else { return }
+            fail(error)
+        }
+    }
+    /// Global security works before joining a makerspace; membership records remain bootstrap-gated.
+    func accountState(makerspaceID: Int?, selfService: Bool = false, exports: Bool = false) -> AccountState? {
+        guard let accountID = user?.id, let credentials = acceptedCredentials, stage == .signedIn,
+              makerspaceID == nil || memberships.contains(where: { $0.id == makerspaceID }) else { return nil }
+        let generation = identityGeneration
+        let name = memberships.first(where: { $0.id == makerspaceID })?.slug ?? ""
+        let repository = LiveAccountRepository(service: service, expectedCredentials: credentials, makerspaceID: makerspaceID, origin: origin,
+            onUnauthorized: { [weak self] message in await self?.accountRefused(message, accountID: accountID, generation: generation) },
+            onForbidden: { [weak self] in await self?.accountAuthorityChanged(accountID: accountID, generation: generation) })
+        return AccountState(repository: repository, makerspaceID: makerspaceID, makerspaceName: name,
+            selfServiceEnabled: selfService, exportEnabled: exports,
+            phoneCooldown: AccountAccessCooldown.scoped(serverScope + ".account.\(accountID).phone-link"),
+            endSession: { [weak self] codes, message in
+                guard let self, self.identityGeneration == generation, self.user?.id == accountID else { return }
+                await self.securitySessionEnded(codes: codes, message: message)
+            },
+            membershipEnded: { [weak self] in guard let self, self.identityGeneration == generation, self.user?.id == accountID, let makerspaceID else { return }; await self.confirmedMembershipLeave(makerspaceID) },
+            passwordChanged: { [weak self] in guard let self, self.identityGeneration == generation, self.user?.id == accountID else { return }; await self.foreground() },
+            beforeLeave: { [weak self] in
+                guard let self, self.identityGeneration == generation, let makerspaceID, self.user?.id == accountID else { throw CancellationError() }
+                let ids = try await self.freshMembershipIDs()
+                guard ids.contains(makerspaceID), self.user?.id == accountID else { throw CancellationError() }
+                if let notifications = self.notifications {
+                    guard await notifications.registration.removeMembership(makerspaceID, authorizedDirectMembershipIDs: ids) else {
+                        throw APIError(status: notifications.registration.retryAfter > Date() ? 429 : 0,
+                            code: "membership_notification_cleanup", detail: notifications.registration.error ?? String(localized: "Device notifications could not be updated. Try again before leaving."),
+                            retryAfter: notifications.registration.retryAfter > Date() ? notifications.registration.retryAfter : nil)
+                    }
+                }
+                guard self.user?.id == accountID, self.stage == .signedIn else { throw CancellationError() }
+            }, leaveFailed: { [weak self] in
+                guard let self, self.identityGeneration == generation, let makerspaceID, self.user?.id == accountID else { return }
+                if let ids = try? await self.freshMembershipIDs(), ids.contains(makerspaceID), self.user?.id == accountID {
+                    await self.notifications?.registration.resumeMembership(makerspaceID, authorizedDirectMembershipIDs: ids)
+                }
+            })
+    }
+    private func accountRefused(_ message: String, accountID: Int, generation: Int) async {
+        guard identityGeneration == generation, user?.id == accountID else { return }
+        await invalidateSession(message: message)
+    }
+    private func accountAuthorityChanged(accountID: Int, generation: Int) async {
+        guard identityGeneration == generation, user?.id == accountID else { return }
+        await foreground()
+    }
+    func securitySessionEnded(codes: [String], message: String?) async {
+        await invalidateSession(message: message ?? String(localized: "Sign in again to continue."))
+        guard user == nil, stage == .signIn, !endingSession else { return }
+        recoveryCodes = codes; securityMessage = message ?? String(localized: "Your security settings changed. Sign in again.")
+        stage = .securityCompletion
+    }
+    func finishSecurityCompletion() { recoveryCodes = []; securityMessage = nil; stage = .signIn }
+    /// A confirmed server leave revokes local scope immediately, even when the following /me is offline.
+    /// Ignore stale membership echoes until a fresh native sign-in establishes a new account session.
+    func confirmedMembershipLeave(_ id: Int) async {
+        guard stage == .signedIn, memberships.contains(where: { $0.id == id }) else { return }
+        let accountID = user?.id
+        locallyLeftMemberships.insert(id); clearPrivateHolders()
+        identityGeneration += 1; identityFlight?.cancel(); identityFlight = nil; busy = false
+        settings.removeObject(forKey: selectionKey)
+        user?.makerspaces.removeAll { $0.id == id }
+        if selectedID == id { selectedID = nil }
+        let ids = Set(memberships.map(\.id))
+        try? await service.makerspace.select(selectedID, activeMemberships: ids)
+        guard user?.id == accountID, stage == .signedIn else { return }
+        do { try await refreshedIdentity() }
+        catch {
+            guard user?.id == accountID, stage == .signedIn else { return }
             fail(error)
             if isUnauthorized(error) { await invalidateSession(message: APIError.display(error)) }
         }
     }
     private func accept(_ pair: TokenPair) async throws {
         guard !pair.access.isEmpty, !pair.refresh.isEmpty else {
-            throw APIError(status: 0, code: "native_session_missing", detail: "This server did not provide a device session. Contact your makerspace.")
+            throw APIError(status: 0, code: "native_session_missing", detail: String(localized: "This server did not provide a device session. Contact your makerspace."))
         }
         try await service.refresh.install(pair)
         do { try await loadIdentity() } catch {
@@ -236,12 +354,13 @@ final class AuthState {
     private func loadIdentity() async throws {
         let generation = identityGeneration
         let credentials = await service.refresh.snapshot()
-        let identity = try await service.me()
+        var identity = try await service.me()
         guard generation == identityGeneration, await service.refresh.isCurrent(credentials) else { throw CancellationError() }
         guard !identity.is_superuser else {
             await invalidateSession(message: "Use the web console")
-            throw APIError(status: 403, code: "device_superadmin_not_supported", detail: "Use the web console")
+            throw APIError(status: 403, code: "device_superadmin_not_supported", detail: String(localized: "Use the web console"))
         }
+        identity.makerspaces.removeAll { locallyLeftMemberships.contains($0.id) }
         let direct = identity.makerspaces.filter { $0.source == .membership }
         let ids = Set(direct.map(\.id))
         let previous = user?.id == identity.id ? selectedID : nil
@@ -277,7 +396,7 @@ final class AuthState {
     }
     /// Routing and registration require a successful current /me, never the last cached identity.
     func freshMembershipIDs() async throws -> Set<Int> {
-        if let deadline = retryAfter, deadline > Date() { throw APIError(status: 429, code: "identity_throttled", detail: error ?? "Too many requests. Try again later.", retryAfter: deadline) }
+        if let deadline = retryAfter, deadline > Date() { throw APIError(status: 429, code: "identity_throttled", detail: error ?? String(localized: "Too many requests. Try again later."), retryAfter: deadline) }
         guard stage == .signedIn, !endingSession, let accountID = user?.id else { throw CancellationError() }
         let generation = identityGeneration
         do {
@@ -372,7 +491,7 @@ final class AuthState {
     private func clearLocalIdentity() {
         identityGeneration += 1; identityFlight?.cancel(); identityFlight = nil; clearPrivateHolders()
         settings.removeObject(forKey: selectionKey)
-        acceptedCredentials = nil
+        locallyLeftMemberships = []; securityMessage = nil; acceptedCredentials = nil
         user = nil; selectedID = nil; mfa = nil; mfaExpires = nil; enrollment = nil; recoveryCodes = []
         username = ""; password = ""; code = ""; stage = .signIn
     }

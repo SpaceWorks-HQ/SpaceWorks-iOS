@@ -59,7 +59,7 @@ final class NativeNotifications {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
             authorization = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
             if granted { UIApplication.shared.registerForRemoteNotifications() }
-        } catch { self.error = "Notifications could not be enabled. Try again in Settings." }
+        } catch { self.error = String(localized: "Notifications could not be enabled. Try again in Settings.") }
     }
 
     func refreshAuthorization() async {
@@ -77,7 +77,7 @@ final class NativeNotifications {
         onTokenChanged?(value)
     }
 
-    func registrationFailed() { error = "Push registration is unavailable. Your inbox is still available." }
+    func registrationFailed() { error = String(localized: "Push registration is unavailable. Your inbox is still available.") }
 
     /// Preserve a cold-launch tap until authentication and membership routing have been installed.
     func receive(_ hint: NotificationHint) {

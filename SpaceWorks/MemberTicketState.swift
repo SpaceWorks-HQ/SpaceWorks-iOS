@@ -22,7 +22,7 @@ import SpaceWorksAPI
         do {
             let data = try await repository.eventQR(registration: registration.registration_id)
             guard active, !cancelled, expected == generation else { return }
-            guard let rendered = NativeQRSVG.image(data) else { error = "This ticket image could not be opened. Try again or ask the event desk for help."; return }
+            guard let rendered = NativeQRSVG.image(data) else { error = String(localized: "This ticket image could not be opened. Try again or ask the event desk for help."); return }
             image = rendered; retryAfter = nil
         } catch { if active, expected == generation { self.error = APIError.display(error); retryAfter = APIError.retryDeadline(error) } }
     }

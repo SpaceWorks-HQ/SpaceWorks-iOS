@@ -14,7 +14,7 @@ struct RequestCartView: View {
                     if let receipt = state.receipt {
                         SWCard {
                             Label("Request received", systemImage: "checkmark.circle").font(.largeTitle.bold())
-                            Text(receipt.status.replacingOccurrences(of: "_", with: " ").capitalized).font(.title2)
+                            Text(NativeStatusCopy.label(receipt.status)).font(.title2)
                             Text("Your makerspace will review your request and confirm collection and due dates.").foregroundStyle(Color.swMuted)
                             Text("Request reference").font(.headline)
                             Text(receipt.public_token).font(.body.monospaced()).textSelection(.enabled)

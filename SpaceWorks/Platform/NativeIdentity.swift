@@ -22,7 +22,7 @@ import UIKit
     }
     static func handleGoogleCallback(_ url: URL) -> Bool { GIDSignIn.sharedInstance.handle(url) }
     nonisolated static var unavailable: APIError {
-        APIError(status: 0, code: "native_provider_unconfigured", detail: "Native sign-in is not configured for this build. Contact your makerspace.")
+        APIError(status: 0, code: "native_provider_unconfigured", detail: String(localized: "Native sign-in is not configured for this build. Contact your makerspace."))
     }
 }
 

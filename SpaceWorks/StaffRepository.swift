@@ -66,7 +66,7 @@ struct LiveStaffRepository: StaffRepository {
               parts.percentEncodedPath == path, let items = parts.queryItems, items.count == 1,
               items[0].name == "page", let raw = items[0].value, !raw.isEmpty,
               raw.allSatisfy({ $0.isASCII && $0.isNumber }), let number = Int(raw), number > page else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next staff page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next staff page is unavailable. Refresh and try again."))
         }
     }
     func requests(queue: StaffQueue, page: Int) async throws -> Components.Schemas.PaginatedAdminRequestList {
@@ -105,12 +105,12 @@ struct LiveStaffRepository: StaffRepository {
     private func validateInventory(_ next: String?, page: Int, search: String) throws {
         guard let next else { return }
         guard var parts = URLComponents(string: next) else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next staff page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next staff page is unavailable. Refresh and try again."))
         }
         let query = parts.queryItems ?? []
         guard query.filter({ $0.name == "q" }).count <= 1,
               query.allSatisfy({ $0.name == "page" || ($0.name == "q" && $0.value == search) }) else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next staff page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next staff page is unavailable. Refresh and try again."))
         }
         parts.queryItems = query.filter { $0.name == "page" }
         try validate(parts.string, path: "/api/v1/admin/makerspace/\(makerspaceID)/inventory", after: page)

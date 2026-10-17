@@ -1,0 +1,129 @@
+import XCTest
+
+final class AccountFlowTests: XCTestCase {
+    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
+    private func tap(_ element: XCUIElement, in app: XCUIApplication) { NativeUIActions.tap(element, in: app) }
+    private func account(extra: [String] = [], withoutMakerspace: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launch()
+        tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
+        let username = app.textFields["demo-username"]; tap(username, in: app); username.typeText("member\n")
+        app.secureTextFields["demo-password"].typeText("sample\n"); tap(app.buttons["demo-sign-in"], in: app)
+        if !withoutMakerspace {
+        tap(app.buttons["demo-space-0"], in: app)
+        if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
+        else {
+            let profile = app.descendants(matching: .any)["nav-Profile"].firstMatch
+            if !profile.isHittable {
+                let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
+                if sidebar.exists { sidebar.tap() }
+            }
+            tap(profile, in: app)
+        }
+        }
+        tap(app.buttons["account-entry"], in: app); return app
+    }
+    private func confirmNativeDialog(_ title: String, action label: String, in app: XCUIApplication) {
+        // Native confirmation popovers own separate title/action scroll regions.
+        XCTAssertTrue(app.staticTexts[title].waitForExistence(timeout: 5))
+        let action = app.buttons[label]
+        XCTAssertTrue(action.waitForExistence(timeout: 5))
+        XCTAssertTrue(action.isHittable)
+        let frame = action.frame
+        XCTAssertGreaterThan(frame.width, 0)
+        XCTAssertGreaterThan(frame.height, 0)
+        XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        attach("Native account confirmation")
+        action.tap()
+    }
+    private func attach(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    func testPhoneVerificationThenCurrentSessionRevocationRequiresSignIn() {
+        let app = account(); tap(app.buttons["account-phone"], in: app)
+        let phone = app.textFields["account-phone-number"]; tap(phone, in: app); phone.typeText("9876543210")
+        tap(app.toolbars.buttons["Done"], in: app); tap(app.buttons["account-phone-send"], in: app)
+        let code = app.textFields["account-phone-code"]; tap(code, in: app); code.typeText("123456")
+        tap(app.toolbars.buttons["Done"], in: app); tap(app.buttons["account-phone-verify"], in: app)
+        XCTAssertTrue(app.staticTexts["+919876543210"].waitForExistence(timeout: 10)); attach("Account verified phone sample")
+        tap(app.navigationBars.buttons.element(boundBy: 0), in: app)
+        tap(app.buttons["account-sessions"], in: app); tap(app.buttons["account-revoke-current-session"], in: app)
+        confirmNativeDialog("Sign out this session?", action: "Sign out", in: app)
+        if app.buttons["account-security-continue"].waitForExistence(timeout: 2) { tap(app.buttons["account-security-continue"], in: app) }
+        XCTAssertTrue(app.textFields["demo-username"].waitForExistence(timeout: 10))
+    }
+    func testRecoveryCodesAreAcknowledgedBeforeReturningToSignIn() {
+        let app = account(); tap(app.buttons["account-security"], in: app)
+        let password = app.secureTextFields["account-current-password"]; tap(password, in: app); password.typeText("DemoPass!123\n")
+        tap(app.buttons["account-regenerate-recovery"], in: app)
+        confirmNativeDialog("Replace your recovery codes?", action: "Continue", in: app)
+        XCTAssertTrue(app.staticTexts["Save your recovery codes"].waitForExistence(timeout: 10))
+        let next = app.buttons["account-security-continue"]; XCTAssertFalse(next.isEnabled)
+        tap(app.switches["account-recovery-saved"], in: app); tap(next, in: app)
+        XCTAssertTrue(app.textFields["demo-username"].waitForExistence(timeout: 10))
+    }
+    func testExportRequestStatusAndNativeArchivePresentation() {
+        let app = account(); tap(app.buttons["account-exports"], in: app)
+        tap(app.buttons["account-request-export"], in: app)
+        XCTAssertTrue(app.buttons["account-check-export"].waitForExistence(timeout: 10))
+        tap(app.buttons["account-check-export"], in: app); tap(app.buttons["account-download-export"], in: app)
+        XCTAssertTrue(app.navigationBars["Data export"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["account-share-export"].exists); attach("Account native demo archive")
+        tap(app.buttons["Done"], in: app); XCTAssertTrue(app.buttons["account-download-export"].waitForExistence(timeout: 5))
+    }
+    func testLargestTextLandscapeExportCanReachNativeShare() {
+        let app = account(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        tap(app.buttons["account-exports"], in: app); tap(app.buttons["account-request-export"], in: app)
+        tap(app.buttons["account-check-export"], in: app); tap(app.buttons["account-download-export"], in: app)
+        XCTAssertTrue(app.navigationBars["Data export"].waitForExistence(timeout: 10))
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        // NativeUIActions requires a real visible/hittable action after bounded scrolling.
+        tap(app.buttons["account-share-export"], in: app)
+        let systemSave = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Save to Files")).firstMatch
+        XCTAssertTrue(systemSave.waitForExistence(timeout: 5), "The actual native share sheet must expose a system file action.")
+        attach("Native archive share largest text landscape")
+    }
+    func testGlobalPasswordAndDevicesWorkBeforeJoiningAMakerspace() {
+        let app = account(extra: ["--demo-no-memberships"], withoutMakerspace: true)
+        XCTAssertFalse(app.buttons["account-sessions"].exists); XCTAssertFalse(app.buttons["account-membership"].exists)
+        tap(app.buttons["account-password"], in: app)
+        for (identifier, value) in [("account-password-current", "DemoPass!123"), ("account-password-new", "NewDemoPass!456"), ("account-password-confirm", "NewDemoPass!456")] {
+            let field = app.secureTextFields[identifier]; tap(field, in: app); field.typeText(value + "\n")
+        }
+        tap(app.buttons["account-password-update"], in: app)
+        XCTAssertTrue(app.staticTexts["Password change preview complete. No password was changed."].waitForExistence(timeout: 10))
+        attach("Global account password without membership")
+        tap(app.navigationBars.buttons.element(boundBy: 0), in: app); tap(app.buttons["account-devices"], in: app)
+        XCTAssertTrue(app.buttons["account-revoke-device-83000000-0000-4000-8000-000000000001"].waitForExistence(timeout: 10))
+        attach("Global devices without membership")
+    }
+    func testDeletionPreviewRequiresIdentityAndExactTypedConfirmation() {
+        let app = account(); tap(app.buttons["account-delete-preview"], in: app)
+        tap(app.buttons["deletion-scenario"], in: app); tap(app.buttons["Ready to delete"], in: app)
+        tap(app.buttons["deletion-check"], in: app)
+        let password = app.secureTextFields["deletion-password"]; tap(password, in: app); password.typeText("DemoPass!123\n")
+        tap(app.buttons["deletion-verify"], in: app)
+        XCTAssertFalse(app.buttons["deletion-submit"].isEnabled)
+        let confirmation = app.textFields["deletion-confirmation"]; tap(confirmation, in: app); confirmation.typeText("DELETE\n")
+        XCTAssertTrue(app.buttons["deletion-submit"].isEnabled); attach("Whole account deletion demo exact confirmation")
+        tap(app.buttons["deletion-submit"], in: app)
+        XCTAssertTrue(app.buttons["Continue as member"].waitForExistence(timeout: 10))
+    }
+    func testDeletionBlockerOpensCurrentMakerspacePaymentFlow() {
+        let app = account(); tap(app.buttons["account-delete-preview"], in: app); tap(app.buttons["deletion-check"], in: app)
+        XCTAssertTrue(app.staticTexts["Resolve these before deleting"].waitForExistence(timeout: 10))
+        tap(app.buttons["Open Payments"].firstMatch, in: app)
+        XCTAssertTrue(app.navigationBars["Payments"].waitForExistence(timeout: 10)); attach("Deletion payment blocker opens actual sample payments")
+    }
+    func testLeavingMakerspaceReturnsToRemainingAuthorizedMemberships() {
+        let app = account(); tap(app.buttons["account-membership"], in: app)
+        let reason = app.textViews["account-membership-reason"].exists ? app.textViews["account-membership-reason"] : app.textFields["account-membership-reason"]
+        tap(reason, in: app); reason.typeText("Moving away")
+        if app.toolbars.buttons["Done"].exists { tap(app.toolbars.buttons["Done"], in: app) }
+        tap(app.buttons["account-leave-makerspace"], in: app)
+        confirmNativeDialog("Leave this makerspace?", action: "Confirm leave", in: app)
+        XCTAssertTrue(app.buttons["demo-space-1"].waitForExistence(timeout: 10)); XCTAssertFalse(app.buttons["demo-space-0"].exists)
+        attach("Confirmed membership leave keeps other makerspace")
+    }
+
+}

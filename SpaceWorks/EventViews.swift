@@ -37,15 +37,15 @@ struct EventDetailView: View {
                                 Text("Choose a ticket type").tag(Int?.none)
                                 ForEach(Array(event.ticket_types.enumerated()), id: \.offset) { _, ticket in
                                     if let id = ticket.id {
-                                        Text((ticket.name ?? "Ticket") + (ticket.amount.map { " · \(event.currency) \($0)" } ?? "")).tag(Int?.some(id))
+                                        Text((ticket.name ?? String(localized: "Ticket")) + (ticket.amount.map { " · \(event.currency) \($0)" } ?? "")).tag(Int?.some(id))
                                     }
                                 }
                             }.frame(minHeight: 48)
                         }
-                        if event.registration_audience.value1 == .invite { input("Invitation code", value: $state.invite).textInputAutocapitalization(.never).autocorrectionDisabled() }
-                        if event.promo_codes_enabled { input("Promo code (optional)", value: $state.promo).textInputAutocapitalization(.never).autocorrectionDisabled() }
-                        input("Phone number (optional)", value: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad)
-                        input("Email (optional)", value: $state.email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        if event.registration_audience.value1 == .invite { input(String(localized: "Invitation code"), value: $state.invite).textInputAutocapitalization(.never).autocorrectionDisabled() }
+                        if event.promo_codes_enabled { input(String(localized: "Promo code (optional)"), value: $state.promo).textInputAutocapitalization(.never).autocorrectionDisabled() }
+                        input(String(localized: "Phone number (optional)"), value: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad)
+                        input(String(localized: "Email (optional)"), value: $state.email).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never).autocorrectionDisabled()
                         MemberCustomFields(form: state.form)
                         if let error = state.error { SWError(message: error) }
                         TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -67,7 +67,7 @@ struct EventDetailView: View {
         }
     }
     private func resultTitle(_ value: String) -> String {
-        switch value { case "registered": return "Registration confirmed"; case "waitlisted": return "You're on the waitlist"; case "pending_approval": return "Awaiting approval"; default: return "Registration received" }
+        switch value { case "registered": return String(localized: "Registration confirmed"); case "waitlisted": return String(localized: "You're on the waitlist"); case "pending_approval": return String(localized: "Awaiting approval"); default: return String(localized: "Registration received") }
     }
 }
 
@@ -88,7 +88,7 @@ struct MemberRegistrationView: View {
                 if isDemo { Text("Demo mode · sample event ticket").font(.caption.bold()).foregroundStyle(Color.swMuted) }
                 Text(registration.event_title).font(.largeTitle.bold())
                 Text(registration.starts_at.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.swMuted)
-                Text(state.cancelled ? "Cancelled" : registration.status.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
+                Text(state.cancelled ? "Cancelled" : NativeStatusCopy.label(registration.status)).font(.headline)
                 if let position = registration.waitlist_position, !state.cancelled { Text("Waitlist position: \(position)").foregroundStyle(Color.swMuted) }
                 if state.cancelled { Text("Your registration was cancelled. Cancelling doesn't automatically issue a refund.").foregroundStyle(Color.swMuted) }
                 else if registration.status == "registered" {

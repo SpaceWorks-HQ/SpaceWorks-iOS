@@ -23,7 +23,7 @@ public enum PaymentDownloadGrant {
               let items = parts.queryItems, items.count == 1, items[0].name == "token",
               let token = items[0].value, !token.isEmpty, token.utf8.count <= 4096,
               !token.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-            throw APIError(status: 0, code: "invalid_document_grant", detail: "This document link is unavailable. Request a new link and try again.")
+            throw APIError(status: 0, code: "invalid_document_grant", detail: APILocalCopy.text("This document link is unavailable. Request a new link and try again."))
         }
         return token
     }
@@ -46,7 +46,7 @@ extension SpaceWorksService {
         let grant = try await client.api_v1_member_makerspaces_payment_documents_download_url_retrieve(
             .init(path: .init(document_id: documentID, makerspace_id: makerspaceID))).ok.body.json
         guard grant.expires_in > 0 else {
-            throw APIError(status: 0, code: "expired_document_grant", detail: "This document link expired. Try again to request a new link.")
+            throw APIError(status: 0, code: "expired_document_grant", detail: APILocalCopy.text("This document link expired. Try again to request a new link."))
         }
         let token = try PaymentDownloadGrant.token(from: grant.url, documentID: documentID, origin: origin)
         // This operation requires the authenticated generated client even with the signed token.

@@ -15,7 +15,7 @@ extension SpaceWorksService {
         switch response {
         case .ok(let value): return try value.body.json
         case .created(let value): return try value.body.json
-        default: throw APIError(status: 0, code: "push_registration_unavailable", detail: "Notifications could not be registered. Your inbox is still available.")
+        default: throw APIError(status: 0, code: "push_registration_unavailable", detail: APILocalCopy.text("Notifications could not be registered. Your inbox is still available."))
         }
     }
     public func unregisterNativePush(deviceID: Int) async throws {

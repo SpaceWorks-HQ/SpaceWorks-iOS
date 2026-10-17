@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SpaceWorksAPI",
+    defaultLocalization: "en",
     platforms: [.iOS(.v17), .macOS(.v13)],
     products: [.library(name: "SpaceWorksAPI", type: .dynamic, targets: ["SpaceWorksAPI"])],
     dependencies: [
@@ -18,6 +19,7 @@ let package = Package(
             .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
             .product(name: "HTTPTypes", package: "swift-http-types")
         ],
+        resources: [.process("Resources")],
         plugins: [.plugin(name: "OpenAPIGenerator", package: "swift-openapi-generator")]
     )]
 )

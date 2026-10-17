@@ -85,7 +85,7 @@ struct MemberContent: View {
                         else { Text("On loan").foregroundStyle(Color.swMuted) }
                         if actions != nil {
                             Button("Renew loan") { renewal = loan }.frame(minHeight: 48).disabled(!loan.can_renew)
-                            if !loan.can_renew { Text(loan.renewal_refusal ?? "Renewal isn't available for this loan. Ask your makerspace for help.").font(.caption).foregroundStyle(Color.swMuted) }
+                            if !loan.can_renew { Text(loan.renewal_refusal ?? String(localized: "Renewal isn't available for this loan. Ask your makerspace for help.")).font(.caption).foregroundStyle(Color.swMuted) }
                         }
                     }.padding(.vertical, 8)
                 }
@@ -99,7 +99,7 @@ struct MemberContent: View {
             if let rows = state.activity?.request_history, !rows.isEmpty {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(row.status.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
+                        Text(NativeStatusCopy.label(row.status)).font(.headline)
                         Text("\(row.item_count) items · \(row.created_at.formatted(date: .abbreviated, time: .omitted))").foregroundStyle(Color.swMuted)
                     }
                 }
@@ -117,7 +117,7 @@ struct MemberContent: View {
                     if actions != nil { NavigationLink(booking.space_name, value: MemberRoute.booking(booking.public_token)).font(.headline).frame(minHeight: 48) }
                     else { Text(booking.space_name).font(.headline) }
                     Text(memberDate(booking.starts_at, timezone: booking.timezone))
-                    Text(booking.status.value1.rawValue.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
+                    Text(NativeStatusCopy.label(booking.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
             }
             if state.bookingsHasMore { Button("Load more bookings") { Task { await state.loadBookings(more: true) } }.frame(minHeight: 48).disabled(state.bookingsLoad == .loading) }
@@ -145,7 +145,7 @@ struct MemberContent: View {
                 ForEach(rows, id: \.registration_id) { row in
                     VStack(alignment: .leading, spacing: 8) {
                         NavigationLink(row.event_title, value: MemberRoute.registration(row.registration_id)).font(.headline).frame(minHeight: 48).accessibilityIdentifier("registration-\(row.registration_id)")
-                        Text(row.status.replacingOccurrences(of: "_", with: " ").capitalized).foregroundStyle(Color.swMuted)
+                        Text(NativeStatusCopy.label(row.status)).foregroundStyle(Color.swMuted)
                         Text(row.starts_at.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.swMuted)
                     }
                 }
@@ -249,7 +249,7 @@ struct InventoryList: View {
                     ForEach(state.categories, id: \.id) { category in
                         Button(category.name) { state.category = category.slug; Task { await state.loadInventory() } }
                     }
-                } label: { Label(state.categories.first(where: { $0.slug == state.category })?.name ?? "All categories", systemImage: "line.3.horizontal.decrease.circle") }.frame(minHeight: 48)
+                } label: { Label(state.categories.first(where: { $0.slug == state.category })?.name ?? String(localized: "All categories"), systemImage: "line.3.horizontal.decrease.circle") }.frame(minHeight: 48)
                 if case .failed = state.categoriesLoad {
                     LoadFeedback(load: state.categoriesLoad, retryAfter: state.deadline("categories")) { await state.loadCategories() }
                 }
@@ -293,9 +293,9 @@ struct InventoryList: View {
 }
 
 private func availability(_ product: Components.Schemas.PublicProduct) -> String {
-    guard let value = product.availability else { return "Ask your makerspace about availability." }
-    if let count = value.count, value.mode == .exact_count { return "\(count) available" }
-    return value.label?.rawValue ?? "Ask your makerspace about availability."
+    guard let value = product.availability else { return String(localized: "Ask your makerspace about availability.") }
+    if let count = value.count, value.mode == .exact_count { return String(localized: "\(count) available") }
+    return value.label?.rawValue ?? String(localized: "Ask your makerspace about availability.")
 }
 
 private func memberDate(_ date: Date, timezone: String) -> String {

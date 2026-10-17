@@ -1,6 +1,68 @@
 # Phase notes
 
+## A7 Account and localization — implementation checkpoint (2026-10-17)
+
+Provide global Account and security before joining a makerspace: authenticator status, phone linking,
+linked providers, password change and native Devices. Separately gate member Sessions, membership
+cancellation/leave and data exports with the actual selected membership and bootstrap capabilities.
+Never invent a makerspace0 or infer a current device from list order. A confirmed leave removes local
+private scope before refetch, and failed notification cleanup blocks leaving until recoverable.
+
+Account repositories retain the accepted credential installation across requests, retries and
+wrong-password identity probes. A retired account cannot issue a request or sign out its replacement.
+Manual password changes validate identity after the server acknowledgement; the required temporary
+password gate wipes local protected state and returns to fresh sign-in. Security changes that end
+sessions clear native credentials before showing transient recovery-code acknowledgement. Existing
+live management routes are used where supported; native MFA setup/provider linking that the current
+server refuses remains explicitly unavailable, with full isolated Debug journeys.
+
+The Debug-only whole-account deletion journey explains all-makerspace scope, lists every blocker with
+fix destinations, requires fresh sample password/OTP proof and exact DELETE confirmation, and handles
+expired proof/conflicting new obligations. It only resets preview memory. The immutable schema has no
+account-deletion route, so production deletion remains an explicit backend/release dependency.
+
+Prepare an English app catalog and processed API fallback catalog, localize app-owned labels/errors
+at their producers, retain raw server/user text and wire values, and bundle English camera purpose
+copy. Existing privacy shielding protects credentials, authenticator secrets and recovery codes
+across background snapshots. Additional languages and translation layout are not claimed validated.
+
+Source adds57 native state/API cases and8 account/security UI journeys, pending Mac execution at
+this checkpoint. Parity: Account and security / Devices / Sessions / Change password / Password changed.
+/ Password updated. Sign in again. / Leave makerspace / Cancel renewal / Export your data / Delete account.
+
+
+The Debug username unverified opens an isolated email-confirmation preview with sample code 123456, rejected-code handling, shared resend cooldown and safe reset; no message is sent or server authority inferred. Export archive controls scroll at accessibility sizes, with a separate largest-text landscape native Share journey. These add two state cases and two UI journeys; execution remains pending.
+
+Bind authenticated email verification and resend forms to the accepted installation, account and
+identity generation. Retired forms cannot first-send under a replacement login or refresh its
+identity after a delayed acknowledgement. Email cooldowns belong to the account; an old resend
+cannot mutate a replacement form's deadline. Six URLProtocol regressions cover first-send,
+delayed confirm/resend, valid same-installation token rotation, current-owner refused refresh and
+validation/throttle/offline errors with a valid session;
+native execution is pending. Refused refresh wipes protected identity through the central owner;
+400/429 and offline errors with valid credentials keep the session. State checks ownership again
+before committing acknowledgement, cooldown or error copy.
+
+Native session, recovery-code and membership confirmations use guarded dialog-specific button
+activation in their UI journeys: assert the visible fixed title, action presence, native hittability
+and full window frame before tapping. This carries forward the proven A5 popover test correction;
+shared app scrolling and all post-action assertions remain unchanged. Native A7 execution is pending.
+
+A superseded account cooldown cannot clear the newer server deadline, even when its sleep finishes
+normally during cancellation. The injected timer dependency keeps the real production sleep and
+3600-second chunk cap; one controlled two-request URLProtocol regression holds both security/provider
+reads before429, replaces the timer and checks that late completion cannot reopen requests. Native
+execution remains pending.
+
+The existing largest-text landscape archive journey waits for the native share sheet’s Save to Files
+action before capture, rather than treating a tap as proof of system presentation. It does not save
+externally, add a case or extend existing readiness limits. Native proof remains pending.
+
 ## A6 Staff — implementation checkpoint (2026-10-17)
+
+Completion evidence: [`53843cb` CI39014792272](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39014792272) passed 219 native state/API tests and 24 native UI journeys on both phone and tablet, 19 Python generation/fixture checks, and the unsigned physical-device Release build. These are contract-fixture/compiler results; real device/provider/backend validation remains a release gate.
+
+Independent full-OS review accepted phone and tablet handover evidence/kit count, the native Record handover confirmation and the recorded request #602, plus attendance person/status confirmation and the recorded notice. The complete large-text Submit request control and receipt were visible on both sizes. On the phone the bounded native scroll alternate actually ran after an unchanged offscreen frame and moved the target from y1727.29 to y1150.96; the later activation required the full button at y716.62–842. The individual coordinate-pan no-op mechanism remains unproven; no production gesture or framework cause is claimed. All earlier member/payment journeys, including actual receipt-page OCR, remain enabled and passed.
 
 Initial native evidence: [`eaa400d` CI39006807733](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39006807733) passed all 215 native state/API cases and the 22 earlier UI journeys on both phone and tablet. The two new staff journeys hung while opening their destinations, so this phase was not accepted and the unsigned physical-device Release step was skipped. Destination construction registered weak child-cleanup callbacks on an observable array. That bookkeeping now avoids view observation; a focused actual-child construction regression checks that registration does not invalidate the parent view while scope invalidation still clears both children. The corrected 219-native/24-UI complete gate remains pending.
 

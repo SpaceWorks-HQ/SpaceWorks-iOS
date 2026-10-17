@@ -7,7 +7,7 @@ struct PasswordEntry: UIViewRepresentable {
     var visible = false
     var newPassword = false
     var identifier: String
-    var label = "Password"
+    var label = String(localized: "Password")
     var focus: Binding<Bool>?
     var onSubmit: () -> Void = {}
 
@@ -81,7 +81,7 @@ struct PasswordControl: View {
                 Button { visible.toggle() } label: {
                     Image(systemName: visible ? "eye.slash" : "eye").frame(width: 48, height: 48)
                 }.accessibilityLabel(visible ? "Hide password" : "Show password")
-                    .accessibilityValue(visible ? "Visible" : "Hidden")
+                    .accessibilityValue(visible ? String(localized: "Visible") : String(localized: "Hidden"))
             }.padding(.leading, 12).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
         }

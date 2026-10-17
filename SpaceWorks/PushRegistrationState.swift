@@ -87,7 +87,7 @@ actor PushRegistrationCoordinator {
             }
             let registered = try await repository.register(makerspaceID: maker, token: token.lowercased(), environment: environment, authorizedDirectMembershipIDs: authorizedDirectMembershipIDs)
             guard registered.id > 0, registered.makerspace_id == maker, registered.provider == "apns", registered.environment == environment, registered.active else {
-                throw APIError(status: 0, code: "invalid_push_registration", detail: "The server could not confirm notification registration. Your inbox is still available.")
+                throw APIError(status: 0, code: "invalid_push_registration", detail: String(localized: "The server could not confirm notification registration. Your inbox is still available."))
             }
             state.registrations.append(.init(makerspaceID: maker, deviceID: registered.id, tokenDigest: digest, environment: environment))
             do { try save(state) }
@@ -171,7 +171,7 @@ actor PushRegistrationCoordinator {
     static func validToken(_ token: String) -> Bool {
         token.utf8.count >= 20 && token.utf8.count <= 4096 && token.count.isMultiple(of: 2) && token.allSatisfy { "0123456789abcdefABCDEF".contains($0) }
     }
-    static var invalidConfiguration: APIError { APIError(status: 0, code: "push_not_configured", detail: "Notifications are not configured for this build. Your inbox is still available.") }
+    static var invalidConfiguration: APIError { APIError(status: 0, code: "push_not_configured", detail: String(localized: "Notifications are not configured for this build. Your inbox is still available.")) }
 }
 
 @MainActor @Observable final class PushRegistrationState {

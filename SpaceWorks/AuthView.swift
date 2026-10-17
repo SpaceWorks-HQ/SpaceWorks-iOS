@@ -24,8 +24,10 @@ struct AuthRoot: View {
             case .signIn: SignInView(auth: auth, state: state)
             case .mfa, .recoveryCodes: MFAView(auth: auth)
             case .passwordChange: PasswordChangeView(auth: auth)
+            case .securityCompletion:
+                AccountSecurityCompletionView(codes: auth.recoveryCodes, message: auth.securityMessage ?? "", continueToSignIn: auth.finishSecurityCompletion)
             case .signedIn:
-                if auth.selectedID == nil { MakerspacePicker(auth: auth) }
+                if auth.selectedID == nil { AccountMakerspaceLanding(auth: auth) }
                 else { AppShell(state: state, auth: auth, linkRouter: linkRouter) }
             }
             }
@@ -44,7 +46,7 @@ struct AuthRoot: View {
             linkRouter.bind(account: origin.url.absoluteString + ".account.\(id)", refresh: { try await auth.freshMembershipIDs() }, select: { try await auth.selectForLink($0) }, resolveLegacy: { legacy in
                 _ = try await auth.freshMembershipIDs()
                 guard let membership = auth.memberships.first(where: { $0.slug == legacy.slug }), !legacy.staffInbox || auth.staffToolsAvailable else {
-                    throw APIError(status: 403, code: "link_membership_unavailable", detail: "This update isn't available to your account.")
+                    throw APIError(status: 403, code: "link_membership_unavailable", detail: String(localized: "This update isn't available to your account."))
                 }
                 return MobileLink(makerspaceID: membership.id, destination: legacy.staffInbox ? .inbox : .home)
             }, owner: routingOwner)
@@ -63,16 +65,16 @@ struct PasswordChangeView: View {
             SWCard {
                 Text("Choose a new password").font(.largeTitle.bold())
                 Text("Replace your temporary password to continue.").foregroundStyle(Color.swMuted)
-                PasswordControl(title: "Current password", text: $current, identifier: "current-password")
-                PasswordControl(title: "New password", text: $new, newPassword: true, identifier: "new-password")
-                PasswordControl(title: "Confirm password", text: $confirmation, newPassword: true, identifier: "confirm-password")
+                PasswordControl(title: String(localized: "Current password"), text: $current, identifier: "current-password")
+                PasswordControl(title: String(localized: "New password"), text: $new, newPassword: true, identifier: "new-password")
+                PasswordControl(title: String(localized: "Confirm password"), text: $confirmation, newPassword: true, identifier: "confirm-password")
                 if let error = auth.error { SWError(message: error) }
                 Button(auth.busy ? "Updating…" : "Update password") {
                     Task { await auth.changePassword(current: current, new: new, confirmation: confirmation); current = ""; new = ""; confirmation = "" }
                 }.buttonStyle(SWPrimary()).disabled(auth.busy)
                 Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 48).disabled(auth.busy)
             }.padding(24).frame(maxWidth: 560).frame(maxWidth: .infinity)
-        }.background(Color.swBg)
+        }.background(Color.swBg).onDisappear { current = ""; new = ""; confirmation = "" }
     }
 }
 
@@ -242,7 +244,7 @@ struct MFAView: View {
 }
 struct QRCodeView: View {
     let value: String
-    var label = "Authenticator setup QR code"
+    var label = String(localized: "Authenticator setup QR code")
     var body: some View {
         if let image = image {
             Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxWidth: 240, maxHeight: 240)
@@ -259,6 +261,8 @@ struct QRCodeView: View {
 }
 struct MakerspacePicker: View {
     let auth: AuthState
+    var account: AccountState? = nil
+    @State private var emailForm: AccountAccessState?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -274,9 +278,15 @@ struct MakerspacePicker: View {
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("makerspace-\(membership.id)")
                 }
+                if let account {
+                    NavigationLink("Account and security") { AccountView(state: account, privacyURL: Brand.privacyURL.flatMap(URL.init(string:)), supportURL: Brand.supportURL.flatMap(URL.init(string:))) }
+                        .frame(minHeight: 48).accessibilityIdentifier("account-entry")
+                }
+                if auth.user?.email_verified == false { Button("Confirm email") { emailForm = auth.accountForm(.emailVerification) }.frame(minHeight: 48) }
                 if let error = auth.error { SWError(message: error) }
-                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 48)
+                Button("Sign out") { Task { await auth.signOut() } }.frame(minHeight: 48).disabled(auth.busy)
             }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg)
+            .sheet(item: $emailForm) { form in AccountAccessView(form: form) { emailForm = nil } }
     }
 }

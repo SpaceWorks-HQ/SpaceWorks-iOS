@@ -194,11 +194,11 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
         auth.code = "123456"; await auth.verify()
         XCTAssertEqual(auth.stage, .signIn); XCTAssertEqual(auth.error, "Your sign-in expired. Try again.")
     }
-    func testTemporaryPasswordGateRefetchesAuthorityBeforeOpeningApp() async throws {
+    func testTemporaryPasswordAcknowledgementClearsPrivateStateAndRequiresFreshSignIn() async throws {
         let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
         var changed = false
         let auth = state(storage: storage) { request in
-            if request.url!.path.hasSuffix("/me") { return (200, changed ? DebugAuthFixtures.user : DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true")) }
+            if request.url!.path.hasSuffix("/me") { XCTAssertFalse(changed, "Required update must reauthenticate, not silently reopen the app"); return (200, DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true")) }
             if request.url!.path.hasSuffix("/change-password") {
                 let body = try JSONSerialization.jsonObject(with: requestBody(request)) as! [String: String]
                 XCTAssertEqual(body, ["current_password": "temporary", "new_password": "replacement"])
@@ -208,9 +208,30 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
             return try self.response(request)
         }
         await auth.restore(); XCTAssertEqual(auth.stage, .passwordChange)
+        var privateCleared = false; auth.registerPrivateHolder(UUID()) { privateCleared = true }
         await auth.changePassword(current: "temporary", new: "replacement", confirmation: "replacement")
-        XCTAssertEqual(auth.stage, .signedIn); XCTAssertNotNil(try storage.load())
-        XCTAssertNil(auth.error)
+        XCTAssertTrue(changed); XCTAssertTrue(privateCleared)
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(try storage.load()); XCTAssertNil(auth.user); XCTAssertNil(auth.selectedID)
+        XCTAssertEqual(auth.error, "Password updated. Sign in again.")
+    }
+    func testWrongTemporaryPasswordPreservesVerifiedNativeSessionAndGate() async throws {
+        let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        var checks = 0
+        let auth = state(storage: storage) { request in
+            if request.url!.path.hasSuffix("/me") {
+                checks += 1
+                return (200, DebugAuthFixtures.user.replacingOccurrences(of: "\"must_change_password\":false", with: "\"must_change_password\":true"))
+            }
+            if request.url!.path.hasSuffix("/change-password") { return (401, #"{"detail":"Current password is incorrect."}"#) }
+            if request.url!.path.hasSuffix("/refresh") { return (200, #"{"access":"rotated-access","refresh":"rotated-refresh"}"#) }
+            return try self.response(request)
+        }
+        await auth.restore(); XCTAssertEqual(auth.stage, .passwordChange)
+        var privateCleared = false; auth.registerPrivateHolder(UUID()) { privateCleared = true }
+        await auth.changePassword(current: "incorrect", new: "replacement", confirmation: "replacement")
+        XCTAssertFalse(privateCleared); XCTAssertEqual(auth.stage, .passwordChange); XCTAssertNotNil(auth.user)
+        XCTAssertNotNil(try storage.load()); XCTAssertEqual(auth.error, "Current password is incorrect."); XCTAssertEqual(checks, 2)
+        await auth.invalidateSession(message: "Test finished.")
     }
     func testDemoBlockedStatesAreExplicitAndResettable() {
         let demo = DemoSession()

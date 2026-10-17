@@ -4,12 +4,12 @@ enum NativeTransferError: LocalizedError, Equatable {
     case invalidURL, invalidInput, tooLarge, refused, unsupportedDocument, failed
     var errorDescription: String? {
         switch self {
-        case .invalidURL: return "This file link is unavailable. Request a new link and try again."
-        case .invalidInput: return "This file could not be prepared. Choose another file and try again."
-        case .tooLarge: return "This file exceeds the supported size. Try a smaller file or use the web console."
-        case .refused: return "File access was refused. Request a new link and try again."
-        case .unsupportedDocument: return "This document could not be opened in the app."
-        case .failed: return "Couldn't transfer this file. Check your connection and try again."
+        case .invalidURL: return String(localized: "This file link is unavailable. Request a new link and try again.")
+        case .invalidInput: return String(localized: "This file could not be prepared. Choose another file and try again.")
+        case .tooLarge: return String(localized: "This file exceeds the supported size. Try a smaller file or use the web console.")
+        case .refused: return String(localized: "File access was refused. Request a new link and try again.")
+        case .unsupportedDocument: return String(localized: "This document could not be opened in the app.")
+        case .failed: return String(localized: "Couldn't transfer this file. Check your connection and try again.")
         }
     }
 }

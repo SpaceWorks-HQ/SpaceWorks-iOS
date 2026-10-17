@@ -14,30 +14,30 @@ struct AccountAccessView: View {
                     Text(explanation).foregroundStyle(Color.swMuted)
                     switch form.step {
                     case .signUp:
-                        input("Name", value: $form.name, id: "signup-name", type: .name)
-                        input("Email", value: $form.email, id: "account-email", type: .emailAddress)
-                        PasswordControl(title: "Password", text: $form.password, newPassword: true, identifier: "account-password")
-                        PasswordControl(title: "Confirm password", text: $form.confirmation, newPassword: true, identifier: "account-confirm-password")
+                        input(String(localized: "Name"), value: $form.name, id: "signup-name", type: .name)
+                        input(String(localized: "Email"), value: $form.email, id: "account-email", type: .emailAddress)
+                        PasswordControl(title: String(localized: "Password"), text: $form.password, newPassword: true, identifier: "account-password")
+                        PasswordControl(title: String(localized: "Confirm password"), text: $form.confirmation, newPassword: true, identifier: "account-confirm-password")
                         DisclosureGroup("Phone number (optional)") {
-                            input("Phone number", value: $form.phone, id: "account-phone", type: .telephoneNumber)
+                            input(String(localized: "Phone number"), value: $form.phone, id: "account-phone", type: .telephoneNumber)
                         }.padding(.vertical, 8)
-                        primary("Create account") { await form.signUp() }
+                        primary(String(localized: "Create account")) { await form.signUp() }
                     case .requestReset:
-                        input("Email", value: $form.email, id: "account-email", type: .emailAddress)
-                        primary("Request recovery code") { await form.requestCode() }
+                        input(String(localized: "Email"), value: $form.email, id: "account-email", type: .emailAddress)
+                        primary(String(localized: "Request recovery code")) { await form.requestCode() }
                     case .confirmReset:
                         Text(form.email).textSelection(.enabled).foregroundStyle(Color.swMuted)
-                        codeInput("Six-digit code")
-                        PasswordControl(title: "New password", text: $form.password, newPassword: true, identifier: "account-password")
-                        PasswordControl(title: "Confirm password", text: $form.confirmation, newPassword: true, identifier: "account-confirm-password")
-                        primary("Update password") { await form.confirmReset() }
-                        resend("Request another code") { await form.requestCode(resending: true) }
+                        codeInput(String(localized: "Six-digit code"))
+                        PasswordControl(title: String(localized: "New password"), text: $form.password, newPassword: true, identifier: "account-password")
+                        PasswordControl(title: String(localized: "Confirm password"), text: $form.confirmation, newPassword: true, identifier: "account-confirm-password")
+                        primary(String(localized: "Update password")) { await form.confirmReset() }
+                        resend(String(localized: "Request another code")) { await form.requestCode(resending: true) }
                         Button("Change email") { form.changeEmail() }.frame(minHeight: 48)
                     case .emailVerification:
                         Text(form.email).textSelection(.enabled).foregroundStyle(Color.swMuted)
-                        codeInput("Verification code")
-                        primary("Confirm email") { await form.confirmEmail() }
-                        resend("Send another code") { await form.resendEmail() }
+                        codeInput(String(localized: "Verification code"))
+                        primary(String(localized: "Confirm email")) { await form.confirmEmail() }
+                        resend(String(localized: "Send another code")) { await form.resendEmail() }
                     case .created, .resetComplete, .unavailable:
                         Image(systemName: form.step == .unavailable ? "person.crop.circle.badge.questionmark" : "checkmark.circle")
                             .font(.largeTitle).foregroundStyle(Color.swAccentInk).accessibilityHidden(true)
@@ -59,32 +59,33 @@ struct AccountAccessView: View {
     }
     private var heading: String {
         switch form.step {
-        case .signUp: return "Create your account"
-        case .created: return "Account created"
-        case .requestReset: return "Reset password"
-        case .confirmReset: return "Enter your recovery code"
-        case .resetComplete: return "Password updated"
-        case .unavailable: return "Password recovery unavailable"
-        case .emailVerification: return "Confirm your email"
+        case .signUp: return String(localized: "Create your account")
+        case .created: return String(localized: "Account created")
+        case .requestReset: return String(localized: "Reset password")
+        case .confirmReset: return String(localized: "Enter your recovery code")
+        case .resetComplete: return String(localized: "Password updated")
+        case .unavailable: return String(localized: "Password recovery unavailable")
+        case .emailVerification: return String(localized: "Confirm your email")
         }
     }
     private var explanation: String {
         if form.isDemo {
             switch form.step {
-            case .requestReset, .confirmReset: return "No message is sent in this demo. Use the sample recovery code 123456."
-            case .created: return "Simulated account creation. No account was created on a server."
-            case .resetComplete: return "Simulated password update. No real account was changed."
+            case .requestReset, .confirmReset: return String(localized: "No message is sent in this demo. Use the sample recovery code 123456.")
+            case .emailVerification: return String(localized: "No message is sent in this demo. Use the sample verification code 123456.")
+            case .created: return String(localized: "Simulated account creation. No account was created on a server.")
+            case .resetComplete: return String(localized: "Simulated password update. No real account was changed.")
             default: break
             }
         }
         switch form.step {
-        case .signUp: return "Use the email you want to use with your makerspace."
-        case .created: return "Sign in to continue. You may need to confirm your email."
-        case .requestReset: return "Enter your account email to request a six-digit recovery code."
-        case .confirmReset: return "If an account matches this email, a recovery code will arrive. Delivery may take a few minutes."
-        case .resetComplete: return "Your password has been updated. You can now sign in."
-        case .unavailable: return "Contact your makerspace staff to reset your password."
-        case .emailVerification: return "Enter the six-digit code sent to your email."
+        case .signUp: return String(localized: "Use the email you want to use with your makerspace.")
+        case .created: return String(localized: "Sign in to continue. You may need to confirm your email.")
+        case .requestReset: return String(localized: "Enter your account email to request a six-digit recovery code.")
+        case .confirmReset: return String(localized: "If an account matches this email, a recovery code will arrive. Delivery may take a few minutes.")
+        case .resetComplete: return String(localized: "Your password has been updated. You can now sign in.")
+        case .unavailable: return String(localized: "Contact your makerspace staff to reset your password.")
+        case .emailVerification: return String(localized: "Enter the six-digit code sent to your email.")
         }
     }
     private func input(_ title: String, value: Binding<String>, id: String, type: UITextContentType) -> some View {
@@ -103,7 +104,7 @@ struct AccountAccessView: View {
             Text(title).font(.headline)
             TextField(title, text: $form.code, prompt: Text(title).foregroundColor(Color.swMuted)).keyboardType(.numberPad).textContentType(.oneTimeCode)
                 .textInputAutocapitalization(.never).autocorrectionDisabled().monospacedDigit()
-                .accessibilityIdentifier("account-code").padding(14).frame(minHeight: 48)
+                .focused($focused, equals: "account-code").accessibilityIdentifier("account-code").padding(14).frame(minHeight: 48)
                 .background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
         }

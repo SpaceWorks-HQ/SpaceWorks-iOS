@@ -221,7 +221,7 @@ final class MemberState {
         guard let components = URLComponents(string: next),
               let value = components.queryItems?.first(where: { $0.name == "page" })?.value,
               let page = Int(value), page > current else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The server returned an invalid next page.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The server returned an invalid next page."))
         }
         return page
     }

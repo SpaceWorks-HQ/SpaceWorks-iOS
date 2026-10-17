@@ -17,7 +17,7 @@ final class BookingState {
     private var active = true
     init(repository: any MemberActionsRepository, space: Components.Schemas.PublicBookableSpace) { self.repository = repository; self.space = space }
     private func valid(now: Date) -> Bool {
-        guard end > now, end > start else { error = "Choose an end time in the future and after the start time."; return false }
+        guard end > now, end > start else { error = String(localized: "Choose an end time in the future and after the start time."); return false }
         return true
     }
     func check(now: Date = Date()) async {

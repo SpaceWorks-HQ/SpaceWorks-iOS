@@ -106,7 +106,7 @@ struct PaymentDetailView: View {
                         ForEach(Array(row.refunds.enumerated()), id: \.offset) { _, refund in
                             SWCard {
                                 PaymentMoney(amount: refund.amount, currency: refund.currency)
-                                Text(refund.status.replacingOccurrences(of: "_", with: " ").capitalized).font(.headline)
+                                Text(NativeStatusCopy.label(refund.status)).font(.headline)
                                 if !refund.reason.isEmpty { Text(refund.reason).foregroundStyle(Color.swMuted) }
                                 if !refund.reference.isEmpty { Text("Reference: \(refund.reference)").foregroundStyle(Color.swMuted).textSelection(.enabled) }
                             }

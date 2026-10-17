@@ -37,7 +37,7 @@ struct LivePaymentRepository: PaymentRepository {
     func documents(page: Int) async throws -> Components.Schemas.DocumentPage {
         let result = try await checked { try await service.memberPaymentDocuments(makerspaceID: makerspaceID, page: page) }
         if let next = try origin.nextPage(result.next), next.path != "/api/v1/member/makerspaces/\(makerspaceID)/payment-documents" {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next document page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next document page is unavailable. Refresh and try again."))
         }
         return result
     }
@@ -154,7 +154,7 @@ final class PaymentsState {
             guard matches(attempt) else { return nil }
             guard canRequest else { throw throttledCheckout }
             guard intent.payment_id == paymentID, !intent.client_secret.isEmpty, !intent.publishable_key.isEmpty else {
-                throw APIError(status: 0, code: "invalid_payment_setup", detail: "Payment setup is unavailable. Contact your makerspace.")
+                throw APIError(status: 0, code: "invalid_payment_setup", detail: String(localized: "Payment setup is unavailable. Contact your makerspace."))
             }
             checkout = .presenting(paymentID)
             return (attempt, intent)
@@ -271,7 +271,7 @@ final class PaymentsState {
         guard let parts = URLComponents(string: value), let items = parts.queryItems,
               items.count == 1, items[0].name == "page", let raw = items[0].value,
               !raw.isEmpty, raw.allSatisfy({ $0.isASCII && $0.isNumber }), let next = Int(raw), next > page else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next document page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next document page is unavailable. Refresh and try again."))
         }
         return next
     }

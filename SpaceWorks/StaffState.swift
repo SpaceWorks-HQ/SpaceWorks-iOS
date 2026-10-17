@@ -70,13 +70,13 @@ final class StaffState {
     func accept(_ row: Components.Schemas.AdminRequest, quantities: [Int: Int]) async {
         guard can("accept_request"), row.makerspace_id == makerspaceID,
               row.items.allSatisfy({ $0.requested_quantity >= 0 && (0...$0.requested_quantity).contains(quantities[$0.id] ?? 0) }),
-              quantities.values.contains(where: { $0 > 0 }) else { error = "Choose a valid quantity for at least one item."; return }
+              quantities.values.contains(where: { $0 > 0 }) else { error = String(localized: "Choose a valid quantity for at least one item."); return }
         let body = Components.Schemas.AcceptRequest(accepted_quantities: row.items.map { .init(item_id: $0.id, quantity: quantities[$0.id] ?? 0) })
         await mutate("Request accepted.") { _ = try await self.repository.accept(id: row.id, body: body) }
     }
     func reject(_ row: Components.Schemas.AdminRequest, reason: String) async {
         let value = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard can("reject_request"), row.makerspace_id == makerspaceID, !value.isEmpty else { error = "Add a reason before rejecting this request."; return }
+        guard can("reject_request"), row.makerspace_id == makerspaceID, !value.isEmpty else { error = String(localized: "Add a reason before rejecting this request."); return }
         await mutate("Request rejected.") { _ = try await self.repository.reject(id: row.id, body: .init(reason: value)) }
     }
     private func mutate(_ success: String, operation: () async throws -> Void) async {
@@ -134,7 +134,7 @@ final class StaffState {
             busy = false
             guard active, scopeGeneration == bookingsGeneration, selectedSpace == row.space_id else { return }
             bookings = bookings.map { $0.id == updated.id ? updated : $0 }
-            notice = approve ? "Booking approved." : "Booking rejected."; busy = false
+            notice = approve ? String(localized: "Booking approved.") : String(localized: "Booking rejected."); busy = false
         } catch {
             guard active else { return }; refuse(error); self.error = APIError.display(error); busy = false
             if active, scopeGeneration == bookingsGeneration, selectedSpace == row.space_id { await loadBookings(spaceID: row.space_id) }
@@ -152,7 +152,7 @@ final class StaffState {
         }
         if [401, 403].contains(APIError.status(error)) {
             invalidate(); self.error = APIError.display(error)
-            notice = "Your access changed. Return to your makerspace before continuing."
+            notice = String(localized: "Your access changed. Return to your makerspace before continuing.")
         }
     }
 }
@@ -164,7 +164,7 @@ enum StaffPaging {
               items.filter({ $0.name == "page" }).count == 1,
               let value = items.first(where: { $0.name == "page" })?.value,
               let next = Int(value), next > page else {
-            throw APIError(status: 0, code: "invalid_next_page", detail: "The next page is unavailable. Refresh and try again.")
+            throw APIError(status: 0, code: "invalid_next_page", detail: String(localized: "The next page is unavailable. Refresh and try again."))
         }
         return next
     }

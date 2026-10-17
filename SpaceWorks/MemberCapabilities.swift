@@ -12,6 +12,7 @@ import SpaceWorksAPI
     let makerspaceID: Int
     init(repository: any MemberActionsRepository, makerspaceID: Int) { self.repository = repository; self.makerspaceID = makerspaceID }
     var selfService: Bool { bootstrap?.modules.contains("membership") == true && bootstrap?.modules.contains("member_accounts") == true && bootstrap?.features.contains("membership.self_service") == true }
+    var exports: Bool { bootstrap?.modules.contains("membership") == true && bootstrap?.modules.contains("member_accounts") == true && bootstrap?.features.contains("membership.self_export") == true }
     var preferences: Bool { bootstrap?.modules.contains("notifications") == true && bootstrap?.features.contains("notifications.member_preferences") == true }
     var digests: Bool { preferences && bootstrap?.features.contains("notifications.digests") == true }
     func load(now: Date = Date()) async {
@@ -19,7 +20,7 @@ import SpaceWorksAPI
         busy = true; error = nil; defer { busy = false }
         do {
             let value = try await repository.bootstrap(); guard active else { return }
-            guard value.makerspace.id == makerspaceID else { throw APIError(status: 403, code: "wrong_makerspace", detail: "This configuration belongs to another makerspace.") }
+            guard value.makerspace.id == makerspaceID else { throw APIError(status: 403, code: "wrong_makerspace", detail: String(localized: "This configuration belongs to another makerspace.")) }
             bootstrap = value; retryAfter = nil
         } catch { guard active else { return }; bootstrap = nil; self.error = APIError.display(error); retryAfter = APIError.retryDeadline(error) }
     }

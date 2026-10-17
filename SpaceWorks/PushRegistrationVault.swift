@@ -66,7 +66,7 @@ struct PushRegistrationVault: PushRegistrationStorage {
             row.tokenDigest.allSatisfy { "0123456789abcdef".contains($0) }
         }) else { throw storageError }
     }
-    private var storageError: APIError { APIError(status: 0, code: "push_storage_unavailable", detail: "Notification settings could not be stored securely. Unlock your device and try again.") }
+    private var storageError: APIError { APIError(status: 0, code: "push_storage_unavailable", detail: String(localized: "Notification settings could not be stored securely. Unlock your device and try again.")) }
     private func check(_ status: OSStatus) throws { guard status == errSecSuccess else { throw storageError } }
     static func digest(_ value: String) -> String { SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined() }
 }

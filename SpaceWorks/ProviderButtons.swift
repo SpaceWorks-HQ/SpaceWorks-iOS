@@ -15,7 +15,7 @@ struct GoogleProviderButton: UIViewRepresentable {
     func updateUIView(_ view: GIDSignInButton, context: Context) {
         context.coordinator.action = action
         view.style = wide ? .wide : .standard
-        view.accessibilityLabel = "Sign in with Google"
+        view.accessibilityLabel = String(localized: "Sign in with Google")
     }
     func makeCoordinator() -> Coordinator { Coordinator(action: action) }
     final class Coordinator: NSObject {

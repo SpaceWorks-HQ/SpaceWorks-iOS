@@ -27,7 +27,7 @@ import SpaceWorksAPI
     private var select: ((Int) async throws -> Void)?
     private var resolveLegacy: ((MobileLink.Legacy) async throws -> MobileLink)?
     func cancelIntent() { pendingNeedsInbox = false; revision += 1; pending = nil; pendingLegacy = nil; approved = nil; error = nil }
-    func refuseURL() { cancelIntent(); error = "That link can't be opened in this app." }
+    func refuseURL() { cancelIntent(); error = String(localized: "That link can't be opened in this app.") }
     func receive(_ hint: NotificationHint) {
         if hint.version == 2, let path = hint.relativeLink, let legacy = MobileLink.legacy(path) {
             receive(MobileLink.Legacy(slug: legacy.slug, staffInbox: legacy.staffInbox, expectedMakerspaceID: hint.makerspaceID))
@@ -48,7 +48,7 @@ import SpaceWorksAPI
             do {
                 let intent: MobileLink
                 if let legacy = pendingLegacy {
-                    guard let resolveLegacy else { throw APIError(status: 403, code: "link_unavailable", detail: "This update isn't available to your account.") }
+                    guard let resolveLegacy else { throw APIError(status: 403, code: "link_unavailable", detail: String(localized: "This update isn't available to your account.")) }
                     let resolved = try await resolveLegacy(legacy)
                     if let expected = legacy.expectedMakerspaceID, resolved.makerspaceID != expected {
                         intent = MobileLink(makerspaceID: expected, destination: .inbox)
@@ -59,7 +59,7 @@ import SpaceWorksAPI
                 let membershipIDs = try await refresh()
                 guard self.account == account, bindingRevision == expectedBinding else { continue }
                 if revision != expected { continue }
-                guard membershipIDs.contains(intent.makerspaceID) else { throw APIError(status: 403, code: "link_membership_unavailable", detail: "This makerspace isn't available to your account.") }
+                guard membershipIDs.contains(intent.makerspaceID) else { throw APIError(status: 403, code: "link_membership_unavailable", detail: String(localized: "This makerspace isn't available to your account.")) }
                 try await select(intent.makerspaceID)
                 guard self.account == account, bindingRevision == expectedBinding else { continue }
                 if revision != expected { continue }
