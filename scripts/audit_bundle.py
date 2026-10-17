@@ -50,7 +50,7 @@ def audit(app, brand):
     api_resources = [path for path in app.rglob('*.bundle') if 'SpaceWorksAPI' in path.name and (path / 'en.lproj/Localizable.strings').is_file()]
     check(bool(api_resources), 'Generated API package English resource bundle is missing')
     manifests = sorted(str(path.relative_to(app)) for path in app.rglob('PrivacyInfo.xcprivacy'))
-    result = {'kind': 'unsigned-release-resource-audit', 'bundle_id': info.get('CFBundleIdentifier'), 'version': info.get('CFBundleShortVersionString'), 'build': info.get('CFBundleVersion'), 'device_families': info.get('UIDeviceFamily'), 'privacy_manifests_present': manifests, 'api_resource_bundles': sorted(str(path.relative_to(app)) for path in api_resources), 'failures': failures}
+    result = {'kind': 'unsigned-release-resource-audit', 'bundle_id': info.get('CFBundleIdentifier'), 'version': info.get('CFBundleShortVersionString'), 'build': info.get('CFBundleVersion'), 'device_families': info.get('UIDeviceFamily'), 'scene_manifest': info.get('UIApplicationSceneManifest'), 'privacy_manifests_present': manifests, 'api_resource_bundles': sorted(str(path.relative_to(app)) for path in api_resources), 'failures': failures}
     return result
 
 

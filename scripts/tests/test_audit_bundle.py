@@ -34,6 +34,7 @@ class ReleaseBundleAuditTests(unittest.TestCase):
         result = module.audit(self.app, self.brand)
         self.assertEqual(result['failures'], [])
         self.assertEqual(result['kind'], 'unsigned-release-resource-audit')
+        self.assertEqual(result['scene_manifest'], {'UIApplicationSupportsMultipleScenes': False})
         self.assertEqual(result['privacy_manifests_present'], ['PrivacyInfo.xcprivacy'])
 
     def test_catches_source_resources_omitted_from_app(self):
@@ -64,7 +65,9 @@ class ReleaseBundleAuditTests(unittest.TestCase):
         for manifest in [{}, {'UIApplicationSupportsMultipleScenes': True}]:
             self.info['UIApplicationSceneManifest'] = manifest
             self.write_info()
-            self.assertTrue(any('Single-scene' in failure for failure in module.audit(self.app, self.brand)['failures']))
+            result = module.audit(self.app, self.brand)
+            self.assertEqual(result['scene_manifest'], manifest)
+            self.assertTrue(any('Single-scene' in failure for failure in result['failures']))
 
 if __name__ == '__main__':
     unittest.main()

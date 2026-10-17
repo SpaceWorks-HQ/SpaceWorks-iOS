@@ -149,6 +149,12 @@ class GenerationTests(unittest.TestCase):
         release = plistlib.loads((ROOT / "SpaceWorks/Generated/Info-Release.plist").read_bytes())
         self.assertEqual(debug["NSAppTransportSecurity"], {"NSAllowsLocalNetworking": True})
         self.assertNotIn("NSAppTransportSecurity", release)
+        # Xcode must preserve the explicit generated single-scene manifest.
+        for info in [debug, release]:
+            self.assertIs(info["UIApplicationSceneManifest"]["UIApplicationSupportsMultipleScenes"], False)
+        project = (ROOT / "project.yml").read_text()
+        self.assertIn("        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO\n", project)
+        self.assertNotIn("INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES", project)
 
     def test_simulator_keychain_identity_never_changes_physical_entitlements(self):
         simulator = plistlib.loads((ROOT / "SpaceWorks/Generated/Simulator.entitlements").read_bytes())
