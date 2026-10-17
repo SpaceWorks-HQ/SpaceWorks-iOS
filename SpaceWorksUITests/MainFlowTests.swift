@@ -84,11 +84,21 @@ final class MainFlowTests: XCTestCase {
             XCTAssertTrue(signIn.waitForExistence(timeout: 5))
             XCTAssertTrue(create.waitForExistence(timeout: 5))
             for attempt in 0..<24 {
-                let viewport = scroll.frame.intersection(app.frame).insetBy(dx: 2, dy: 2)
+                let applicationFrame = app.frame
+                let scrollFrame = scroll.frame.intersection(applicationFrame)
+                let appearance = app.buttons["appearance"]
+                XCTAssertTrue(appearance.exists)
+                let headerFrame = appearance.frame
                 let signInFrame = signIn.frame
                 let createFrame = create.frame
-                let frames = [viewport, signInFrame, createFrame]
+                let frames = [applicationFrame, scrollFrame, headerFrame, signInFrame, createFrame]
                 XCTAssertTrue(frames.allSatisfy { [$0.minX, $0.minY, $0.width, $0.height].allSatisfy(\.isFinite) && $0.width > 0 && $0.height > 0 })
+                XCTAssertTrue(appearance.isHittable)
+                let visibleTop = max(scrollFrame.minY, headerFrame.maxY)
+                let viewport = CGRect(x: scrollFrame.minX + 2, y: visibleTop + 2,
+                                      width: scrollFrame.width - 4, height: scrollFrame.maxY - visibleTop - 4)
+                XCTAssertGreaterThan(viewport.width, 0)
+                XCTAssertGreaterThan(viewport.height, 0)
                 print("Sign-in actions attempt=\(attempt) signIn=\(signInFrame) create=\(createFrame) viewport=\(viewport)")
                 if viewport.contains(signInFrame), viewport.contains(createFrame) {
                     XCTAssertTrue(signIn.isEnabled && signIn.isHittable)
@@ -97,7 +107,30 @@ final class MainFlowTests: XCTestCase {
                     return
                 }
                 XCTAssertTrue(scroll.isHittable)
-                if signInFrame.union(createFrame).minY < viewport.minY { scroll.swipeDown(velocity: .slow) }
+                let actionsFrame = signInFrame.union(createFrame)
+                let translation = actionsFrame.minY < viewport.minY
+                    ? viewport.minY - actionsFrame.minY + 2 : viewport.maxY - actionsFrame.maxY - 2
+                let adjustmentLimit = min(120, viewport.height * 0.4)
+                if abs(translation) <= adjustmentLimit {
+                    let movement = (translation < 0 ? -1.0 : 1.0) * min(max(abs(translation), 12), adjustmentLimit)
+                    let x = viewport.minX + 12
+                    let startY = viewport.midY - movement / 2
+                    let endY = viewport.midY + movement / 2
+                    let dragFrame = CGRect(x: x - 2, y: min(startY, endY) - 2, width: 4, height: abs(movement) + 4)
+                    XCTAssertTrue(viewport.contains(dragFrame) && scrollFrame.contains(dragFrame))
+                    let controls = app.buttons.allElementsBoundByIndex + app.textFields.allElementsBoundByIndex
+                        + app.secureTextFields.allElementsBoundByIndex + app.textViews.allElementsBoundByIndex
+                    for control in controls where control.exists {
+                        let frame = control.frame
+                        if [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite), frame.width > 0, frame.height > 0 {
+                            XCTAssertFalse(frame.intersects(dragFrame), "The reveal gutter must not intersect an interactive control")
+                        }
+                    }
+                    print("Sign-in short reveal path=\(dragFrame) visibleViewport=\(viewport)")
+                    let origin = app.coordinate(withNormalizedOffset: .zero)
+                    origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: startY - applicationFrame.minY)).press(forDuration: 0.01,
+                        thenDragTo: origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: endY - applicationFrame.minY)))
+                } else if translation > 0 { scroll.swipeDown(velocity: .slow) }
                 else { scroll.swipeUp(velocity: .slow) }
             }
             XCTFail("Sign-in and Create account actions must both fit the visible sign-in scroll viewport")
