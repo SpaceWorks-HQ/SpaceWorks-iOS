@@ -128,8 +128,9 @@ final class MainFlowTests: XCTestCase {
                     }
                     print("Sign-in short reveal path=\(dragFrame) visibleViewport=\(viewport)")
                     let origin = app.coordinate(withNormalizedOffset: .zero)
-                    origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: startY - applicationFrame.minY)).press(forDuration: 0.01,
-                        thenDragTo: origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: endY - applicationFrame.minY)))
+                    origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: startY - applicationFrame.minY)).press(forDuration: 0.05,
+                        thenDragTo: origin.withOffset(CGVector(dx: x - applicationFrame.minX, dy: endY - applicationFrame.minY)),
+                        withVelocity: .slow, thenHoldForDuration: 0.3)
                 } else if translation > 0 { scroll.swipeDown(velocity: .slow) }
                 else { scroll.swipeUp(velocity: .slow) }
             }
