@@ -178,6 +178,7 @@ private struct MemberWorkspace: View {
     @State private var account: AccountState?
     let actions: LiveMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
+    @State private var preferredCompactColumn = NavigationSplitViewColumn.detail
     init(state: AppState, auth: AuthState, origin: ServerOrigin, id: Int, slug: String, linkRouter: MobileLinkRouter) {
         self.state = state; self.auth = auth; self.linkRouter = linkRouter; self.makerspaceID = id
         let failureHandlers = auth.repositoryFailureHandlers()
@@ -197,11 +198,13 @@ private struct MemberWorkspace: View {
     var body: some View {
         GeometryReader { geometry in
         VStack(spacing: 0) {
-        if sizeClass == .regular {
-            NavigationSplitView(columnVisibility: $columns) {
+        // Keep the navigation host's identity stable when a phone rotates or a tablet window resizes.
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $preferredCompactColumn) {
                 List(AppTab.allCases) { tab in
                     Button {
                         navigation.selected = tab
+                        preferredCompactColumn = .detail
                         columns = geometry.size.width >= 1000 ? .all : .detailOnly
                     } label: {
                         Text(LocalizedStringKey(tab.rawValue)).frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
@@ -222,6 +225,7 @@ private struct MemberWorkspace: View {
             }
         }
         }.onChange(of: navigation.selected) { _, _ in
+            preferredCompactColumn = .detail
             columns = geometry.size.width >= 1000 ? .all : .detailOnly
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
