@@ -2,6 +2,8 @@
 
 ## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
 
+The `988b8ad` compact checkpoint passed all 294 native tests and executed all 36 UI journeys. Five UI failures identified three shared account navigation/layout issues plus two A8 paragraph queries exceeding XCTest's 128-character identifier limit. This candidate normally merges actual dev `a1ad7b2` for the reviewed account corrections. The two guide checks now use exact full-label predicates, preserving their complete paragraph assertions without identifier-length lookup. The old matrix was canceled for diagnosis and is not acceptance; introduction replay and typed bookings actions after those checks still require the new complete run. All cases, six profiles, gesture budgets and timeout settings remain unchanged.
+
 The `32c69d9` phone native checkpoint compiled and executed all 294 native cases. One A8 boundary-copy expectation failed because native localized integer interpolation correctly inserted digit-grouping separators. The test now checks the exact representable decimal value independently of grouping (including non-ASCII decimal digits), while retaining the expected English retry prefix/suffix and every invalid/nonfinite/overflow case. Production formatting and deadlines are unchanged. All shared A7 account/auth/email ownership cases passed in this checkpoint; complete A7 and corrected A8 native/UI/Release acceptance remain pending.
 
 The first merged A8 [`7455146` matrix](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018807936) stopped during compilation before tests because SwiftUI exposes Reduce Motion as a read-only environment value. The introduction now reads the OS value and combines it locally with the Debug-only UI-test launch flag; Release continues to use the OS setting. The global environment is unchanged, including introduction replay. This compiler checkpoint provides no native test or screenshot acceptance; the corrected exact-head matrix remains required.
@@ -49,6 +51,13 @@ Staff retry timers retain even very large finite server deadlines while sleeping
 chunks of at most 3600 seconds. This avoids an overflowing UInt64 nanosecond conversion and keeps
 canceled or superseded timers from reopening requests. One state regression exercises extreme
 server deadlines, replacement and private-scope invalidation; native execution is still required.
+
+## A7 accessible account rows and keyboard journeys
+
+- The corrected phone and tablet runs passed all 285 native tests; tablet passed 33/34 UI journeys and phone passed 32/34. Recordings show a real largest-text layout defect: decorative row glyphs squeeze account titles into fragmented words. Give the unchanged title and detail the full row width at accessibility sizes, preserving font scaling.
+- The phone-linking test missed a visible floating Done accessory by restricting its lookup to Toolbar descendants; the compact membership journey also skipped that accessory. Require the actual visible/hittable full-window Done button, tap it natively and verify keyboard dismissal before continuing all three original steps. Keep the shared scroll helper, gesture budget and every phone/session/membership assertion unchanged.
+- Correct only the export-menu test navigation's proven blind reversal: follow the real row geometry with full visible-content pans and the same 24-attempt bound, positive/visible/hittable activation and native tap. Capture the revealed accessible row in the existing largest-text journey. The shared helper and every subsequent export/share assertion remain unchanged.
+- Counts remain 285 native /34 UI /21 Python. Full phone/tablet validation and unsigned Release are still required at the corrected head; these failed runs are not phase acceptance.
 
 ## A7 native test fixture correction
 

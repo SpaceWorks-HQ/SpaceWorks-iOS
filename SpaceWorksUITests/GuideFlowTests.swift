@@ -42,7 +42,7 @@ final class GuideFlowTests: XCTestCase {
         tab("Profile", app: app); tap(app.buttons["app-guide"], in: app)
         XCTAssertFalse(app.descendants(matching: .any)["guide-staff"].firstMatch.exists)
         tap(app.descendants(matching: .any)["guide-borrow"].firstMatch, in: app)
-        XCTAssertTrue(app.staticTexts["Open Inventory, search or filter, then choose an item. Add the items you need and review quantities before submitting your request. Staff confirm availability, collection and borrowing terms."].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Open Inventory, search or filter, then choose an item. Add the items you need and review quantities before submitting your request. Staff confirm availability, collection and borrowing terms.")).firstMatch.exists)
         capture("Member app guide")
         tap(app.buttons["guide-reset-tips"], in: app)
         XCTAssertTrue(app.staticTexts["guide-tips-reset"].waitForExistence(timeout: 5))
@@ -66,7 +66,7 @@ final class GuideFlowTests: XCTestCase {
         let app = demo(staff: true); tab("Profile", app: app); tap(app.buttons["app-guide"], in: app)
         let section = app.descendants(matching: .any)["guide-staff"].firstMatch
         tap(section, in: app)
-        XCTAssertTrue(app.staticTexts["Scanning finds a record; it never confirms handover or attendance by itself. Check the resolved person, then choose Confirm check-in. If access changes or a conflict appears, refresh before continuing."].exists)
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label == %@", "Scanning finds a record; it never confirms handover or attendance by itself. Check the resolved person, then choose Confirm check-in. If access changes or a conflict appears, refresh before continuing.")).firstMatch.exists)
         capture("Staff guide and camera explanation")
         XCTAssertFalse(app.alerts.firstMatch.exists)
     }

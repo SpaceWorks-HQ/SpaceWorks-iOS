@@ -35,15 +35,76 @@ final class AccountFlowTests: XCTestCase {
         attach("Native account confirmation")
         action.tap()
     }
+    private func openDataExports(in app: XCUIApplication, captureBeforeTap: Bool = false) {
+        let entry = app.buttons["account-exports"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 5))
+        for attempt in 0..<24 {
+            let scrolls = app.scrollViews.allElementsBoundByIndex.filter {
+                $0.exists && $0.isHittable && $0.buttons.matching(identifier: "account-exports").firstMatch.exists
+            }
+            guard let scroll = scrolls.min(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }) else {
+                XCTFail("The account menu must provide its real scroll container."); return
+            }
+            var viewport = scroll.frame.intersection(app.frame)
+            for bar in app.navigationBars.allElementsBoundByIndex where bar.exists && bar.isHittable {
+                let frame = bar.frame
+                if frame.intersects(viewport), frame.midY < viewport.midY {
+                    let bottom = viewport.maxY; viewport.origin.y = max(viewport.minY, frame.maxY); viewport.size.height = max(0, bottom - viewport.minY)
+                }
+            }
+            let lowerBars = app.tabBars.allElementsBoundByIndex.filter { $0.exists && $0.isHittable }
+                + app.keyboards.allElementsBoundByIndex.filter { $0.exists }
+            for bar in lowerBars {
+                let frame = bar.frame
+                if frame.intersects(viewport), frame.midY > viewport.minY { viewport.size.height = max(0, min(viewport.maxY, frame.minY) - viewport.minY) }
+            }
+            viewport = viewport.insetBy(dx: 8, dy: 8)
+            let frame = entry.frame, visible = frame.intersection(viewport)
+            print("Account exports navigation, attempt \(attempt), frame \(frame), viewport \(viewport), hittable \(entry.isHittable)")
+            guard frame.minX.isFinite, frame.minY.isFinite, frame.width.isFinite, frame.height.isFinite, frame.width > 0, frame.height > 0,
+                  viewport.width > 32, viewport.height > 64 else { XCTFail("Account navigation requires valid visible geometry."); return }
+            if entry.isHittable, !visible.isNull, visible.width > 4, visible.height > 4,
+               viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)) {
+                if captureBeforeTap { attach("Account menu export navigation at largest text") }
+                entry.tap(); return
+            }
+            // This long menu can exceed twelve short pans at full Dynamic Type.
+            // Follow the actual row, with the same total bound and real content gestures.
+            let down: Bool
+            if frame.midY >= viewport.maxY - 2 { down = false }
+            else if frame.midY <= viewport.minY + 2 { down = true }
+            else { continue }
+            let remaining = down ? viewport.minY + 8 - frame.midY : frame.midY - (viewport.maxY - 8)
+            let distance = min(viewport.height - 32, max(12, remaining + 12))
+            let x = min(viewport.maxX - 16, max(viewport.minX + 16, frame.midX))
+            let y = down ? viewport.minY + 16 : viewport.maxY - 16
+            let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y - app.frame.minY))
+            let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y + (down ? distance : -distance) - app.frame.minY))
+            start.press(forDuration: 0.1, thenDragTo: end, withVelocity: XCUIGestureVelocity(250), thenHoldForDuration: 0.3)
+        }
+        XCTFail("The actual data export row must be visible and hittable after bounded account-menu navigation.")
+    }
+    private func dismissAccountKeyboard(in app: XCUIApplication) {
+        // The floating keyboard accessory need not have a Toolbar AX ancestor.
+        let done = app.buttons["Done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        XCTAssertTrue(done.isHittable)
+        let frame = done.frame
+        XCTAssertGreaterThan(frame.width, 0)
+        XCTAssertGreaterThan(frame.height, 0)
+        XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        done.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "The keyboard must close before continuing the account flow.")
+    }
     private func attach(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     func testPhoneVerificationThenCurrentSessionRevocationRequiresSignIn() {
         let app = account(); tap(app.buttons["account-phone"], in: app)
         let phone = app.textFields["account-phone-number"]; tap(phone, in: app); phone.typeText("9876543210")
-        tap(app.toolbars.buttons["Done"], in: app); tap(app.buttons["account-phone-send"], in: app)
+        dismissAccountKeyboard(in: app); tap(app.buttons["account-phone-send"], in: app)
         let code = app.textFields["account-phone-code"]; tap(code, in: app); code.typeText("123456")
-        tap(app.toolbars.buttons["Done"], in: app); tap(app.buttons["account-phone-verify"], in: app)
+        dismissAccountKeyboard(in: app); tap(app.buttons["account-phone-verify"], in: app)
         XCTAssertTrue(app.staticTexts["+919876543210"].waitForExistence(timeout: 10)); attach("Account verified phone sample")
         tap(app.navigationBars.buttons.element(boundBy: 0), in: app)
         tap(app.buttons["account-sessions"], in: app); tap(app.buttons["account-revoke-current-session"], in: app)
@@ -62,7 +123,7 @@ final class AccountFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["demo-username"].waitForExistence(timeout: 10))
     }
     func testExportRequestStatusAndNativeArchivePresentation() {
-        let app = account(); tap(app.buttons["account-exports"], in: app)
+        let app = account(); openDataExports(in: app)
         tap(app.buttons["account-request-export"], in: app)
         XCTAssertTrue(app.buttons["account-check-export"].waitForExistence(timeout: 10))
         tap(app.buttons["account-check-export"], in: app); tap(app.buttons["account-download-export"], in: app)
@@ -72,7 +133,7 @@ final class AccountFlowTests: XCTestCase {
     }
     func testLargestTextLandscapeExportCanReachNativeShare() {
         let app = account(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
-        tap(app.buttons["account-exports"], in: app); tap(app.buttons["account-request-export"], in: app)
+        openDataExports(in: app, captureBeforeTap: true); tap(app.buttons["account-request-export"], in: app)
         tap(app.buttons["account-check-export"], in: app); tap(app.buttons["account-download-export"], in: app)
         XCTAssertTrue(app.navigationBars["Data export"].waitForExistence(timeout: 10))
         XCUIDevice.shared.orientation = .landscapeLeft
@@ -119,7 +180,7 @@ final class AccountFlowTests: XCTestCase {
         let app = account(); tap(app.buttons["account-membership"], in: app)
         let reason = app.textViews["account-membership-reason"].exists ? app.textViews["account-membership-reason"] : app.textFields["account-membership-reason"]
         tap(reason, in: app); reason.typeText("Moving away")
-        if app.toolbars.buttons["Done"].exists { tap(app.toolbars.buttons["Done"], in: app) }
+        dismissAccountKeyboard(in: app)
         tap(app.buttons["account-leave-makerspace"], in: app)
         confirmNativeDialog("Leave this makerspace?", action: "Confirm leave", in: app)
         XCTAssertTrue(app.buttons["demo-space-1"].waitForExistence(timeout: 10)); XCTAssertFalse(app.buttons["demo-space-0"].exists)
