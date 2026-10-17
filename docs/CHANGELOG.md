@@ -2,6 +2,8 @@
 
 ## A7 Account and localization — implementation checkpoint (2026-10-17)
 
+The initial [`d05dcfc` native checkpoint](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39017485631) stopped during compilation before tests: the localized staff menu wrapper accepted only a localization key, while a booking row supplied its server-provided space name. The wrapper now accepts a Text presentation: app-owned literal titles stay localized and the remote name is explicitly verbatim. The complete native gate remains pending; this compiler checkpoint is not acceptance.
+
 Provide global Account and security before joining a makerspace: authenticator status, phone linking,
 linked providers, password change and native Devices. Separately gate member Sessions, membership
 cancellation/leave and data exports with the actual selected membership and bootstrap capabilities.
