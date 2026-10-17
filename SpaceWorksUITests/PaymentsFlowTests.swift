@@ -48,14 +48,10 @@ final class PaymentsFlowTests: XCTestCase {
             if action.isHittable, frame.width > 0, frame.height > 0, viewport.contains(frame) { return }
             guard viewport.width > 32, viewport.height > 64 else { break }
             let down = frame.minY < viewport.minY
-            let distance = min(200, viewport.height * 0.45)
-            // Begin in the real content padding, outside outcome buttons and away
-            // from the phone's bottom system gesture edge.
-            let x = min(viewport.maxX - 12, max(viewport.minX + 12, frame.minX - 12))
-            let y = viewport.midY + (down ? -distance : distance) / 2
-            let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y - app.frame.minY))
-            let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y + (down ? distance : -distance) - app.frame.minY))
-            start.press(forDuration: 0.1, thenDragTo: end, withVelocity: XCUIGestureVelocity(250), thenHoldForDuration: 0.3)
+            // Use the identified sheet's native scroll gesture. A held coordinate
+            // drag activated a different outcome while revealing this action.
+            if down { scroll.swipeDown(velocity: .slow) }
+            else { scroll.swipeUp(velocity: .slow) }
         }
         attach("Demo outcome action not fully visible")
         XCTFail("The complete native outcome action must be reachable inside its own sheet scroll view.")
