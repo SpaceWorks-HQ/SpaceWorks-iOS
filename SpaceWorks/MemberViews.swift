@@ -26,11 +26,16 @@ struct MemberContent: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         if tab == .home {
-                            Text("Welcome back, \(name).").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                            Text("Welcome back, \(name).").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                             Text("Your makerspace, at a glance.").foregroundStyle(Color.swMuted)
                             if state.showGuidance {
                                 SWCard {
-                                    HStack { Text("Start here").font(.headline); Spacer(); Button("Dismiss") { state.dismissGuidance() }.frame(minHeight: 48).accessibilityIdentifier("guidance-dismiss") }
+                                    if textSize.isAccessibilitySize {
+                                        Text("Start here").brandFont(.headline)
+                                        Button("Dismiss") { state.dismissGuidance() }.frame(minHeight: 48).accessibilityIdentifier("guidance-dismiss")
+                                    } else {
+                                        HStack { Text("Start here").brandFont(.headline); Spacer(); Button("Dismiss") { state.dismissGuidance() }.frame(minHeight: 48).accessibilityIdentifier("guidance-dismiss") }
+                                    }
                                     Text("Find what you need, then request it from your makerspace.").foregroundStyle(Color.swMuted)
                                     Button("Browse inventory") { selectTab(.inventory) }.buttonStyle(SWPrimary())
                                     if guidanceBookingsEnabled { Button("View bookings") { if let navigation { navigation.openBookings() } else { selectTab(.activity) } }.frame(minHeight: 48) }
@@ -49,7 +54,7 @@ struct MemberContent: View {
                             if tab == .home {
                                 dues
                                 SWCard {
-                                    Label("Membership card", systemImage: "person.text.rectangle").font(.title2.bold())
+                                    Label("Membership card", systemImage: "person.text.rectangle").brandFont(.title2, weight: .bold)
                                     Text("Keep your membership details close. Ask the front desk for help if your card isn't available.").foregroundStyle(Color.swMuted)
                                     Button("View membership card") { showCard = true }.frame(minHeight: 48)
                                 }
@@ -75,19 +80,19 @@ struct MemberContent: View {
     }
     private var loans: some View {
         SWCard {
-            Label("Active loans", systemImage: "shippingbox").font(.title2.bold())
+            Label("Active loans", systemImage: "shippingbox").brandFont(.title2, weight: .bold)
             LoadFeedback(load: state.activityLoad, lastUpdated: state.updated["activity"], retryAfter: state.deadline("activity")) { await state.loadActivity() }
             if let activity = state.activity {
                 if activity.active_hardware_loans.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
                 ForEach(activity.active_hardware_loans, id: \.request_id) { loan in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(loan.label).font(.headline)
+                        Text(loan.label).brandFont(.headline)
                         if let due = loan.due_at { Label("Due \(due.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar") }
                         if loan.overdue { Label("Overdue", systemImage: "exclamationmark.circle").foregroundStyle(Color.swDanger) }
                         else { Text("On loan").foregroundStyle(Color.swMuted) }
                         if actions != nil {
                             Button("Renew loan") { renewal = loan }.frame(minHeight: 48).disabled(!loan.can_renew)
-                            if !loan.can_renew { Text(loan.renewal_refusal ?? String(localized: "Renewal isn't available for this loan. Ask your makerspace for help.")).font(.caption).foregroundStyle(Color.swMuted) }
+                            if !loan.can_renew { Text(loan.renewal_refusal ?? String(localized: "Renewal isn't available for this loan. Ask your makerspace for help.")).brandFont(.caption).foregroundStyle(Color.swMuted) }
                         }
                     }.padding(.vertical, 8)
                 }
@@ -96,12 +101,12 @@ struct MemberContent: View {
     }
     private var requests: some View {
         SWCard {
-            Label("Requests", systemImage: "list.clipboard").font(.title2.bold())
+            Label("Requests", systemImage: "list.clipboard").brandFont(.title2, weight: .bold)
             LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
             if let rows = state.activity?.request_history, !rows.isEmpty {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(NativeStatusCopy.label(row.status)).font(.headline)
+                        Text(NativeStatusCopy.label(row.status)).brandFont(.headline)
                         Text("\(row.item_count) items · \(row.created_at.formatted(date: .abbreviated, time: .omitted))").foregroundStyle(Color.swMuted)
                     }
                 }
@@ -110,14 +115,14 @@ struct MemberContent: View {
     }
     private var bookings: some View {
         SWCard {
-            Label("Upcoming bookings", systemImage: "calendar").font(.title2.bold())
+            Label("Upcoming bookings", systemImage: "calendar").brandFont(.title2, weight: .bold)
             if actions != nil { NavigationLink("Find a space", value: MemberRoute.spaces).frame(minHeight: 48) }
             LoadFeedback(load: state.bookingsLoad, lastUpdated: state.updated["bookings"], retryAfter: state.deadline("bookings")) { await state.loadBookings() }
             if state.bookingsLoad == .ready && state.bookings.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
             ForEach(state.bookings, id: \.public_token) { booking in
                 VStack(alignment: .leading, spacing: 8) {
-                    if actions != nil { NavigationLink(booking.space_name, value: MemberRoute.booking(booking.public_token)).font(.headline).frame(minHeight: 48) }
-                    else { Text(booking.space_name).font(.headline) }
+                    if actions != nil { NavigationLink(booking.space_name, value: MemberRoute.booking(booking.public_token)).brandFont(.headline).frame(minHeight: 48) }
+                    else { Text(booking.space_name).brandFont(.headline) }
                     Text(memberDate(booking.starts_at, timezone: booking.timezone))
                     Text(NativeStatusCopy.label(booking.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
@@ -127,13 +132,13 @@ struct MemberContent: View {
     }
     private var events: some View {
         SWCard {
-            Label("Events", systemImage: "ticket").font(.title2.bold())
+            Label("Events", systemImage: "ticket").brandFont(.title2, weight: .bold)
             LoadFeedback(load: state.eventsLoad, lastUpdated: state.updated["events"], retryAfter: state.deadline("events")) { await state.loadEvents() }
             if state.eventsLoad == .ready && state.events.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
             ForEach(state.events, id: \.public_token) { event in
                 VStack(alignment: .leading, spacing: 8) {
-                    if actions != nil { NavigationLink(event.title, value: MemberRoute.event(event.public_token)).font(.headline).frame(minHeight: 48) }
-                    else { Text(event.title).font(.headline) }
+                    if actions != nil { NavigationLink(event.title, value: MemberRoute.event(event.public_token)).brandFont(.headline).frame(minHeight: 48) }
+                    else { Text(event.title).brandFont(.headline) }
                     Text(memberDate(event.starts_at, timezone: TimeZone.current.identifier)).foregroundStyle(Color.swMuted)
                 }.padding(.vertical, 8)
             }
@@ -141,12 +146,12 @@ struct MemberContent: View {
     }
     private var registrations: some View {
         SWCard {
-            Label("Event registrations", systemImage: "qrcode").font(.title2.bold())
+            Label("Event registrations", systemImage: "qrcode").brandFont(.title2, weight: .bold)
             LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
             if let rows = state.activity?.event_registrations, !rows.isEmpty {
                 ForEach(rows, id: \.registration_id) { row in
                     VStack(alignment: .leading, spacing: 8) {
-                        NavigationLink(row.event_title, value: MemberRoute.registration(row.registration_id)).font(.headline).frame(minHeight: 48).accessibilityIdentifier("registration-\(row.registration_id)")
+                        NavigationLink(row.event_title, value: MemberRoute.registration(row.registration_id)).brandFont(.headline).frame(minHeight: 48).accessibilityIdentifier("registration-\(row.registration_id)")
                         Text(NativeStatusCopy.label(row.status)).foregroundStyle(Color.swMuted)
                         Text(row.starts_at.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.swMuted)
                     }
@@ -156,17 +161,17 @@ struct MemberContent: View {
     }
     private var notices: some View {
         SWCard {
-            Label("Notices", systemImage: "megaphone").font(.title2.bold())
+            Label("Notices", systemImage: "megaphone").brandFont(.title2, weight: .bold)
             if let rows = state.activity?.notices, !rows.isEmpty {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, notice in
-                    VStack(alignment: .leading, spacing: 8) { Text(notice.title).font(.headline); Text(notice.body).foregroundStyle(Color.swMuted) }
+                    VStack(alignment: .leading, spacing: 8) { Text(notice.title).brandFont(.headline); Text(notice.body).foregroundStyle(Color.swMuted) }
                 }
             } else if state.activityLoad == .ready { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
         }
     }
     private var dues: some View {
         SWCard {
-            Label("Dues", systemImage: "creditcard").font(.title2.bold())
+            Label("Dues", systemImage: "creditcard").brandFont(.title2, weight: .bold)
             if paymentsAvailable { NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-home-entry") }
             if state.activityLoad == .loading || state.activityLoad == .idle {
                 LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
@@ -175,7 +180,7 @@ struct MemberContent: View {
                let object = try? JSONSerialization.jsonObject(with: encoded) as? [String: Any],
                let amounts = object["outstanding_by_currency"] as? [String: String] {
                 if amounts.isEmpty { Text("No dues outstanding.") }
-                ForEach(amounts.keys.sorted(), id: \.self) { currency in Text("\(currency) \(amounts[currency] ?? "")").font(.title2.bold()).monospacedDigit() }
+                ForEach(amounts.keys.sorted(), id: \.self) { currency in Text("\(currency) \(amounts[currency] ?? "")").brandFont(.title2, weight: .bold).monospacedDigit() }
             } else { Text("Dues are unavailable. Try again later.").foregroundStyle(Color.swMuted) }
             }
         }
@@ -198,7 +203,7 @@ struct LoadFeedback: View {
         case .failed(let message):
             VStack(alignment: .leading) {
                 SWError(message: message)
-                if let lastUpdated { Text("Last updated \(lastUpdated.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(Color.swMuted) }
+                if let lastUpdated { Text("Last updated \(lastUpdated.formatted(date: .abbreviated, time: .shortened))").brandFont(.caption).foregroundStyle(Color.swMuted) }
                 TimelineView(.periodic(from: .now, by: 1)) { tick in
                     Button((retryAfter ?? .distantPast) > tick.date ? CooldownCopy.retryButton(until: retryAfter ?? tick.date, now: tick.date) : "Try again") { Task { await retry() } }
                         .frame(minHeight: 48).disabled((retryAfter ?? .distantPast) > tick.date)
@@ -258,7 +263,7 @@ struct InventoryList: View {
                 LoadFeedback(load: state.inventoryLoad, lastUpdated: state.updated["inventory"], retryAfter: state.deadline("inventory")) { await state.loadInventory() }
                 if state.inventoryLoad == .ready && state.products.isEmpty {
                     SWCard {
-                        Text(state.search.isEmpty && state.category == nil ? "No items yet" : "No items match these filters").font(.headline)
+                        Text(state.search.isEmpty && state.category == nil ? "No items yet" : "No items match these filters").brandFont(.headline)
                         if !state.search.isEmpty || state.category != nil {
                             Button("Clear filters") { state.search = ""; state.category = nil; Task { await state.loadInventory() } }.frame(minHeight: 48)
                         }
@@ -282,7 +287,7 @@ struct InventoryList: View {
         SWCard {
             if textSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(verbatim: product.name).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: product.name).brandFont(.headline).fixedSize(horizontal: false, vertical: true)
                     if let category = product.category_name { Text(verbatim: category).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true) }
                     Text(availability(product)).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
                 }.frame(maxWidth: .infinity, alignment: .leading)
@@ -290,7 +295,7 @@ struct InventoryList: View {
                 HStack(alignment: .top, spacing: 16) {
                     Image(systemName: "shippingbox").font(.title).frame(width: 48, height: 48).background(Color.swSurface, in: RoundedRectangle(cornerRadius: 10)).accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(verbatim: product.name).font(.headline)
+                        Text(verbatim: product.name).brandFont(.headline)
                         if let category = product.category_name { Text(verbatim: category).foregroundStyle(Color.swMuted) }
                         Text(availability(product)).foregroundStyle(Color.swMuted)
                     }
@@ -331,7 +336,7 @@ struct InventoryDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if let product = state.product {
-                    Text(product.name).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text(product.name).brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                     Text(availability(product)).foregroundStyle(Color.swMuted)
                     if let cart {
                         Button("Add to request") { cart.add(product); added = cart.lines.contains(where: { $0.id == product.id }) }.buttonStyle(SWPrimary()).disabled(cart.busy)
@@ -339,8 +344,8 @@ struct InventoryDetail: View {
                         if let error = cart.error { SWError(message: error) }
                         Button("Review your request") { reviewCart = true }.frame(minHeight: 48).accessibilityIdentifier("review-request")
                     }
-                    SWCard { Text("About this item").font(.title2.bold()); Text(product.description) }
-                    SWCard { Text("Borrowing terms").font(.title2.bold()); Text(product.borrowing_terms.isEmpty ? "Ask your makerspace about borrowing this item." : product.borrowing_terms) }
+                    SWCard { Text("About this item").brandFont(.title2, weight: .bold); Text(product.description) }
+                    SWCard { Text("Borrowing terms").brandFont(.title2, weight: .bold); Text(product.borrowing_terms.isEmpty ? "Ask your makerspace about borrowing this item." : product.borrowing_terms) }
                 } else if let error = state.error {
                     SWCard { LoadFeedback(load: .failed(error), retryAfter: state.retryAfter) { await state.load() } }
                 } else { ProgressView("Loading item…") }
@@ -366,9 +371,9 @@ struct MemberInbox: View {
                 if state.inboxLoad == .ready && state.messages.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(state.messages, id: \.id) { message in
                     SWCard {
-                        HStack { Text(message.title).font(.headline); Spacer(); if message.read_at == nil { Label("Unread", systemImage: "circle.fill").font(.caption).foregroundStyle(Color.swAccentInk) } }
+                        HStack { Text(message.title).brandFont(.headline); Spacer(); if message.read_at == nil { Label("Unread", systemImage: "circle.fill").brandFont(.caption).foregroundStyle(Color.swAccentInk) } }
                         Text(message.summary).foregroundStyle(Color.swMuted)
-                        Text(message.created_at.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(Color.swMuted)
+                        Text(message.created_at.formatted(date: .abbreviated, time: .shortened)).brandFont(.caption).foregroundStyle(Color.swMuted)
                         if let openLink, !message.link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             Button("Open update") { openLink(message.link) }.frame(minHeight: 48).accessibilityIdentifier("open-inbox-update-\(message.id)")
                         }
@@ -389,11 +394,11 @@ struct MemberCardView: View {
         NavigationStack {
             ScrollView {
                 SWCard {
-                    if state.repository.isDemo { Text("Demo mode · sample data").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                    Text("Membership card").font(.largeTitle.bold())
+                    if state.repository.isDemo { Text("Demo mode · sample data").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                    Text("Membership card").brandFont(.largeTitle, weight: .bold)
                     LoadFeedback(load: state.cardLoad, retryAfter: state.deadline("card")) { await state.loadCard() }
                     if let card = state.card, card.is_active {
-                        Text(card.printed_name).font(.title2.bold())
+                        Text(card.printed_name).brandFont(.title2, weight: .bold)
                         Text("Card \(card.card_number)").monospacedDigit()
                         if card.qr_active, let image = card.qr_image.flatMap(Self.qrImage) {
                             Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(maxWidth: 320).accessibilityLabel("Membership card QR code")

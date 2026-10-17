@@ -11,10 +11,10 @@ struct DemoAccountLandingView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     BrandWordmark()
-                    Text("Choose a makerspace").font(.largeTitle.bold())
+                    Text("Choose a makerspace").brandFont(.largeTitle, weight: .bold)
                     Text("You haven’t joined a makerspace yet.").foregroundStyle(Color.swMuted)
                     SWCard {
-                        Text(session.name).font(.title2.bold())
+                        Text(session.name).brandFont(.title2, weight: .bold)
                         NavigationLink("Account and security") {
                             AccountView(state: account, privacyURL: Brand.privacyURL.flatMap(URL.init(string:)), supportURL: Brand.supportURL.flatMap(URL.init(string:)), onDemoDelete: session.reset)
                         }.frame(minHeight: 48).accessibilityIdentifier("account-entry")

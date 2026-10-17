@@ -14,15 +14,15 @@ struct ProfileEditorView: View {
     var body: some View {
         ScrollView {
             SWCard {
-                if isDemo { Text("Demo mode · sample profile").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                Text("Edit profile").font(.largeTitle.bold())
+                if isDemo { Text("Demo mode · sample profile").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                Text("Edit profile").brandFont(.largeTitle, weight: .bold)
                 Text("Your contact details in this makerspace. Changing a phone number here doesn't verify it for sign-in.").foregroundStyle(Color.swMuted)
                 if state.loaded {
                     field(String(localized: "Display name"), value: $state.displayName, identifier: "profile-display-name", content: .name)
                     field(String(localized: "First name"), value: $state.firstName, identifier: "profile-first-name", content: .givenName)
                     field(String(localized: "Last name"), value: $state.lastName, identifier: "profile-last-name", content: .familyName)
                     field(String(localized: "Phone number"), value: $state.phone, identifier: "profile-phone", content: .telephoneNumber)
-                    if state.dirty { Text("Unsaved changes").font(.caption).foregroundStyle(Color.swMuted) }
+                    if state.dirty { Text("Unsaved changes").brandFont(.caption).foregroundStyle(Color.swMuted) }
                     else if let notice = state.notice { Label(notice, systemImage: "checkmark.circle").foregroundStyle(Color.swAccentInk) }
                     if let error = state.error { SWError(message: error) }
                     TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -48,7 +48,7 @@ struct ProfileEditorView: View {
     }
     private func field(_ label: String, value: Binding<String>, identifier: String, content: UITextContentType) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.headline)
+            Text(label).brandFont(.headline)
             TextField(label, text: value).textContentType(content).autocorrectionDisabled()
                 .focused($focusedField, equals: identifier).submitLabel(.done).onSubmit { focusedField = nil }
                 .keyboardType(content == .telephoneNumber ? .phonePad : .default)
@@ -66,9 +66,9 @@ struct CommunicationPreferencesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Communication preferences").font(.largeTitle.bold())
+                Text("Communication preferences").brandFont(.largeTitle, weight: .bold)
                 Text("Choose optional updates for this makerspace. Required safety messages stay on. Device notification permission is a separate setting.").foregroundStyle(Color.swMuted)
-                if isDemo { Text("Demo mode · no real preferences are changed").font(.caption.bold()).foregroundStyle(Color.swMuted) }
+                if isDemo { Text("Demo mode · no real preferences are changed").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
                 if let error = state.error { SWError(message: error) }
                 if !state.loaded {
                     if state.error != nil { Button("Try again") { Task { await state.load() } }.frame(minHeight: 48) }
@@ -76,7 +76,7 @@ struct CommunicationPreferencesView: View {
                 } else if state.cells.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(Array(state.cells.enumerated()), id: \.offset) { _, cell in
                     SWCard {
-                        Text(NativeStatusCopy.label(cell.feature.rawValue)).font(.headline)
+                        Text(NativeStatusCopy.label(cell.feature.rawValue)).brandFont(.headline)
                         TimelineView(.periodic(from: .now, by: 1)) { tick in
                             Toggle(channel(cell.channel.rawValue), isOn: Binding(get: { cell.enabled }, set: { value in Task { await state.set(cell, enabled: value) } }))
                                 .accessibilityIdentifier("preference-\(cell.feature.rawValue)-\(cell.channel.rawValue)")
@@ -86,9 +86,9 @@ struct CommunicationPreferencesView: View {
                                     .frame(minHeight: 48).disabled(state.busy || !cell.available || !cell.enabled || (state.retryAfter ?? .distantPast) > tick.date)
                             }
                         }
-                        if !cell.available { Text("Unavailable in this makerspace.").font(.caption).foregroundStyle(Color.swMuted) }
+                        if !cell.available { Text("Unavailable in this makerspace.").brandFont(.caption).foregroundStyle(Color.swMuted) }
                         if !cell.mandatory_events.isEmpty {
-                            Text("Always-on safety messages: \(cell.mandatory_events.map(NativeStatusCopy.label).joined(separator: ", "))").font(.caption).foregroundStyle(Color.swMuted)
+                            Text("Always-on safety messages: \(cell.mandatory_events.map(NativeStatusCopy.label).joined(separator: ", "))").brandFont(.caption).foregroundStyle(Color.swMuted)
                         }
                     }
                 }

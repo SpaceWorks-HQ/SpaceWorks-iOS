@@ -34,7 +34,7 @@ def audit(app, brand):
     for key in ['UISupportedInterfaceOrientations', 'UISupportedInterfaceOrientations~ipad']:
         check(required_orientations <= set(info.get(key, [])), f'Missing supported orientations in {key}')
     fonts = info.get('UIAppFonts', [])
-    check('Unbounded-Variable.ttf' in fonts, 'Brand font is not registered')
+    check({'Gilroy-Regular.ttf', 'Gilroy-Medium.ttf', 'Gilroy-SemiBold.ttf', 'Gilroy-Bold.ttf', 'Unbounded-Variable.ttf'} <= set(fonts), 'Brand fonts are not registered')
     for font in fonts:
         check(Path(font).name == font and (app / font).is_file(), f'Registered font is missing from bundle: {font}')
     check((app / 'Assets.car').is_file(), 'Compiled asset catalog is missing')

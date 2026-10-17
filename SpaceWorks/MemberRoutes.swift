@@ -67,7 +67,7 @@ struct MemberRouteView: View {
         ScrollView {
             SWCard {
                 LoadFeedback(load: load, retry: retry)
-                if load == .ready { Text(title).font(.headline); Text("Refresh the list and choose an available item.").foregroundStyle(Color.swMuted) }
+                if load == .ready { Text(title).brandFont(.headline); Text("Refresh the list and choose an available item.").foregroundStyle(Color.swMuted) }
             }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg)
     }

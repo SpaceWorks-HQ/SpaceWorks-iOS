@@ -10,7 +10,7 @@ struct AccountAccessView: View {
                 BrandWordmark()
                 if form.isDemo { Label("Demo mode · no account changes are made", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 SWCard {
-                    Text(heading).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text(heading).brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                     Text(explanation).foregroundStyle(Color.swMuted)
                     switch form.step {
                     case .signUp:
@@ -40,7 +40,7 @@ struct AccountAccessView: View {
                         resend(String(localized: "Send another code")) { await form.resendEmail() }
                     case .created, .resetComplete, .unavailable:
                         Image(systemName: form.step == .unavailable ? "person.crop.circle.badge.questionmark" : "checkmark.circle")
-                            .font(.largeTitle).foregroundStyle(Color.swAccentInk).accessibilityHidden(true)
+                            .brandFont(.largeTitle).foregroundStyle(Color.swAccentInk).accessibilityHidden(true)
                         Button(form.step == .unavailable ? "Back to sign in" : "Go to sign in", action: close).buttonStyle(SWPrimary())
                     }
                     if let error = form.error { SWError(message: error) }
@@ -101,7 +101,7 @@ struct AccountAccessView: View {
     }
     private func input(_ title: String, value: Binding<String>, id: String, type: UITextContentType) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).brandFont(.headline)
             TextField(title, text: value, prompt: Text(title).foregroundColor(Color.swMuted)).textContentType(type)
                 .keyboardType(type == .emailAddress ? .emailAddress : type == .telephoneNumber ? .phonePad : .default)
                 .textInputAutocapitalization(type == .name ? .words : .never).autocorrectionDisabled()
@@ -112,7 +112,7 @@ struct AccountAccessView: View {
     }
     private func codeInput(_ title: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).brandFont(.headline)
             TextField(title, text: $form.code, prompt: Text(title).foregroundColor(Color.swMuted)).keyboardType(.numberPad).textContentType(.oneTimeCode)
                 .textInputAutocapitalization(.never).autocorrectionDisabled().monospacedDigit()
                 .focused($focused, equals: "account-code").accessibilityIdentifier("account-code").padding(14).frame(minHeight: 48)
@@ -133,7 +133,7 @@ struct AccountAccessView: View {
                     .disabled(form.busy || tick.date < form.resendAfter)
                 if tick.date < form.resendAfter {
                     Text(CooldownCopy.retryMessage(until: form.resendAfter, now: tick.date))
-                        .font(.caption).foregroundStyle(Color.swMuted)
+                        .brandFont(.caption).foregroundStyle(Color.swMuted)
                 }
             }
         }

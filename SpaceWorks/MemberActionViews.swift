@@ -10,34 +10,34 @@ struct RequestCartView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    if isDemo { Text("Demo mode · no real request is submitted").font(.caption.bold()).foregroundStyle(Color.swMuted) }
+                    if isDemo { Text("Demo mode · no real request is submitted").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
                     if let receipt = state.receipt {
                         SWCard {
-                            Label("Request received", systemImage: "checkmark.circle").font(.largeTitle.bold())
-                            Text(NativeStatusCopy.label(receipt.status)).font(.title2)
+                            Label("Request received", systemImage: "checkmark.circle").brandFont(.largeTitle, weight: .bold)
+                            Text(NativeStatusCopy.label(receipt.status)).brandFont(.title2)
                             Text("Your makerspace will review your request and confirm collection and due dates.").foregroundStyle(Color.swMuted)
-                            Text("Request reference").font(.headline)
+                            Text("Request reference").brandFont(.headline)
                             Text(receipt.public_token).font(.body.monospaced()).textSelection(.enabled)
                             Button("Done") { dismiss() }.buttonStyle(SWPrimary())
                         }
                     } else {
-                        Text("Review your request").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                        Text("Review your request").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                         Text("Check the items and quantities. Your makerspace confirms availability and borrowing terms.").foregroundStyle(Color.swMuted)
                         if state.lines.isEmpty { SWCard { Text("Your request is empty."); Text("Add an item from inventory to get started.").foregroundStyle(Color.swMuted) } }
                         ForEach(state.lines) { line in
                             SWCard {
-                                Text(line.product.name).font(.headline)
+                                Text(line.product.name).brandFont(.headline)
                                 Stepper("Quantity: \(line.quantity)", value: Binding(get: { state.lines.first(where: { $0.id == line.id })?.quantity ?? 1 }, set: { state.quantity($0, for: line.id) }), in: 1...99)
                                     .frame(minHeight: 48)
                                 Button("Remove item", role: .destructive) { state.quantity(0, for: line.id) }.frame(minHeight: 48)
                             }
                         }
                         SWCard {
-                            Text("What are you making? (optional)").font(.headline)
+                            Text("What are you making? (optional)").brandFont(.headline)
                             TextField("Tell your makerspace about your project", text: $state.purpose, axis: .vertical)
                                 .lineLimit(3...6).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier("request-purpose")
-                            Text("Up to 500 characters. Don't include sensitive information.").font(.caption).foregroundStyle(Color.swMuted)
+                            Text("Up to 500 characters. Don't include sensitive information.").brandFont(.caption).foregroundStyle(Color.swMuted)
                             if let error = state.error { SWError(message: error) }
                             if state.retryAfter != nil {
                                 TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -76,11 +76,11 @@ struct RenewLoanView: View {
         NavigationStack {
             ScrollView {
                 SWCard {
-                    if isDemo { Text("Demo mode · no real loan is changed").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                    Text(result == nil ? "Renew this loan?" : "Loan renewed").font(.largeTitle.bold())
-                    Text(loan.label).font(.title2.bold())
+                    if isDemo { Text("Demo mode · no real loan is changed").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                    Text(result == nil ? "Renew this loan?" : "Loan renewed").brandFont(.largeTitle, weight: .bold)
+                    Text(loan.label).brandFont(.title2, weight: .bold)
                     if let result {
-                        Text("New due date").font(.headline)
+                        Text("New due date").brandFont(.headline)
                         Text(result.return_due_at.formatted(date: .abbreviated, time: .shortened))
                         Button("Done") { dismiss() }.buttonStyle(SWPrimary())
                     } else {

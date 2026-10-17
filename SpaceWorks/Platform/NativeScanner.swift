@@ -35,7 +35,7 @@ struct NativeQRScanner: View {
                         Label(message, systemImage: "camera")
                             .foregroundStyle(Color.swMuted)
                     }
-                    Text("Enter code manually").font(.headline)
+                    Text("Enter code manually").brandFont(.headline)
                     TextField("Code", text: $manual)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 10))

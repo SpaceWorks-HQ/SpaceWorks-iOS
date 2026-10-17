@@ -101,7 +101,7 @@ struct DemoRoot: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Demo mode · sample data").font(.caption.bold())
+                Text("Demo mode · sample data").brandFont(.caption, weight: .bold)
                 Spacer()
                 Button { session.reset(); exit() } label: {
                     Label("Exit demo", systemImage: "xmark").labelStyle(.iconOnly)
@@ -152,7 +152,7 @@ struct DemoAuthView: View {
                 SWCard {
                     switch session.stage {
                     case .welcome:
-                        Text("Make yourself at home.").font(.largeTitle.bold())
+                        Text("Make yourself at home.").brandFont(.largeTitle, weight: .bold)
                         Text("Explore sample makerspaces and complete app flows. Nothing is sent to a server.").foregroundStyle(Color.swMuted)
                         Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                             .pickerStyle(.segmented).accessibilityIdentifier("demo-role")
@@ -162,7 +162,7 @@ struct DemoAuthView: View {
                         Picker("App data preview", selection: $session.memberScenario) { ForEach(DemoMemberRepository.Scenario.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                         Button("Continue as \(session.role.rawValue.lowercased())") { session.stage = .signIn }.buttonStyle(SWPrimary())
                     case .signIn:
-                        Text("Welcome back.").font(.largeTitle.bold())
+                        Text("Welcome back.").brandFont(.largeTitle, weight: .bold)
                         Text("Your makerspace, in your pocket.").foregroundStyle(Color.swMuted)
                         GeometryReader { geometry in
                             GoogleProviderButton(wide: geometry.size.width >= 312) { provider = .google }
@@ -173,14 +173,14 @@ struct DemoAuthView: View {
                                 .frame(maxWidth: .infinity, minHeight: 48)
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
                         }
-                        Text("or with your email").font(.caption).foregroundStyle(Color.swMuted)
-                        Text("Email or username").font(.headline)
+                        Text("or with your email").brandFont(.caption).foregroundStyle(Color.swMuted)
+                        Text("Email or username").brandFont(.headline)
                         TextField("Email or username", text: $session.username, prompt: Text("Email or username").foregroundColor(Color.swMuted)).textInputAutocapitalization(.never)
                             .autocorrectionDisabled().submitLabel(.next).onSubmit { passwordFocused = true }
                             .demoField().accessibilityIdentifier("demo-username")
                         PasswordControl(title: String(localized: "Password"), text: $session.password, identifier: "demo-password", focus: $passwordFocused)
-                        Text("Use any email and password in this demo.").font(.caption).foregroundStyle(Color.swMuted)
-                        Text("Use unverified to preview email confirmation.").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Use any email and password in this demo.").brandFont(.caption).foregroundStyle(Color.swMuted)
+                        Text("Use unverified to preview email confirmation.").brandFont(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Button("Sign in") { session.signIn() }.buttonStyle(SWPrimary()).accessibilityIdentifier("demo-sign-in")
@@ -190,37 +190,37 @@ struct DemoAuthView: View {
                         Button("Create account") { accountForm = demoAccountForm(.signUp) }.frame(minHeight: 48)
                         Button("Back") { session.reset() }.frame(minHeight: 48)
                     case .mfa:
-                        Text(session.scenario == .enrollment ? "Set up two-step sign-in" : "Verify your sign-in").font(.largeTitle.bold())
+                        Text(session.scenario == .enrollment ? "Set up two-step sign-in" : "Verify your sign-in").brandFont(.largeTitle, weight: .bold)
                         if session.scenario == .enrollment {
                             QRCodeView(value: "otpauth://totp/SpaceWorks:demo?secret=JBSWY3DPEHPK3PXP&issuer=SpaceWorks")
-                            Text("Can't scan? Enter this key").font(.headline)
+                            Text("Can't scan? Enter this key").brandFont(.headline)
                             Text(verbatim: "JBSWY3DPEHPK3PXP").font(.body.monospaced()).textSelection(.enabled)
                         }
-                        Text("Authenticator or recovery code").font(.headline)
+                        Text("Authenticator or recovery code").brandFont(.headline)
                         TextField("Authenticator or recovery code", text: $session.code).demoField()
                             .textContentType(.oneTimeCode).accessibilityIdentifier("demo-mfa-code")
-                        Text("Use 123456 or sample-recovery in this demo.").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Use 123456 or sample-recovery in this demo.").brandFont(.caption).foregroundStyle(Color.swMuted)
                         if let error = session.error { SWError(message: error) }
                         Button("Verify") { session.verify() }.buttonStyle(SWPrimary())
                         Button("Back to sign in") { session.stage = .signIn; session.error = nil }.frame(minHeight: 48)
                     case .recovery:
-                        Text("Save your recovery codes").font(.largeTitle.bold())
+                        Text("Save your recovery codes").brandFont(.largeTitle, weight: .bold)
                         Text("Sample codes for this demo. Real codes appear once after enrollment.").foregroundStyle(Color.swMuted)
                         Text(verbatim: "sample-recovery\nsample-backup").font(.body.monospaced()).textSelection(.enabled)
                         Button("I saved my codes. Continue") { if session.securityEnrollment { session.securityEnded(codes: [], message: "Two-step sign-in was set up. Sign in again to continue.") } else { session.stage = session.membershipStage } }.buttonStyle(SWPrimary())
                     case .makerspace:
-                        Text("Choose a makerspace").font(.largeTitle.bold())
+                        Text("Choose a makerspace").brandFont(.largeTitle, weight: .bold)
                         ForEach(session.spaces.indices.filter { session.availableSpaces.contains($0) }, id: \.self) { index in
                             Button { session.selectedSpace = index; session.stage = .shell } label: {
                                 Label(session.spaces[index], systemImage: "building.2").frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                             }.buttonStyle(.plain).accessibilityIdentifier("demo-space-\(index)")
                         }
                     case .webConsole:
-                        Text("Use the web console").font(.largeTitle.bold())
+                        Text("Use the web console").brandFont(.largeTitle, weight: .bold)
                         Text("Superadmin accounts cannot sign in on a phone or tablet.").foregroundStyle(Color.swMuted)
                         Button("Back to demo") { session.reset() }.buttonStyle(SWPrimary())
                     case .updateRequired:
-                        Text("Update required").font(.largeTitle.bold())
+                        Text("Update required").brandFont(.largeTitle, weight: .bold)
                         Text("Update the app to keep using this server. This is a preview of the server's minimum-version gate.").foregroundStyle(Color.swMuted)
                         Button("Back to demo") { session.reset() }.buttonStyle(SWPrimary())
                     case .shell, .noMakerspaces, .securityCompletion, .emailVerification: EmptyView()
@@ -246,21 +246,21 @@ struct DemoProviderView: View {
         NavigationStack {
             ScrollView {
                 SWCard {
-                    Text("Continue with \(provider.rawValue)").font(.largeTitle.bold())
+                    Text("Continue with \(provider.rawValue)").brandFont(.largeTitle, weight: .bold)
                     Text("Demo mode. No provider account is connected and no message is sent.").foregroundStyle(Color.swMuted)
                     if provider == .phone {
                         if state.step == .phone {
                             Text("We'll send a verification code.").foregroundStyle(Color.swMuted)
                             Picker("Country code", selection: $state.country) { Text("India +91").tag("+91"); Text("United States +1").tag("+1"); Text("United Kingdom +44").tag("+44") }.frame(minHeight: 48)
-                            Text("Phone number").font(.headline)
+                            Text("Phone number").brandFont(.headline)
                             TextField("Phone number", text: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad).demoField()
                             Button("Send verification code") { state.sendCode() }.buttonStyle(SWPrimary())
                                 .disabled(state.resendAfter > Date())
                         } else {
-                            Text("Enter your verification code").font(.title2.bold())
+                            Text("Enter your verification code").brandFont(.title2, weight: .bold)
                             Text(state.country + " " + state.phone).foregroundStyle(Color.swMuted)
                             TextField("Verification code", text: $state.code).textContentType(.oneTimeCode).demoField()
-                            Text("Use 123456 in this demo. No message was sent.").font(.caption).foregroundStyle(Color.swMuted)
+                            Text("Use 123456 in this demo. No message was sent.").brandFont(.caption).foregroundStyle(Color.swMuted)
                             TimelineView(.periodic(from: .now, by: 1)) { tick in
                                 Button(tick.date < state.resendAfter ? "Resend in \(max(1, Int(ceil(state.resendAfter.timeIntervalSince(tick.date)))))s" : "Send another code") { state.sendCode() }
                                     .frame(minHeight: 48).disabled(tick.date < state.resendAfter)
@@ -268,7 +268,7 @@ struct DemoProviderView: View {
                             Button("Change number") { state.changeNumber() }.frame(minHeight: 48)
                         }
                     } else {
-                        Label(session.name, systemImage: "person.crop.circle").font(.title2)
+                        Label(session.name, systemImage: "person.crop.circle").brandFont(.title2)
                     }
                     Picker("Preview result", selection: $state.outcome) { ForEach(DemoProviderState.Outcome.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                     if let error = state.error { SWError(message: error) }
@@ -419,10 +419,10 @@ struct DemoDestination: View {
         }) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Welcome back, \(session.name).").font(.largeTitle.bold())
+                Text("Welcome back, \(session.name).").brandFont(.largeTitle, weight: .bold)
                 Text(session.spaces[session.selectedSpace]).foregroundStyle(Color.swMuted)
                 SWCard {
-                        Text(session.role.rawValue).font(.headline)
+                        Text(session.role.rawValue).brandFont(.headline)
                         if capabilities.busy { ProgressView("Loading account options…") }
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }

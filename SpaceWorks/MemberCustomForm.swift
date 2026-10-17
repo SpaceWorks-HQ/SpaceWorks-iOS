@@ -80,7 +80,7 @@ struct MemberCustomFields: View {
         } else {
             ForEach(form.questions) { question in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(question.label + (question.required ? String(localized: " (required)") : "")).font(.headline)
+                    Text(question.label + (question.required ? String(localized: " (required)") : "")).brandFont(.headline)
                     field(question)
                     if let error = form.errors[question.id] { Text(error).foregroundStyle(Color.swDanger) }
                 }

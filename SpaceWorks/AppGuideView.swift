@@ -12,7 +12,7 @@ struct AppGuideView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("App guide").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("App guide").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 Text("Make the most of your makerspace, at your own pace.").foregroundStyle(Color.swMuted)
                 if isDemo { Text("Demo changes stay in this preview.").foregroundStyle(Color.swMuted) }
                 SWCard {
@@ -60,11 +60,11 @@ struct AppGuideView: View {
                     }
                 }.foregroundStyle(Color.swInk)
                 SWCard {
-                    Text("About this app").font(.title2.bold())
+                    Text("About this app").brandFont(.title2, weight: .bold)
                     let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
                     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
                     Text("Version \(version) (\(build))").textSelection(.enabled)
-                    if let serverLabel { Text("Server").font(.headline); Text(verbatim: serverLabel).textSelection(.enabled) }
+                    if let serverLabel { Text("Server").brandFont(.headline); Text(verbatim: serverLabel).textSelection(.enabled) }
                     if let privacy = Brand.privacyURL.flatMap(URL.init(string:)), let safe = AccountLinks.safe(privacy) { Link("Privacy policy", destination: safe).frame(minHeight: 48) }
                     if let support = Brand.supportURL.flatMap(URL.init(string:)), let safe = AccountLinks.safe(support) { Link("Contact support", destination: safe).frame(minHeight: 48) }
                     Text("Ask your makerspace for help with unavailable features, permissions or account records.").foregroundStyle(Color.swMuted)

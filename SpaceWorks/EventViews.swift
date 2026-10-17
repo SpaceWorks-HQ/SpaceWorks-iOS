@@ -15,22 +15,22 @@ struct EventDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                if isDemo { Text("Demo mode · no real event registration").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                Text(event.title).font(.largeTitle.bold())
+                if isDemo { Text("Demo mode · no real event registration").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                Text(event.title).brandFont(.largeTitle, weight: .bold)
                 Text(event.starts_at.formatted(date: .abbreviated, time: .shortened) + " · " + TimeZone.current.identifier).foregroundStyle(Color.swMuted)
                 Label(event.location, systemImage: "mappin.and.ellipse")
-                SWCard { Text("About the event").font(.title2.bold()); Text(event.description) }
+                SWCard { Text("About the event").brandFont(.title2, weight: .bold); Text(event.description) }
                 if let result = state.result {
                     SWCard {
-                        Label(resultTitle(result.status.value1.rawValue), systemImage: "ticket").font(.title2.bold())
+                        Label(resultTitle(result.status.value1.rawValue), systemImage: "ticket").brandFont(.title2, weight: .bold)
                         Text("Find this registration in Activity. Tickets appear only after registration is confirmed.").foregroundStyle(Color.swMuted)
-                        Text("Payment and approval are confirmed by your makerspace. This receipt does not confirm a payment.").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Payment and approval are confirmed by your makerspace. This receipt does not confirm a payment.").brandFont(.caption).foregroundStyle(Color.swMuted)
                         Button("View registrations", action: viewActivity).buttonStyle(SWPrimary())
                     }
-                } else if !event.registration_open { SWCard { Text("Registration is closed.").font(.headline) } }
+                } else if !event.registration_open { SWCard { Text("Registration is closed.").brandFont(.headline) } }
                 else {
                     SWCard {
-                        Text("Register for this event").font(.title2.bold())
+                        Text("Register for this event").brandFont(.title2, weight: .bold)
                         Text("Event fee: \(event.currency) \(event.payment_amount)").foregroundStyle(Color.swMuted)
                         if !event.ticket_types.isEmpty {
                             Picker("Ticket type", selection: $state.ticket) {
@@ -61,7 +61,7 @@ struct EventDetailView: View {
     }
     private func input(_ label: String, value: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(.headline)
+            Text(label).brandFont(.headline)
             TextField(label, text: value).padding(14).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
         }
@@ -85,17 +85,17 @@ struct MemberRegistrationView: View {
     var body: some View {
         ScrollView {
             SWCard {
-                if isDemo { Text("Demo mode · sample event ticket").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                Text(registration.event_title).font(.largeTitle.bold())
+                if isDemo { Text("Demo mode · sample event ticket").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                Text(registration.event_title).brandFont(.largeTitle, weight: .bold)
                 Text(registration.starts_at.formatted(date: .abbreviated, time: .shortened)).foregroundStyle(Color.swMuted)
-                Text(state.cancelled ? "Cancelled" : NativeStatusCopy.label(registration.status)).font(.headline)
+                Text(state.cancelled ? "Cancelled" : NativeStatusCopy.label(registration.status)).brandFont(.headline)
                 if let position = registration.waitlist_position, !state.cancelled { Text("Waitlist position: \(position)").foregroundStyle(Color.swMuted) }
                 if state.cancelled { Text("Your registration was cancelled. Cancelling doesn't automatically issue a refund.").foregroundStyle(Color.swMuted) }
                 else if registration.status == "registered" {
                     if state.busy { ProgressView("Loading your ticket…") }
                     else if state.image != nil && isDemo {
                         QRCodeView(value: "spaceworks-demo-event-ticket", label: "Simulated event ticket QR code")
-                        Text("Simulated QR · demo only").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Simulated QR · demo only").brandFont(.caption).foregroundStyle(Color.swMuted)
                     } else if let image = state.image { Image(uiImage: image).resizable().interpolation(.none).scaledToFit().frame(maxWidth: 340).accessibilityLabel("Event check-in QR code") }
                 } else { Text("A ticket is available only after registration is confirmed.").foregroundStyle(Color.swMuted) }
                 if let error = state.error {
@@ -103,7 +103,7 @@ struct MemberRegistrationView: View {
                     else { SWError(message: error) }
                 }
                 if !state.cancelled && registration.can_cancel {
-                    Text("Cancellation cutoff: \(registration.cancellation_cutoff_at.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(Color.swMuted)
+                    Text("Cancellation cutoff: \(registration.cancellation_cutoff_at.formatted(date: .abbreviated, time: .shortened))").brandFont(.caption).foregroundStyle(Color.swMuted)
                     TimelineView(.periodic(from: .now, by: 1)) { tick in
                         Button("Cancel registration", role: .destructive) { confirmCancel = true }.frame(minHeight: 48)
                             .disabled(state.busy || (state.retryAfter ?? .distantPast) > tick.date)

@@ -3,6 +3,8 @@ import UIKit
 
 /// One UIKit text input keeps autofill, selection and keyboard identity while visibility changes.
 struct PasswordEntry: UIViewRepresentable {
+    @Environment(\.legibilityWeight) private var legibilityWeight
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var text: String
     var visible = false
     var newPassword = false
@@ -18,7 +20,7 @@ struct PasswordEntry: UIViewRepresentable {
         field.autocorrectionType = .no
         field.autocapitalizationType = .none
         field.adjustsFontForContentSizeCategory = true
-        field.font = .preferredFont(forTextStyle: .body)
+        field.font = BrandTypography.uiFont(traits: field.traitCollection, boldText: legibilityWeight == .bold)
         field.textColor = UIColor(named: "ink")
         field.tintColor = UIColor(named: "focus")
         field.returnKeyType = .done
@@ -35,6 +37,9 @@ struct PasswordEntry: UIViewRepresentable {
     }
     func updateUIView(_ field: UITextField, context: Context) {
         context.coordinator.parent = self
+        let traits = UITraitCollection(traitsFrom: [field.traitCollection,
+            UITraitCollection(preferredContentSizeCategory: dynamicTypeSize.uiContentSizeCategory)])
+        field.font = BrandTypography.uiFont(traits: traits, boldText: legibilityWeight == .bold)
         field.accessibilityIdentifier = identifier
         field.accessibilityLabel = label
         field.textContentType = newPassword ? .newPassword : .password
@@ -65,6 +70,26 @@ struct PasswordEntry: UIViewRepresentable {
     }
 }
 
+private extension DynamicTypeSize {
+    var uiContentSizeCategory: UIContentSizeCategory {
+        switch self {
+        case .xSmall: return .extraSmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .xLarge: return .extraLarge
+        case .xxLarge: return .extraExtraLarge
+        case .xxxLarge: return .extraExtraExtraLarge
+        case .accessibility1: return .accessibilityMedium
+        case .accessibility2: return .accessibilityLarge
+        case .accessibility3: return .accessibilityExtraLarge
+        case .accessibility4: return .accessibilityExtraExtraLarge
+        case .accessibility5: return .accessibilityExtraExtraExtraLarge
+        @unknown default: return .large
+        }
+    }
+}
+
 struct PasswordControl: View {
     let title: String
     @Binding var text: String
@@ -74,7 +99,7 @@ struct PasswordControl: View {
     @State private var visible = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline)
+            Text(title).brandFont(.headline)
             HStack(spacing: 8) {
                 PasswordEntry(text: $text, visible: visible, newPassword: newPassword, identifier: identifier, label: title, focus: focus)
                     .frame(minHeight: 48)

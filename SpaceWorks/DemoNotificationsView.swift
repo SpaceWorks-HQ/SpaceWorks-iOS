@@ -17,11 +17,11 @@ struct DemoNotificationsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 SWCard {
-                    Label("Notifications", systemImage: "bell.badge").font(.title2.bold())
+                    Label("Notifications", systemImage: "bell.badge").brandFont(.title2, weight: .bold)
                     Text("Demo only. Changes stay in this preview. No notifications will be sent.").foregroundStyle(Color.swMuted)
                     Toggle("Preview permission denied", isOn: $state.permissionDenied).frame(minHeight: 48)
                     if state.permissionDenied {
-                        Text("Notifications are off for this device.").font(.headline)
+                        Text("Notifications are off for this device.").brandFont(.headline)
                         Button("Open system settings") { state.feedback = String(localized: "In a connected app, this opens notification settings for your device.") }.frame(minHeight: 48)
                     } else {
                         Button(state.enabled ? "Turn off demo notifications" : "Enable notifications") { state.enabled.toggle(); state.feedback = state.enabled ? "Demo notifications are enabled." : "Demo notifications are off." }
@@ -30,7 +30,7 @@ struct DemoNotificationsView: View {
                     if let feedback = state.feedback { Text(feedback).foregroundStyle(Color.swMuted).accessibilityIdentifier("notification-preview-feedback") }
                 }
                 SWCard {
-                    Text("Preview an update").font(.title2.bold())
+                    Text("Preview an update").brandFont(.title2, weight: .bold)
                     Text("Open sample updates from your makerspaces. Changes stay in this preview.").foregroundStyle(Color.swMuted)
                     Button("Open inventory update") { route(.init(makerspaceID: makerspaceID, destination: .product(1))) }.frame(minHeight: 48).accessibilityIdentifier("demo-push-product")
                     Button("Open update from another makerspace") { route(.init(makerspaceID: makerspaceID == 7 ? 8 : 7, destination: .inbox)) }.frame(minHeight: 48).accessibilityIdentifier("demo-push-other-space")

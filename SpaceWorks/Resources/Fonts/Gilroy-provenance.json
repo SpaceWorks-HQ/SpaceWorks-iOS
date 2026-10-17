@@ -1,0 +1,42 @@
+{
+  "conversion": "fontTools4.67.0; WOFFcontainer toSFNT; recalcTimestampfalse; tables/outlines/names retained except requiredheadchecksum adjustment",
+  "authorization": "Owner supplied Designfontassets; latest fullbrand app request authorizes their use under applicable upstreamlicense. No open-source grant inferred.",
+  "faces": [
+    {
+      "source": "design/fonts/Gilroy-Regular.woff",
+      "source_sha256": "3ddd8144d45b5bccb8a54105cac4b5c84512660df31db154583354a86fe3794b",
+      "native": "Gilroy-Regular.ttf",
+      "native_sha256": "740a485e236853d80b8a013a6857041f23b65d418ee21ee7088ee113b1a3456f",
+      "postscript_name": "Gilroy-Regular",
+      "weight_role": 400,
+      "glyph_count": 556
+    },
+    {
+      "source": "design/fonts/Gilroy-Medium.woff",
+      "source_sha256": "f7709530ad3c01a0b3746b49c8253a265a03b835b7de6ba4b98dd859cdfb5642",
+      "native": "Gilroy-Medium.ttf",
+      "native_sha256": "4e613f3621e2625d8a961543a9abf692d95b94140135cb455fcecaff58cde38e",
+      "postscript_name": "Gilroy-Medium",
+      "weight_role": 500,
+      "glyph_count": 556
+    },
+    {
+      "source": "design/fonts/Gilroy-SemiBold.woff",
+      "source_sha256": "426b718652a4468d7bde05c50601ac0a7f9c2ff11ea3e4abe8902bc2dc182175",
+      "native": "Gilroy-SemiBold.ttf",
+      "native_sha256": "33eca191284d4e7e668668d31f5724a1e03758d7c428e2aae2bff12a4a6fa661",
+      "postscript_name": "Gilroy-SemiBold",
+      "weight_role": 600,
+      "glyph_count": 556
+    },
+    {
+      "source": "design/fonts/Gilroy-Bold.woff",
+      "source_sha256": "90dbd59c5b6b9da6c7f3fb89ca16e5d3c41e5e6451e4b51de89bbbd54173d688",
+      "native": "Gilroy-Bold.ttf",
+      "native_sha256": "d62f5a713448b45eb6a2f7b7b3777cf88aa0f19f684c19d88c8bc917fd5c34a7",
+      "postscript_name": "Gilroy-Bold",
+      "weight_role": 700,
+      "glyph_count": 556
+    }
+  ]
+}

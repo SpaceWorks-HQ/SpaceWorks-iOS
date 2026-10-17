@@ -12,7 +12,7 @@ struct PaymentsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("Payments").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("Payments").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 Text("See your charges, payment status, and issued documents.").foregroundStyle(Color.swMuted)
                 Picker("Due date", selection: $dueFilter) {
                     Text("All charges").tag(String?.none)
@@ -31,21 +31,21 @@ struct PaymentsView: View {
                 }
                 if state.load == .ready && visibleRecords.isEmpty {
                     SWCard {
-                        Label(dueFilter == nil ? "No charges here" : "No charges match this filter", systemImage: "checkmark.circle").font(.headline)
+                        Label(dueFilter == nil ? "No charges here" : "No charges match this filter", systemImage: "checkmark.circle").brandFont(.headline)
                         Text(dueFilter == nil ? "Your payments will appear here when your makerspace issues a charge." : "Choose another filter to see the other charges.").foregroundStyle(Color.swMuted)
                     }
                 }
                 ForEach(visibleRecords, id: \.id) { row in
                     NavigationLink { PaymentDetailView(state: state, paymentID: row.id) } label: {
                         SWCard {
-                            Text(row.subject_label).font(.headline).foregroundStyle(Color.swInk)
+                            Text(row.subject_label).brandFont(.headline).foregroundStyle(Color.swInk)
                             PaymentMoney(amount: row.amount, currency: row.currency)
                             HStack(alignment: .top) {
                                 Text(PaymentCopy.status(row.status?.rawValue)).foregroundStyle(Color.swMuted)
                                 Spacer()
                                 Image(systemName: "chevron.right").accessibilityHidden(true)
                             }
-                            if let due = row.due_date, !due.isEmpty { Text("Due \(due)").font(.subheadline).foregroundStyle(Color.swMuted) }
+                            if let due = row.due_date, !due.isEmpty { Text("Due \(due)").brandFont(.subheadline).foregroundStyle(Color.swMuted) }
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("payment-\(row.id)")
                 }
@@ -71,17 +71,17 @@ struct PaymentDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 if let row = state.record(paymentID) {
-                    Text("Review payment").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                    Text(row.subject_label).font(.title2.bold())
+                    Text("Review payment").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
+                    Text(row.subject_label).brandFont(.title2, weight: .bold)
                     SWCard {
-                        PaymentMoney(amount: row.amount, currency: row.currency).font(.title.bold())
-                        Text(PaymentCopy.status(row.status?.rawValue)).font(.headline)
+                        PaymentMoney(amount: row.amount, currency: row.currency).brandFont(.title, weight: .bold)
+                        Text(PaymentCopy.status(row.status?.rawValue)).brandFont(.headline)
                         if let due = row.due_date, !due.isEmpty { Text("Due \(due)").foregroundStyle(Color.swMuted) }
-                        Text("Charge #\(row.id)").font(.subheadline).foregroundStyle(Color.swMuted)
+                        Text("Charge #\(row.id)").brandFont(.subheadline).foregroundStyle(Color.swMuted)
                     }
                     if let settlement = row.settlement?.value1 {
                         SWCard {
-                            Text("Received at the desk").font(.headline)
+                            Text("Received at the desk").brandFont(.headline)
                             Text(settlement.received_at, format: .dateTime.day().month().year().hour().minute()).foregroundStyle(Color.swMuted)
                             Text("Method: \(settlement.method)")
                             if !settlement.reference.isEmpty { Text("Reference: \(settlement.reference)").textSelection(.enabled) }
@@ -102,11 +102,11 @@ struct PaymentDetailView: View {
                     Button("Check payment status") { Task { await state.checkStatus(paymentID: paymentID) } }
                         .frame(minHeight: 48).disabled(state.busy || !state.canRequest).accessibilityIdentifier("payment-check-status")
                     if !row.refunds.isEmpty {
-                        Text("Refunds").font(.title2.bold())
+                        Text("Refunds").brandFont(.title2, weight: .bold)
                         ForEach(Array(row.refunds.enumerated()), id: \.offset) { _, refund in
                             SWCard {
                                 PaymentMoney(amount: refund.amount, currency: refund.currency)
-                                Text(NativeStatusCopy.label(refund.status)).font(.headline)
+                                Text(NativeStatusCopy.label(refund.status)).brandFont(.headline)
                                 if !refund.reason.isEmpty { Text(refund.reason).foregroundStyle(Color.swMuted) }
                                 if !refund.reference.isEmpty { Text("Reference: \(refund.reference)").foregroundStyle(Color.swMuted).textSelection(.enabled) }
                             }
@@ -115,7 +115,7 @@ struct PaymentDetailView: View {
                     NavigationLink("Receipts and credit notes") { PaymentDocumentsView(state: state, paymentID: paymentID) }
                         .frame(minHeight: 48)
                 } else {
-                    Text("Payment unavailable").font(.title.bold())
+                    Text("Payment unavailable").brandFont(.title, weight: .bold)
                     Text("Refresh your payments to see the latest information.").foregroundStyle(Color.swMuted)
                     Button("Refresh payments") { Task { await state.refresh() } }.frame(minHeight: 48).disabled(!state.canRequest)
                 }
@@ -180,7 +180,7 @@ private struct DemoPaymentOutcomeSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Demo checkout · no money moves").font(.title.bold()).accessibilityAddTraits(.isHeader)
+                    Text("Demo checkout · no money moves").brandFont(.title, weight: .bold).accessibilityAddTraits(.isHeader)
                     Text("These sample results do not open a payment SDK or contact a server.").foregroundStyle(Color.swMuted)
                     choice("Preview confirmed payment", scenario: .paid)
                     choice("Preview waiting for confirmation", scenario: .pending)
@@ -198,7 +198,7 @@ private struct DemoPaymentOutcomeSheet: View {
             dismiss()
             Task { await state.simulateDemo(paymentID: paymentID, scenario: scenario) }
         } label: {
-            Text(title).font(.headline).fixedSize(horizontal: false, vertical: true)
+            Text(title).brandFont(.headline).fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
         }.buttonStyle(SWPrimary())
     }
@@ -215,7 +215,7 @@ struct PaymentDocumentsView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("Receipts and credit notes").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("Receipts and credit notes").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 Text("Open or share documents issued by your makerspace.").foregroundStyle(Color.swMuted)
                 if state.isDemo { Text("Demo documents · sample data").foregroundStyle(Color.swMuted) }
                 if case .loading = state.documentsLoad { ProgressView("Loading documents…") }
@@ -230,7 +230,7 @@ struct PaymentDocumentsView: View {
                 if state.documentBusy { ProgressView("Preparing document…") }
                 ForEach(documents, id: \.id) { document in
                     SWCard {
-                        Text(document.kind.rawValue == "credit_note" ? "Credit note \(document.number)" : "Receipt \(document.number)").font(.headline)
+                        Text(document.kind.rawValue == "credit_note" ? "Credit note \(document.number)" : "Receipt \(document.number)").brandFont(.headline)
                         PaymentMoney(amount: document.amount, currency: document.currency)
                         Text(document.issued_at, format: .dateTime.day().month().year()).foregroundStyle(Color.swMuted)
                         Button("Open PDF") { Task { await state.openDocument(document) } }.frame(minHeight: 48)

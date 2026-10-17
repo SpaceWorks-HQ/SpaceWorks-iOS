@@ -87,9 +87,9 @@ struct DemoDeletionView: View {
     }
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text("Delete account").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+            Text("Delete account").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
             Label("Demo only · no account will be deleted", systemImage: "info.circle").foregroundStyle(Color.swMuted)
-            Text("This deletes your whole Space Works account on this server, across every makerspace.").font(.headline)
+            Text("This deletes your whole Space Works account on this server, across every makerspace.").brandFont(.headline)
             Text("Payment and loan history is kept anonymised for legal and accounting records. Leaving one makerspace is a separate action.").foregroundStyle(Color.swMuted)
             if let error = state.error { SWError(message: error) }
             if state.stage == .explanation || state.stage == .blockers {
@@ -101,18 +101,18 @@ struct DemoDeletionView: View {
             switch state.stage {
             case .explanation: Text("Review every makerspace's obligations, verify your identity, then confirm. You can leave at any time before confirmation.").foregroundStyle(Color.swMuted)
             case .blockers:
-                Text("Resolve these before deleting").font(.title2.bold())
+                Text("Resolve these before deleting").brandFont(.title2, weight: .bold)
                 ForEach(state.blockers) { blocker in
                     SWCard {
-                        Text(blocker.makerspace).font(.headline)
+                        Text(blocker.makerspace).brandFont(.headline)
                         Text(blocker.detail)
-                        Text("\(blocker.count) outstanding").font(.subheadline).foregroundStyle(Color.swMuted)
+                        Text("\(blocker.count) outstanding").brandFont(.subheadline).foregroundStyle(Color.swMuted)
                         if let onFix { Button("Open \(blocker.destination.rawValue)") { onFix(blocker) }.frame(minHeight: 48) }
                         else { NavigationLink("Open \(blocker.destination.rawValue)") { DemoDeletionResolutionView(blocker: blocker) }.frame(minHeight: 48) }
                     }
                 }
             case .reauthenticate:
-                Text("Verify your identity").font(.title2.bold())
+                Text("Verify your identity").brandFont(.title2, weight: .bold)
                 Picker("Verification method", selection: $state.method) { ForEach(DemoDeletionState.Method.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                     .onChange(of: state.method) { _, _ in state.credential = "" }
                 if state.method == .password {
@@ -125,12 +125,12 @@ struct DemoDeletionView: View {
                 }
                 Button("Verify identity") { state.authenticate() }.buttonStyle(SWPrimary()).accessibilityIdentifier("deletion-verify")
             case .confirm:
-                Text("Confirm deletion").font(.title2.bold())
+                Text("Confirm deletion").brandFont(.title2, weight: .bold)
                 Text("Type DELETE to clear this demo account. This preview only resets in-memory sample data.").foregroundStyle(Color.swMuted)
                 TextField("Type DELETE", text: $state.confirmation).textInputAutocapitalization(.characters).autocorrectionDisabled().focused($fieldFocused)
                     .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier("deletion-confirmation")
                 Button("Delete demo account", role: .destructive) { state.deletePreviewAccount() }.buttonStyle(SWPrimary()).disabled(!state.canConfirm).accessibilityIdentifier("deletion-submit")
-            case .deleted: Label("Demo account cleared", systemImage: "checkmark.circle").font(.title2.bold())
+            case .deleted: Label("Demo account cleared", systemImage: "checkmark.circle").brandFont(.title2, weight: .bold)
             }
         }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background(Color.swBg).foregroundStyle(Color.swInk).tint(Color.swAccentInk)
             .navigationTitle("Delete account").navigationBarTitleDisplayMode(.inline).onDisappear { state.credential = ""; state.confirmation = "" }
@@ -142,7 +142,7 @@ private struct DemoDeletionResolutionView: View {
     let blocker: DemoDeletionState.Blocker
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text(LocalizedStringKey(blocker.destination.rawValue)).font(.largeTitle.bold()); Text(blocker.makerspace).font(.headline)
+            Text(LocalizedStringKey(blocker.destination.rawValue)).brandFont(.largeTitle, weight: .bold); Text(blocker.makerspace).brandFont(.headline)
             Text(blocker.detail); Text("This preview does not resolve real obligations. Open the matching makerspace task from your account to continue.").foregroundStyle(Color.swMuted)
         }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle(LocalizedStringKey(blocker.destination.rawValue))
     }

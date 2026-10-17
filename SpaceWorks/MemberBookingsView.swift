@@ -7,7 +7,7 @@ struct MemberBookingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Bookings").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("Bookings").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 NavigationLink("Find a space", value: MemberRoute.spaces).frame(minHeight: 48)
                 LoadFeedback(load: state.bookingsLoad, lastUpdated: state.updated["bookings"], retryAfter: state.deadline("bookings")) { await state.loadBookings() }
                 if state.bookingsLoad == .ready && state.bookings.isEmpty {
@@ -15,7 +15,7 @@ struct MemberBookingsView: View {
                 }
                 ForEach(state.bookings, id: \.public_token) { row in
                     SWCard {
-                        NavigationLink(row.space_name, value: MemberRoute.booking(row.public_token)).font(.headline).frame(minHeight: 48)
+                        NavigationLink(row.space_name, value: MemberRoute.booking(row.public_token)).brandFont(.headline).frame(minHeight: 48)
                         Text(guideBookingDate(row.starts_at, timezone: row.timezone))
                         Text(NativeStatusCopy.label(row.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                     }

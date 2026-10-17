@@ -22,6 +22,7 @@ struct RootView: View {
             #endif
             }
         }
+        .brandFont(.body)
         .tint(Color.swAccentInk)
         .foregroundStyle(Color.swInk)
         .preferredColorScheme(state.darkMode ? .dark : .light)
@@ -97,12 +98,12 @@ private struct ConnectView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text(Brand.appName).font(.headline).foregroundStyle(Color.swMuted)
+                    Text(Brand.appName).brandFont(.headline).foregroundStyle(Color.swMuted)
                     BrandWordmark()
-                    Text("Connect to your makerspace").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                    Text("Connect to your makerspace").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                     Text("Enter the server address provided by your makerspace.").foregroundStyle(Color.swMuted)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Server address").font(.headline)
+                        Text("Server address").brandFont(.headline)
                         TextField("Server address", text: $state.serverInput,
                                   prompt: Text(verbatim: "https://spaceworks.example").foregroundColor(Color.swMuted))
                             .foregroundStyle(Color.swInk)
@@ -295,7 +296,7 @@ private struct MemberScreen: View {
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                     SWCard {
-                        Text(auth.displayName).font(.title2.bold())
+                        Text(auth.displayName).brandFont(.title2, weight: .bold)
                         Text(auth.user?.email ?? "").foregroundStyle(Color.swMuted).textSelection(.enabled)
                         if let error = auth.error { SWError(message: error) }
                         if auth.user?.email_verified == false {

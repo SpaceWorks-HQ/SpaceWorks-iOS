@@ -43,8 +43,8 @@ struct IntroductionView: View {
                                 }
                             }.padding(20).background(Color.swSuccessSoft, in: RoundedRectangle(cornerRadius: 24)).accessibilityHidden(true)
                         }
-                        Text(headings[page]).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
-                        Text(details[page]).font(.title3).foregroundStyle(Color.swMuted)
+                        Text(headings[page]).brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
+                        Text(details[page]).brandFont(.title3).foregroundStyle(Color.swMuted)
                     }.id(page).transition(.opacity)
                     Spacer(minLength: 16)
                     Button(page == 2 ? "Get started" : "Next") {

@@ -110,7 +110,7 @@ struct DemoAccountProviderLinks: View {
     @State private var outcome = DemoAccountLinkOutcome.success
     var body: some View {
         SWCard {
-            Text("Preview provider linking").font(.headline)
+            Text("Preview provider linking").brandFont(.headline)
             Text("Demo mode. No provider account is connected.").foregroundStyle(Color.swMuted)
             Picker("Preview result", selection: $outcome) { ForEach(DemoAccountLinkOutcome.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }.frame(minHeight: 48)
             if !state.providers.contains(where: { $0.provider == "google" }) { GoogleProviderButton(wide: false) { provider = "google" } }

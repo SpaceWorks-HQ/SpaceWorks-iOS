@@ -6,7 +6,7 @@ struct StaffView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Staff tools").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text("Staff tools").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 Text("Review, hand over, and welcome people into your makerspace.").foregroundStyle(Color.swMuted)
                 if state.isDemo { Label("Demo staff tools · sample data", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 SWCard {
@@ -23,7 +23,7 @@ struct StaffView: View {
                         NavigationLink { StaffEventsView(state: state) } label: { StaffMenuRow(title: Text("Event check-in"), detail: "Scan, review the person, then confirm attendance", symbol: "qrcode.viewfinder") }.accessibilityIdentifier("staff-events")
                     }
                 }
-                Text("Only the tools allowed by your selected makerspace appear here.").font(.subheadline).foregroundStyle(Color.swMuted)
+                Text("Only the tools allowed by your selected makerspace appear here.").brandFont(.subheadline).foregroundStyle(Color.swMuted)
             }.padding(24).frame(maxWidth: 900).frame(maxWidth: .infinity)
         }.background(Color.swBg).foregroundStyle(Color.swInk).tint(Color.swAccentInk).navigationTitle("Staff tools")
     }
@@ -36,13 +36,13 @@ private struct StaffMenuRow: View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 8) {
-                    title.font(.headline).fixedSize(horizontal: false, vertical: true)
-                    Text(detail).font(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
+                    title.brandFont(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(detail).brandFont(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(alignment: .top, spacing: 16) {
                     Image(systemName: symbol).font(.title2).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 8) { title.font(.headline); Text(detail).font(.subheadline).foregroundStyle(Color.swMuted) }
+                    VStack(alignment: .leading, spacing: 8) { title.brandFont(.headline); Text(detail).brandFont(.subheadline).foregroundStyle(Color.swMuted) }
                     Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
                 }
             }
@@ -65,10 +65,10 @@ struct StaffRequestsView: View {
                 ForEach(state.requests, id: \.id) { row in
                     NavigationLink { StaffRequestDetail(state: state, row: row) } label: {
                         SWCard {
-                            Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).font(.headline).foregroundStyle(Color.swInk)
+                            Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).brandFont(.headline).foregroundStyle(Color.swInk)
                             Text("Request #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                             ForEach(row.items, id: \.id) { item in Text("\(item.product_name) × \(state.queue == .pending ? item.requested_quantity : item.accepted_quantity)").foregroundStyle(Color.swInk) }
-                            Label("Review details", systemImage: "chevron.right").font(.subheadline)
+                            Label("Review details", systemImage: "chevron.right").brandFont(.subheadline)
                         }
                     }.buttonStyle(.plain).accessibilityIdentifier("staff-request-\(row.id)")
                 }
@@ -89,11 +89,11 @@ private struct StaffRequestDetail: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).font(.largeTitle.bold())
+                Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).brandFont(.largeTitle, weight: .bold)
                 Text("Request #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                 ForEach(row.items, id: \.id) { item in
                     SWCard {
-                        Text(item.product_name).font(.headline)
+                        Text(item.product_name).brandFont(.headline)
                         if !item.storage_location.isEmpty { Label(item.storage_location, systemImage: "mappin").foregroundStyle(Color.swMuted) }
                         Text("Requested: \(item.requested_quantity) · Accepted: \(item.accepted_quantity)")
                         if state.queue == .pending && state.can("accept_request") {
@@ -135,7 +135,7 @@ private struct StaffDirectLoansView: View {
                 StaffFeedback(load: state.directLoad) { await state.loadDirect() }
                 ForEach(state.directLoans, id: \.id) { row in
                     SWCard {
-                        Text(row.target_label).font(.headline); Text("Loan #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
+                        Text(row.target_label).brandFont(.headline); Text("Loan #\(row.id) · \(NativeStatusCopy.label(row.status))").foregroundStyle(Color.swMuted)
                         if let due = row.due_at { Text("Due \(due.formatted(date: .abbreviated, time: .shortened))") }
                         if row.status == "active" && state.canReturn {
                             NavigationLink("Record return") { StaffHandoverView(state: StaffHandoverState(parent: state, mode: .directReturn(row))) }.frame(minHeight: 48)
@@ -156,7 +156,7 @@ private struct StaffEventsView: View {
             StaffFeedback(load: state.eventsLoad) { await state.loadEvents() }
             ForEach(state.events, id: \.id) { event in
                 NavigationLink { StaffCheckInView(state: StaffCheckInState(parent: state, event: event)) } label: {
-                    SWCard { Text(event.title).font(.headline).foregroundStyle(Color.swInk); Text(event.starts_at, format: .dateTime.day().month().hour().minute()).foregroundStyle(Color.swMuted); Label("Open check-in", systemImage: "qrcode.viewfinder") }
+                    SWCard { Text(event.title).brandFont(.headline).foregroundStyle(Color.swInk); Text(event.starts_at, format: .dateTime.day().month().hour().minute()).foregroundStyle(Color.swMuted); Label("Open check-in", systemImage: "qrcode.viewfinder") }
                 }.buttonStyle(.plain)
             }
             if state.eventsLoad == .ready && state.events.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
@@ -175,15 +175,15 @@ private struct StaffCheckInView: View {
                 SWError(message: state.parent.error ?? String(localized: "Your access changed. Return to your makerspace before continuing."))
                 Button("Close") { dismiss() }.buttonStyle(SWPrimary())
             } else {
-            Text(state.eventTitle).font(.largeTitle.bold())
+            Text(state.eventTitle).brandFont(.largeTitle, weight: .bold)
             Text("Scan a check-in code. Review the person below before recording attendance.").foregroundStyle(Color.swMuted)
             Button("Scan check-in code") { scanner = true }.buttonStyle(SWPrimary()).disabled(state.busy)
             if state.busy { ProgressView("Checking registration…") }
             if let error = state.error { SWError(message: error) }
-            if let confirmation = state.confirmation { Label(confirmation, systemImage: "checkmark.circle").font(.headline).accessibilityIdentifier("staff-attendance-recorded") }
+            if let confirmation = state.confirmation { Label(confirmation, systemImage: "checkmark.circle").brandFont(.headline).accessibilityIdentifier("staff-attendance-recorded") }
             if let person = state.person {
                 SWCard {
-                    Text(person.name).font(.title2.bold()); Text(NativeStatusCopy.label(person.status))
+                    Text(person.name).brandFont(.title2, weight: .bold); Text(NativeStatusCopy.label(person.status))
                     Text("Payment: \((person.payment_status ?? String(localized: "Unavailable")).replacingOccurrences(of: "_", with: " "))").foregroundStyle(Color.swMuted)
                     if state.canConfirm { Button("Confirm attendance") { Task { await state.confirm() } }.buttonStyle(SWPrimary()).accessibilityIdentifier("staff-confirm-attendance") }
                     else { Text("This registration cannot be checked in. Scan another code or ask the event manager.").foregroundStyle(Color.swMuted) }
@@ -220,7 +220,7 @@ private struct StaffBookingsView: View {
             if let notice = state.notice { Text(notice).accessibilityIdentifier("staff-booking-notice") }
             ForEach(state.bookings, id: \.id) { row in
                 SWCard {
-                    Text(row.name).font(.headline); Text(row.starts_at, format: .dateTime.day().month().hour().minute())
+                    Text(row.name).brandFont(.headline); Text(row.starts_at, format: .dateTime.day().month().hour().minute())
                     Text(NativeStatusCopy.label(row.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                     if !row.note.isEmpty { Text(row.note) }
                     if row.status.value1.rawValue == "pending" {

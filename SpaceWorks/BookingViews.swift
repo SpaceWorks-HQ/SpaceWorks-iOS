@@ -9,15 +9,15 @@ struct SpaceDiscoveryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("Find a space").font(.largeTitle.bold())
+                Text("Find a space").brandFont(.largeTitle, weight: .bold)
                 Text("Make room for your next idea. Availability and approvals come from your makerspace.").foregroundStyle(Color.swMuted)
-                if isDemo { Text("Demo mode · sample spaces").font(.caption.bold()).foregroundStyle(Color.swMuted) }
+                if isDemo { Text("Demo mode · sample spaces").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
                 LoadFeedback(load: member.spacesLoad, retryAfter: member.deadline("spaces")) { await member.loadSpaces() }
                 if member.spacesLoad == .ready && member.spaces.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(member.spaces, id: \.public_token) { space in
                     NavigationLink(value: MemberRoute.space(space.public_token)) {
                         SWCard {
-                            Label(space.name, systemImage: "building.2.crop.circle").font(.title2.bold())
+                            Label(space.name, systemImage: "building.2.crop.circle").brandFont(.title2, weight: .bold)
                             Text(space.description).foregroundStyle(Color.swMuted)
                             Text(space.location).foregroundStyle(Color.swMuted)
                             Text("Capacity: \(space.capacity)")
@@ -45,11 +45,11 @@ struct SpaceBookingView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text(state.space.name).font(.largeTitle.bold())
-                if isDemo { Text("Demo mode · no real booking is made").font(.caption.bold()).foregroundStyle(Color.swMuted) }
+                Text(state.space.name).brandFont(.largeTitle, weight: .bold)
+                if isDemo { Text("Demo mode · no real booking is made").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
                 if let result = state.result {
                     SWCard {
-                        Label(result.status.value1 == .pending ? "Booking request received" : "Space booked", systemImage: "checkmark.circle").font(.title2.bold())
+                        Label(result.status.value1 == .pending ? "Booking request received" : "Space booked", systemImage: "checkmark.circle").brandFont(.title2, weight: .bold)
                         Text(result.status.value1 == .pending ? "Staff must approve this request before the slot is confirmed." : "Your selected slot is confirmed and booked.").foregroundStyle(Color.swMuted)
                         Text("Find your booking in Activity. Its reference and cancellation options are loaded from your account.").foregroundStyle(Color.swMuted)
                         Button("View bookings", action: viewActivity).buttonStyle(SWPrimary())
@@ -57,8 +57,8 @@ struct SpaceBookingView: View {
                     }
                 } else {
                     SWCard {
-                        Text("Request this space").font(.title2.bold())
-                        Text("Times are shown in your device timezone: \(TimeZone.current.identifier).").font(.caption).foregroundStyle(Color.swMuted)
+                        Text("Request this space").brandFont(.title2, weight: .bold)
+                        Text("Times are shown in your device timezone: \(TimeZone.current.identifier).").brandFont(.caption).foregroundStyle(Color.swMuted)
                         DatePicker("Starts", selection: $state.start).frame(minHeight: 48)
                         DatePicker("Ends", selection: $state.end).frame(minHeight: 48)
                         TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -68,18 +68,18 @@ struct SpaceBookingView: View {
                     }.disabled(state.busy)
                     if let availability = state.availability {
                         SWCard {
-                            Text("Opening hours").font(.title2.bold())
-                            Text(availability.timezone).font(.caption).foregroundStyle(Color.swMuted)
+                            Text("Opening hours").brandFont(.title2, weight: .bold)
+                            Text(availability.timezone).brandFont(.caption).foregroundStyle(Color.swMuted)
                             if availability.opening_intervals.isEmpty { Text("The makerspace is closed in this window.").foregroundStyle(Color.swMuted) }
                             ForEach(Array(availability.opening_intervals.enumerated()), id: \.offset) { _, interval in Text(intervalLabel(interval.starts_at, interval.ends_at, timezone: availability.timezone)) }
                             if let intervals = availability.availability {
-                                Text("Booked times").font(.headline)
+                                Text("Booked times").brandFont(.headline)
                                 if intervals.isEmpty { Text("No confirmed bookings are shown in this window.").foregroundStyle(Color.swMuted) }
                                 ForEach(Array(intervals.enumerated()), id: \.offset) { _, interval in Text(intervalLabel(interval.starts_at, interval.ends_at, timezone: availability.timezone)) }
                             } else { Text("This makerspace doesn't share booked times. Your request is checked when submitted.").foregroundStyle(Color.swMuted) }
                         }
                         SWCard {
-                            Text("Booking details").font(.title2.bold()); MemberCustomFields(form: form)
+                            Text("Booking details").brandFont(.title2, weight: .bold); MemberCustomFields(form: form)
                             Text("Review your times and answers. The server checks availability again when you submit.").foregroundStyle(Color.swMuted)
                             if let formError { SWError(message: formError) }
                             TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -127,12 +127,12 @@ struct MemberBookingDetailView: View {
     var body: some View {
         ScrollView {
             SWCard {
-                if isDemo { Text("Demo mode · sample booking").font(.caption.bold()).foregroundStyle(Color.swMuted) }
-                Text(current.space_name).font(.largeTitle.bold())
+                if isDemo { Text("Demo mode · sample booking").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
+                Text(current.space_name).brandFont(.largeTitle, weight: .bold)
                 Text(intervalLabel(current.starts_at, current.ends_at, timezone: current.timezone))
-                Text(current.timezone).font(.caption).foregroundStyle(Color.swMuted)
-                Text(NativeStatusCopy.label(current.status.value1.rawValue)).font(.headline)
-                Text("Booking reference").font(.headline); Text(current.public_token).font(.body.monospaced()).textSelection(.enabled)
+                Text(current.timezone).brandFont(.caption).foregroundStyle(Color.swMuted)
+                Text(NativeStatusCopy.label(current.status.value1.rawValue)).brandFont(.headline)
+                Text("Booking reference").brandFont(.headline); Text(current.public_token).font(.body.monospaced()).textSelection(.enabled)
                 if let error { SWError(message: error) }
                 if current.can_cancel {
                     Text("Cancellation cutoff: \(current.cancellation_cutoff_at.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted)

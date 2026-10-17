@@ -15,9 +15,9 @@ struct StaffHandoverView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Step \(state.step + 1) of \(state.steps.count)").font(.subheadline).foregroundStyle(Color.swMuted)
+                Text("Step \(state.step + 1) of \(state.steps.count)").brandFont(.subheadline).foregroundStyle(Color.swMuted)
                 ProgressView(value: Double(state.step + 1), total: Double(state.steps.count)).tint(Color.swAccentInk).accessibilityLabel("Handover progress")
-                Text(currentTitle).font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+                Text(currentTitle).brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 if state.isDemo { Label("Demo handover · no live equipment changes", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 if let error = state.error { SWError(message: error).accessibilityIdentifier("staff-handover-error") }
                 if let notice = state.notice { Label(notice, systemImage: "info.circle").foregroundStyle(Color.swMuted) }
@@ -27,7 +27,7 @@ struct StaffHandoverView: View {
                     Button("Close") { dismiss() }.buttonStyle(SWPrimary())
                 } else if let receipt = state.receipt {
                     SWCard {
-                        Label(receipt, systemImage: "checkmark.circle").font(.title2.bold()).accessibilityIdentifier("staff-handover-recorded")
+                        Label(receipt, systemImage: "checkmark.circle").brandFont(.title2, weight: .bold).accessibilityIdentifier("staff-handover-recorded")
                         if let evidence = state.evidenceID { Text("Evidence photo #\(evidence)") }
                         if !state.remark.isEmpty { Text(state.remark) }
                         Text("This summary reflects the recorded handover. Refresh the loan to see its latest status.").foregroundStyle(Color.swMuted)
@@ -89,7 +89,7 @@ struct StaffHandoverView: View {
     }
     private var container: some View {
         SWCard {
-            Text(state.mode.loan == nil ? "Check the container" : "Check the loan code").font(.headline)
+            Text(state.mode.loan == nil ? "Check the container" : "Check the loan code").brandFont(.headline)
             Text(state.requiresBox ? "Scan the code attached to this handover. The server will verify it belongs to this makerspace." : "This loan does not require a return scan.").foregroundStyle(Color.swMuted)
             if state.requiresBox { Button(state.boxCode.isEmpty ? "Scan handover code" : "Scan another code") { scanner = .box }.frame(minHeight: 48) }
             if !state.boxLabel.isEmpty { Label(state.boxLabel, systemImage: "checkmark.circle") }
@@ -98,7 +98,7 @@ struct StaffHandoverView: View {
     private var borrowerCheck: some View {
         SWCard {
             if let row = state.mode.request {
-                Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).font(.title2.bold())
+                Text(row.requester_display.isEmpty ? row.requester_username : row.requester_display).brandFont(.title2, weight: .bold)
                 Text("Request #\(row.id)").foregroundStyle(Color.swMuted)
                 Text("Check the borrower's membership card or approved identification before handing over the equipment.").foregroundStyle(Color.swMuted)
                 Toggle("I checked the borrower against this request", isOn: $state.borrowerChecked).frame(minHeight: 48).accessibilityIdentifier("staff-borrower-checked")
@@ -107,7 +107,7 @@ struct StaffHandoverView: View {
     }
     private var borrowers: some View {
         SWCard {
-            Text("Choose an eligible borrower").font(.headline)
+            Text("Choose an eligible borrower").brandFont(.headline)
             Text("These people are supplied by this makerspace. Selecting a person does not create a sign-in account.").foregroundStyle(Color.swMuted)
             Picker("Borrower", selection: $state.borrowerID) {
                 Text("Choose a borrower").tag(Optional<Int>.none)
@@ -120,11 +120,11 @@ struct StaffHandoverView: View {
     private var equipment: some View {
         VStack(alignment: .leading, spacing: 24) {
             if let row = state.mode.request {
-                ForEach(row.items, id: \.id) { item in SWCard { Text(item.product_name).font(.headline); Text("Accepted: \(item.accepted_quantity)"); if item.requires_asset_qr { Text("Scan each individual asset.").foregroundStyle(Color.swMuted) } } }
+                ForEach(row.items, id: \.id) { item in SWCard { Text(item.product_name).brandFont(.headline); Text("Accepted: \(item.accepted_quantity)"); if item.requires_asset_qr { Text("Scan each individual asset.").foregroundStyle(Color.swMuted) } } }
             } else {
                 ForEach(state.products.filter { $0.is_archived != true && ($0.available_quantity ?? 0) > 0 && $0.tracking_mode?.rawValue != "individual" }, id: \.id) { item in
                     SWCard {
-                        Text(item.name).font(.headline)
+                        Text(item.name).brandFont(.headline)
                         Stepper("Quantity: \(state.bulkQuantities[item.id] ?? 0)", value: Binding(get: { state.bulkQuantities[item.id] ?? 0 }, set: { state.bulkQuantities[item.id] = $0 }), in: 0...max(0, item.available_quantity ?? 0)).frame(minHeight: 48).accessibilityLabel("Quantity for \(item.name)").accessibilityValue("\(state.bulkQuantities[item.id] ?? 0)")
                     }
                 }
@@ -132,7 +132,7 @@ struct StaffHandoverView: View {
                 if state.products.isEmpty && !state.busy { Button("Reload equipment") { Task { await state.loadProducts() } }.frame(minHeight: 48) }
             }
             Button("Scan equipment code") { scanner = .equipment }.frame(minHeight: 48).disabled(state.busy)
-            Text("\(state.scans.count) equipment codes checked").font(.subheadline).foregroundStyle(Color.swMuted)
+            Text("\(state.scans.count) equipment codes checked").brandFont(.subheadline).foregroundStyle(Color.swMuted)
             if !state.duplicateProducts.isEmpty { SWError(message: String(localized: "This equipment is both scanned and selected by quantity. Remove one selection before continuing.")) }
             ForEach(state.scans.keys.sorted(), id: \.self) { payload in
                 HStack(alignment: .top) {
@@ -145,7 +145,7 @@ struct StaffHandoverView: View {
     private var returnedItems: some View {
         ForEach(state.returns.indices, id: \.self) { index in
             SWCard {
-                Text(state.returns[index].label).font(.headline)
+                Text(state.returns[index].label).brandFont(.headline)
                 Text("Remaining: \(state.returns[index].remaining)").foregroundStyle(Color.swMuted)
                 if !state.returns[index].metadataValid { SWError(message: String(localized: "Asset details are unavailable. Refresh this loan before recording a return.")) }
                 else if state.returns[index].assets.isEmpty {
@@ -169,7 +169,7 @@ struct StaffHandoverView: View {
     private var review: some View {
         VStack(alignment: .leading, spacing: 24) {
             SWCard {
-                Text("Evidence photo").font(.headline)
+                Text("Evidence photo").brandFont(.headline)
                 Text("Photograph the equipment and its condition. Avoid faces or unrelated personal information.").foregroundStyle(Color.swMuted)
                 if let photo = state.photo, let image = UIImage(data: photo) { Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 280).clipShape(RoundedRectangle(cornerRadius: 16)).accessibilityLabel("Evidence photo preview") }
                 Button(state.photo == nil ? "Take evidence photo" : "Retake photo") { Task { await prepareCamera() } }.frame(minHeight: 48).disabled(state.busy)
@@ -182,7 +182,7 @@ struct StaffHandoverView: View {
             }
             if state.needsKits {
                 SWCard {
-                    Text("Kit checklist").font(.headline)
+                    Text("Kit checklist").brandFont(.headline)
                     Text("Count each component. Enter zero for a missing component.").foregroundStyle(Color.swMuted)
                     if !state.kitsReady { Button("Load kit checklist") { Task { await state.prepareKits() } }.frame(minHeight: 48).disabled(state.busy) }
                     ForEach(state.kits, id: \.key) { item in
@@ -194,7 +194,7 @@ struct StaffHandoverView: View {
                     }
                 }
             }
-            Text(state.mode.isReturn ? "Return remark (required)" : "Issue remark (optional)").font(.headline)
+            Text(state.mode.isReturn ? "Return remark (required)" : "Issue remark (optional)").brandFont(.headline)
             TextField("Describe the equipment condition", text: $state.remark, axis: .vertical).lineLimit(3...8).modifier(StaffInput()).accessibilityIdentifier("staff-handover-remark")
             if state.mode.isReturn { ForEach(state.returns, id: \.id) { item in Text("\(item.label): \(item.returned) returned, \(item.damaged) damaged, \(item.missing) missing").foregroundStyle(Color.swMuted) } }
             Text("Confirming records this handover. Review the details before continuing.").foregroundStyle(Color.swMuted)

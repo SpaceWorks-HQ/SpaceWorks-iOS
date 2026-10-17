@@ -8,12 +8,12 @@ struct NotificationSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 SWCard {
-                    Label("Notifications", systemImage: "bell.badge").font(.title2.bold())
+                    Label("Notifications", systemImage: "bell.badge").brandFont(.title2, weight: .bold)
                     Text("Keep up with requests, bookings, and important makerspace updates. Your inbox is always available.").foregroundStyle(Color.swMuted)
                     if !state.registration.configured {
                         Text("Notifications are not configured for this build. Your inbox is still available.").foregroundStyle(Color.swMuted)
                     } else if state.permissionDenied {
-                        Text("Notifications are off for this device.").font(.headline)
+                        Text("Notifications are off for this device.").brandFont(.headline)
                         Button("Open system settings") { state.openSettings() }.frame(minHeight: 48)
                     } else {
                         Text(state.registration.enabled ? "Notifications are enabled for this account." : "Enable notifications when you're ready.").foregroundStyle(Color.swMuted)

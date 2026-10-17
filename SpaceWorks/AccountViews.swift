@@ -12,7 +12,7 @@ struct AccountView: View {
     @Environment(\.dismiss) private var dismiss
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text("Account and security").font(.largeTitle.bold()).accessibilityAddTraits(.isHeader)
+            Text("Account and security").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
             Text("Manage your sign-in, devices, membership, and personal data.").foregroundStyle(Color.swMuted)
             if state.isDemo { Label("Demo account · sample data", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
             SWCard {
@@ -31,13 +31,13 @@ struct AccountView: View {
                 if state.makerspaceID == nil { Text("Join a makerspace to manage membership records here.").foregroundStyle(Color.swMuted) }
             }
             SWCard {
-                Text("Privacy and help").font(.title2.bold())
+                Text("Privacy and help").brandFont(.title2, weight: .bold)
                 NavigationLink("App guide") { AppGuideView(isDemo: state.isDemo) }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                 if let url = AccountLinks.safe(privacyURL) { Link("Privacy policy", destination: url).frame(minHeight: 48) }
                 else { Text("Your makerspace hasn't provided a privacy policy link.").foregroundStyle(Color.swMuted) }
                 if let url = AccountLinks.safe(supportURL) { Link("Contact support", destination: url).frame(minHeight: 48) }
                 else { Text("Ask your makerspace for its support contact.").foregroundStyle(Color.swMuted) }
-                Text("Account deletion").font(.headline)
+                Text("Account deletion").brandFont(.headline)
                 #if DEBUG
                 if state.isDemo, let onDemoDelete {
                     NavigationLink("Preview account deletion") {
@@ -68,13 +68,13 @@ private struct AccountMenuRow: View {
             if dynamicTypeSize.isAccessibilitySize {
                 // Decorative glyphs must not squeeze scaled words into narrow columns.
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(title).font(.headline).fixedSize(horizontal: false, vertical: true)
-                    Text(verbatim: detail).font(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
+                    Text(title).brandFont(.headline).fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: detail).brandFont(.subheadline).foregroundStyle(Color.swMuted).fixedSize(horizontal: false, vertical: true)
                 }.frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(alignment: .top, spacing: 16) {
                     Image(systemName: icon).font(.title2).accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); Text(verbatim: detail).font(.subheadline).foregroundStyle(Color.swMuted) }
+                    VStack(alignment: .leading, spacing: 8) { Text(title).brandFont(.headline); Text(verbatim: detail).brandFont(.subheadline).foregroundStyle(Color.swMuted) }
                     Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
                 }
             }
@@ -107,20 +107,20 @@ private struct AccountSecurityView: View {
     @State private var action: String?
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text("Two-step sign-in").font(.largeTitle.bold())
+            Text("Two-step sign-in").brandFont(.largeTitle, weight: .bold)
             Text("Use an authenticator as an extra check when you sign in.").foregroundStyle(Color.swMuted)
             AccountFeedback(load: state.securityLoad) { await state.loadSecurity() }
             AccountMessages(state: state)
             if let mfa = state.mfa {
                 SWCard {
-                    Label(mfa.enabled ? "Authenticator enrolled" : "Authenticator not enrolled", systemImage: "lock.shield").font(.headline)
+                    Label(mfa.enabled ? "Authenticator enrolled" : "Authenticator not enrolled", systemImage: "lock.shield").brandFont(.headline)
                     if mfa.required { Text("Your account requires two-step sign-in.").foregroundStyle(Color.swMuted) }
                     if !mfa.available && !mfa.enabled { Text("Two-step sign-in is unavailable on this server.").foregroundStyle(Color.swMuted) }
                     if !mfa.enabled && mfa.available && !state.isDemo { Text("Enable two-step sign-in in your makerspace's web portal, then sign in again on this device.").foregroundStyle(Color.swMuted) }
                 }
                 if mfa.enabled || state.canStartMFA {
-                    Text("Current password").font(.headline)
-                    if state.isDemo { Text("Use DemoPass!123 in this demo. No real security setting changes.").font(.subheadline).foregroundStyle(Color.swMuted) }
+                    Text("Current password").brandFont(.headline)
+                    if state.isDemo { Text("Use DemoPass!123 in this demo. No real security setting changes.").brandFont(.subheadline).foregroundStyle(Color.swMuted) }
                     PasswordControl(title: String(localized: "Current password"), text: $state.password, identifier: "account-current-password", focus: $focused).disabled(state.busy)
                     Text("Changing your authenticator or recovery codes ends your existing sessions.").foregroundStyle(Color.swMuted)
                     if state.canStartMFA { Button("Enroll authenticator") { action = "enroll" }.buttonStyle(SWPrimary()).disabled(state.password.isEmpty) }
@@ -148,7 +148,7 @@ struct AccountSecurityCompletionView: View {
     @State private var saved = false
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text(codes.isEmpty ? "Sign in again" : "Save your recovery codes").font(.largeTitle.bold())
+            Text(codes.isEmpty ? "Sign in again" : "Save your recovery codes").brandFont(.largeTitle, weight: .bold)
             Text(message).foregroundStyle(Color.swMuted)
             if !codes.isEmpty {
                 SWCard { Text(codes.joined(separator: "\n")).font(.body.monospaced()).textSelection(.enabled).privacySensitive() }
@@ -167,20 +167,20 @@ private struct AccountPhoneView: View {
     @FocusState private var focused: Field?
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text("Phone sign-in").font(.largeTitle.bold())
+            Text("Phone sign-in").brandFont(.largeTitle, weight: .bold)
             Text("Verify a number to use it for sign-in.").foregroundStyle(Color.swMuted)
             AccountMessages(state: state)
-            if let status = state.phoneStatus, status.verified { Label(status.phone_e164, systemImage: "checkmark.seal").font(.headline) }
+            if let status = state.phoneStatus, status.verified { Label(status.phone_e164, systemImage: "checkmark.seal").brandFont(.headline) }
             if let pending = state.pendingPhone {
-                Text("Enter the code sent to \(pending)").font(.headline)
+                Text("Enter the code sent to \(pending)").brandFont(.headline)
                 TextField("Verification code", text: $state.code).textContentType(.oneTimeCode).keyboardType(.numberPad).modifier(AccountInput()).focused($focused, equals: .code).disabled(state.busy).accessibilityIdentifier("account-phone-code")
-                if state.isDemo { Text("Use 123456 in this demo. No message was sent.").font(.subheadline).foregroundStyle(Color.swMuted) }
+                if state.isDemo { Text("Use 123456 in this demo. No message was sent.").brandFont(.subheadline).foregroundStyle(Color.swMuted) }
                 Button("Verify phone number") { Task { await state.confirmPhone() } }.buttonStyle(SWPrimary()).disabled(!state.canRequest).accessibilityIdentifier("account-phone-verify")
                 Button("Change number") { state.changePhoneNumber() }.frame(minHeight: 48).disabled(state.busy)
             } else {
-                Text("Country calling code").font(.headline)
+                Text("Country calling code").brandFont(.headline)
                 TextField("Calling code", text: $state.phoneCountry).keyboardType(.phonePad).modifier(AccountInput()).focused($focused, equals: .country).disabled(state.busy)
-                Text("Phone number").font(.headline)
+                Text("Phone number").brandFont(.headline)
                 TextField("Phone number", text: $state.phone).textContentType(.telephoneNumber).keyboardType(.phonePad).modifier(AccountInput()).focused($focused, equals: .phone).disabled(state.busy).accessibilityIdentifier("account-phone-number")
             }
             TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -207,11 +207,11 @@ private struct AccountProvidersView: View {
     @State private var removing: String?
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text("Connected sign-in methods").font(.largeTitle.bold())
+            Text("Connected sign-in methods").brandFont(.largeTitle, weight: .bold)
             AccountFeedback(load: state.providersLoad) { await state.loadProviders() }; AccountMessages(state: state)
             ForEach(state.providers, id: \.provider) { provider in
                 SWCard {
-                    Text(NativeStatusCopy.label(provider.provider)).font(.headline)
+                    Text(NativeStatusCopy.label(provider.provider)).brandFont(.headline)
                     Text("Connected \(provider.created_at.formatted(date: .abbreviated, time: .omitted))").foregroundStyle(Color.swMuted)
                     Button("Remove sign-in method", role: .destructive) { removing = provider.provider }.frame(minHeight: 48).disabled(!state.canRequest)
                 }
@@ -234,12 +234,12 @@ private struct AccountSessionsView: View {
     @State private var session: Components.Schemas.AccountSession?
     var body: some View {
         ScrollView { LazyVStack(alignment: .leading, spacing: 24) {
-            Text("Sessions").font(.largeTitle.bold()); AccountMessages(state: state)
+            Text("Sessions").brandFont(.largeTitle, weight: .bold); AccountMessages(state: state)
             AccountFeedback(load: state.sessionsLoad) { await state.loadSessions() }
             ForEach(state.sessions, id: \.id) { row in
                 SWCard {
-                    Label(row.kind.rawValue == "device" ? "Device session" : "Browser session", systemImage: row.kind.rawValue == "device" ? "iphone" : "globe").font(.headline)
-                    if row.current { Text("This session").foregroundStyle(Color.swAccentInk).font(.headline) }
+                    Label(row.kind.rawValue == "device" ? "Device session" : "Browser session", systemImage: row.kind.rawValue == "device" ? "iphone" : "globe").brandFont(.headline)
+                    if row.current { Text("This session").foregroundStyle(Color.swAccentInk).brandFont(.headline) }
                     Text("Started \(row.created_at.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted)
                     if let last = row.last_used_at { Text("Last used \(last.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted) }
                     Button(row.current ? "Sign out this session" : "Sign out session", role: .destructive) { session = row }.frame(minHeight: 48).disabled(!state.canRequest).accessibilityIdentifier(row.current ? "account-revoke-current-session" : "account-revoke-session-\(row.id)")
@@ -260,15 +260,15 @@ private struct AccountDevicesView: View {
     @State private var grant: Components.Schemas.DeviceGrant?
     var body: some View {
         ScrollView { LazyVStack(alignment: .leading, spacing: 24) {
-            Text("Devices").font(.largeTitle.bold())
+            Text("Devices").brandFont(.largeTitle, weight: .bold)
             Text("These are native app sessions on your account. Browser sessions are managed separately by your makerspace.").foregroundStyle(Color.swMuted)
             AccountMessages(state: state)
-            Text("Registered devices").font(.title2.bold())
+            Text("Registered devices").brandFont(.title2, weight: .bold)
             AccountFeedback(load: state.grantsLoad) { await state.loadGrants() }
             ForEach(state.grants, id: \.id) { row in
                 SWCard {
-                    Text(NativeStatusCopy.label(row.platform)).font(.headline)
-                    if state.currentDeviceGrantID == row.id { Text("This device").font(.headline).foregroundStyle(Color.swAccentInk) }
+                    Text(NativeStatusCopy.label(row.platform)).brandFont(.headline)
+                    if state.currentDeviceGrantID == row.id { Text("This device").brandFont(.headline).foregroundStyle(Color.swAccentInk) }
                     Text(NativeStatusCopy.label(row.status)); Text("Last used \(row.last_used_at.formatted(date: .abbreviated, time: .shortened))").foregroundStyle(Color.swMuted)
                     Button("Sign out device", role: .destructive) { grant = row }.frame(minHeight: 48).disabled(!state.canRequest || row.status != "active").accessibilityIdentifier("account-revoke-device-\(row.id)")
                 }
@@ -289,13 +289,13 @@ private struct AccountMembershipView: View {
     @FocusState private var reasonFocused: Bool
     var body: some View {
         ScrollView { VStack(alignment: .leading, spacing: 24) {
-            Text(state.makerspaceName).font(.largeTitle.bold()); AccountMessages(state: state)
+            Text(state.makerspaceName).brandFont(.largeTitle, weight: .bold); AccountMessages(state: state)
             AccountFeedback(load: state.membershipLoad) { await state.loadMembership() }
             if let membership = state.membership {
-                Text(NativeStatusCopy.label(membership.status.rawValue)).font(.headline)
+                Text(NativeStatusCopy.label(membership.status.rawValue)).brandFont(.headline)
                 if let date = membership.renewal_cancelled_at { Text("Renewal cancelled \(date.formatted(date: .abbreviated, time: .omitted))").foregroundStyle(Color.swMuted) }
                 if membership.status.rawValue == "active" {
-                    Text("Reason").font(.headline)
+                    Text("Reason").brandFont(.headline)
                     TextField("Tell your makerspace why", text: $state.membershipReason, axis: .vertical).focused($reasonFocused).lineLimit(3...6).modifier(AccountInput()).disabled(state.busy).accessibilityIdentifier("account-membership-reason")
                     Text("Leaving ends your access to this makerspace. Outstanding loans or charges may need to be resolved first.").foregroundStyle(Color.swMuted)
                     if membership.renewal_cancelled_at == nil { Button("Cancel membership renewal") { decision = "renewal" }.frame(minHeight: 48).disabled(!state.canRequest || state.membershipReason.isEmpty) }
@@ -329,14 +329,14 @@ private struct AccountExportsView: View {
     @State private var share = false
     var body: some View {
         ScrollView { LazyVStack(alignment: .leading, spacing: 24) {
-            Text("Your data").font(.largeTitle.bold())
+            Text("Your data").brandFont(.largeTitle, weight: .bold)
             Text("Request an export of your personal data held by this makerspace. Keep downloaded files somewhere private.").foregroundStyle(Color.swMuted)
             AccountMessages(state: state); AccountFeedback(load: state.exportsLoad) { await state.loadExports() }
             Button("Request data export") { Task { await state.requestExport() } }.buttonStyle(SWPrimary()).disabled(!state.canRequest).accessibilityIdentifier("account-request-export")
             if state.downloading { ProgressView("Preparing your archive…") }
             ForEach(state.exports, id: \.id) { row in
                 SWCard {
-                    Text(row.created_at, format: .dateTime.day().month().year()).font(.headline)
+                    Text(row.created_at, format: .dateTime.day().month().year()).brandFont(.headline)
                     Text(NativeStatusCopy.label(row.status.value1.rawValue)).foregroundStyle(Color.swMuted)
                     if !row.failure_detail.isEmpty { SWError(message: row.failure_detail) }
                     TimelineView(.periodic(from: .now, by: 1)) { tick in
@@ -357,7 +357,7 @@ private struct AccountExportsView: View {
                     ScrollView {
                     VStack(spacing: 24) {
                         Image(systemName: "doc.zipper").font(.largeTitle).accessibilityHidden(true)
-                        Text(state.isDemo ? "Demo data export" : "Your data export").font(.title.bold())
+                        Text(state.isDemo ? "Demo data export" : "Your data export").brandFont(.title, weight: .bold)
                         Text("Save this archive to a private location or share it with someone you trust.").foregroundStyle(Color.swMuted)
                         Button("Save or share archive") { share = true }.buttonStyle(SWPrimary()).accessibilityIdentifier("account-share-export")
                     }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
