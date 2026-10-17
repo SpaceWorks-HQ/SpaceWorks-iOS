@@ -11,16 +11,16 @@ struct StaffView: View {
                 if state.isDemo { Label("Demo staff tools · sample data", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
                 SWCard {
                     if ["accept_request", "reject_request", "issue_request", "return_request"].contains(where: state.can) {
-                        NavigationLink { StaffRequestsView(state: state) } label: { StaffMenuRow(title: "Requests and loans", detail: "Review requests and guide equipment handovers", symbol: "shippingbox") }.accessibilityIdentifier("staff-requests")
+                        NavigationLink { StaffRequestsView(state: state) } label: { StaffMenuRow(title: Text("Requests and loans"), detail: "Review requests and guide equipment handovers", symbol: "shippingbox") }.accessibilityIdentifier("staff-requests")
                     }
                     if state.can("issue_direct_loan") || state.canReturn {
-                        NavigationLink { StaffDirectLoansView(state: state) } label: { StaffMenuRow(title: "Direct handout", detail: "Choose a borrower, equipment, and evidence", symbol: "person.crop.rectangle") }.accessibilityIdentifier("staff-direct")
+                        NavigationLink { StaffDirectLoansView(state: state) } label: { StaffMenuRow(title: Text("Direct handout"), detail: "Choose a borrower, equipment, and evidence", symbol: "person.crop.rectangle") }.accessibilityIdentifier("staff-direct")
                     }
                     if state.can("manage_bookings") {
-                        NavigationLink { StaffSpacesView(state: state) } label: { StaffMenuRow(title: "Booking approvals", detail: "Review space reservations", symbol: "calendar") }.accessibilityIdentifier("staff-bookings")
+                        NavigationLink { StaffSpacesView(state: state) } label: { StaffMenuRow(title: Text("Booking approvals"), detail: "Review space reservations", symbol: "calendar") }.accessibilityIdentifier("staff-bookings")
                     }
                     if state.can("manage_events") {
-                        NavigationLink { StaffEventsView(state: state) } label: { StaffMenuRow(title: "Event check-in", detail: "Scan, review the person, then confirm attendance", symbol: "qrcode.viewfinder") }.accessibilityIdentifier("staff-events")
+                        NavigationLink { StaffEventsView(state: state) } label: { StaffMenuRow(title: Text("Event check-in"), detail: "Scan, review the person, then confirm attendance", symbol: "qrcode.viewfinder") }.accessibilityIdentifier("staff-events")
                     }
                 }
                 Text("Only the tools allowed by your selected makerspace appear here.").font(.subheadline).foregroundStyle(Color.swMuted)
@@ -30,11 +30,11 @@ struct StaffView: View {
 }
 
 private struct StaffMenuRow: View {
-    let title: LocalizedStringKey; let detail: LocalizedStringKey; let symbol: String
+    let title: Text; let detail: LocalizedStringKey; let symbol: String
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: symbol).font(.title2).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) { Text(title).font(.headline); Text(detail).font(.subheadline).foregroundStyle(Color.swMuted) }
+            VStack(alignment: .leading, spacing: 8) { title.font(.headline); Text(detail).font(.subheadline).foregroundStyle(Color.swMuted) }
             Spacer(minLength: 0); Image(systemName: "chevron.right").accessibilityHidden(true)
         }.frame(minHeight: 64).padding(.vertical, 12).foregroundStyle(Color.swInk)
     }
@@ -191,7 +191,7 @@ private struct StaffSpacesView: View {
         ScrollView { LazyVStack(alignment: .leading, spacing: 24) {
             StaffFeedback(load: state.spacesLoad) { await state.loadSpaces() }
             ForEach(state.spaces, id: \.id) { space in
-                NavigationLink { StaffBookingsView(state: state, spaceID: space.id, name: space.name) } label: { SWCard { StaffMenuRow(title: space.name, detail: "Review reservations", symbol: "calendar") } }.buttonStyle(.plain)
+                NavigationLink { StaffBookingsView(state: state, spaceID: space.id, name: space.name) } label: { SWCard { StaffMenuRow(title: Text(verbatim: space.name), detail: "Review reservations", symbol: "calendar") } }.buttonStyle(.plain)
             }
             if state.spacesLoad == .ready && state.spaces.isEmpty { Text("Nothing here yet.").foregroundStyle(Color.swMuted) }
             if state.nextSpacePage != nil { Button("Load more spaces") { Task { await state.loadSpaces(more: true) } }.frame(minHeight: 48) }

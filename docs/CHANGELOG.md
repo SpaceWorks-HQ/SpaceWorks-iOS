@@ -2,7 +2,7 @@
 
 ## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
 
-This isolated A8 candidate is based on A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61`. A7 native acceptance remains pending [workflow 39017485631](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39017485631); this preparation does not claim its result or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
+This isolated A8 candidate started from A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61` and now includes the `8ff47bc` staff-title compiler correction through a normal merge. A7 native acceptance remains pending [follow-up workflow 39018648885](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018648885); the initial 39017485631 checkpoint stopped before tests, as recorded below. This preparation does not claim native acceptance or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
 
 Add a replayable App guide covering navigation, requests, renewal, bookings, event tickets,
 notifications, payments, security and membership. Staff instructions appear only with available
@@ -43,6 +43,8 @@ canceled or superseded timers from reopening requests. One state regression exer
 server deadlines, replacement and private-scope invalidation; native execution is still required.
 
 ## A7 Account and localization — implementation checkpoint (2026-10-17)
+
+The initial [`d05dcfc` native checkpoint](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39017485631) stopped during compilation before tests: the localized staff menu wrapper accepted only a localization key, while a booking row supplied its server-provided space name. The wrapper now accepts a Text presentation: app-owned literal titles stay localized and the remote name is explicitly verbatim. The complete native gate remains pending; this compiler checkpoint is not acceptance.
 
 Provide global Account and security before joining a makerspace: authenticator status, phone linking,
 linked providers, password change and native Devices. Separately gate member Sessions, membership
