@@ -73,6 +73,30 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build-for-testing -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+      - name: Inspect actual built Debug bundle metadata
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, plistlib, subprocess
+          app = pathlib.Path('DerivedData/Build/Products/Debug-iphonesimulator/SpaceWorks.app')
+          info = plistlib.loads((app / 'Info.plist').read_bytes())
+          source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          required = {'UIInterfaceOrientationPortrait', 'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'}
+          orientations = {key: value for key, value in info.items() if key.startswith('UISupportedInterfaceOrientations')}
+          scene = info.get('UIApplicationSceneManifest', {})
+          validations = {
+              'source_matches_checkout': source == os.environ['GITHUB_SHA'],
+              'single_scene_explicit': scene.get('UIApplicationSupportsMultipleScenes') is False,
+              'phone_and_tablet_families': set(info.get('UIDeviceFamily', [])) == {1, 2},
+              'phone_orientations': required <= set(info.get('UISupportedInterfaceOrientations~iphone', info.get('UISupportedInterfaceOrientations', []))),
+              'tablet_orientations': required <= set(info.get('UISupportedInterfaceOrientations~ipad', []))}
+          report = {'kind': 'canonical-built-debug-metadata', 'source_sha': source,
+                    'profile': os.environ['DEVICE_PROFILE'], 'bundle_id': info.get('CFBundleIdentifier'),
+                    'sdk': info.get('DTSDKName'), 'device_families': info.get('UIDeviceFamily'),
+                    'fonts': info.get('UIAppFonts', []), 'scene_manifest': scene,
+                    'orientations': orientations, 'validations': validations}
+          pathlib.Path('validation-debug-bundle.json').write_text(json.dumps(report, indent=2) + '\n')
+          assert all(validations.values()), validations
+          PY
       - name: Run native state and API tests
         timeout-minutes: 10
         run: |
@@ -96,6 +120,12 @@ jobs:
       - name: Audit unsigned Release bundle resources
         if: success() && matrix.device == 'phone'
         run: python3 scripts/audit_bundle.py DerivedData/Build/Products/Release-iphoneos/SpaceWorks.app
+      - name: Collect read-only native orientation diagnostics
+        if: always()
+        run: |
+          if [ -n "$SIMULATOR_ID" ]; then
+            xcrun simctl spawn "$SIMULATOR_ID" log show --last 120m --style compact --predicate 'subsystem == "org.spaceworks.orientation-diagnostics" AND category == "orientation"' > orientation-system.log 2>&1 || true
+          fi
       - name: Archive validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -109,6 +139,8 @@ jobs:
             release-build.log
             validation-device.json
             validation-bundle.json
+            validation-debug-bundle.json
+            orientation-system.log
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7

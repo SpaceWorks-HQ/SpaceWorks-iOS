@@ -4,11 +4,21 @@ import UIKit
 /// UI-test runner policy. It never enters the application or its Release target.
 extension XCUIApplication {
     func rotateToLandscapeAndWait(timeout: TimeInterval = 10) {
+        let diagnostic = launchArguments.contains("--ui-orientation-diagnostics")
+        var lastFrame = frame
+        if diagnostic {
+            print("SpaceWorksOrientationTest before device=\(XCUIDevice.shared.orientation.rawValue) frame=\(lastFrame)")
+        }
         XCUIDevice.shared.orientation = .landscapeLeft
         let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
-            self.frame.width > self.frame.height
+            lastFrame = self.frame
+            return lastFrame.width > lastFrame.height
         }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [orientation], timeout: timeout), .completed,
+        let result = XCTWaiter.wait(for: [orientation], timeout: timeout)
+        if diagnostic {
+            print("SpaceWorksOrientationTest after device=\(XCUIDevice.shared.orientation.rawValue) lastPredicateFrame=\(lastFrame) waitResult=\(result.rawValue)")
+        }
+        XCTAssertEqual(result, .completed,
                        "Requested landscape orientation must actually be visible.")
     }
 
@@ -17,6 +27,9 @@ extension XCUIApplication {
         let profile = ProcessInfo.processInfo.environment["SPACEWORKS_TEST_PROFILE"] ?? "phone"
         XCTAssertTrue(profiles.contains(profile), "The test scheme must receive a supported matrix profile.")
         XCTAssertTrue(launchArguments.contains("--ui-testing"), "Profile launches require isolated Debug fixtures.")
+        if !launchArguments.contains("--ui-orientation-diagnostics") {
+            launchArguments.append("--ui-orientation-diagnostics")
+        }
         let dark = !launchArguments.contains("--ui-start-light") && ["large", "tablet-landscape"].contains(profile)
         let landscape = !launchArguments.contains("--ui-start-portrait") && profile == "tablet-landscape"
         let reduceMotion = profile == "large-tablet"

@@ -42,6 +42,7 @@ struct RootView: View {
             }.background(Color.swSurface)
         }
         .nativePrivacyShield()
+        .nativeOrientationDiagnostics()
         .safeAreaInset(edge: .bottom) { MobileLinkNotice(router: linkRouter) }
         .task {
             installTapHandler()

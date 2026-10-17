@@ -108,8 +108,8 @@ final class MainFlowTests: XCTestCase {
                 }
                 XCTAssertTrue(scroll.isHittable)
                 let actionsFrame = signInFrame.union(createFrame)
-                let translation = actionsFrame.minY < viewport.minY
-                    ? viewport.minY - actionsFrame.minY + 2 : viewport.maxY - actionsFrame.maxY - 2
+                // Center the two controls within real slack instead of repeatedly aligning a clipped edge.
+                let translation = viewport.midY - actionsFrame.midY
                 let adjustmentLimit = min(120, viewport.height * 0.4)
                 if abs(translation) <= adjustmentLimit {
                     let movement = (translation < 0 ? -1.0 : 1.0) * min(max(abs(translation), 12), adjustmentLimit)
