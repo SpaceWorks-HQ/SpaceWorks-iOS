@@ -49,7 +49,7 @@ struct RequestCartView: View {
                         }
                     }
                 }.padding(24).frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity).disabled(state.busy)
-            }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("request-review-scroll").requestScrollDiagnostics()
+            }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("request-review-scroll")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() }.frame(minHeight: 48).disabled(state.busy) } }
         }.interactiveDismissDisabled(state.busy)
     }

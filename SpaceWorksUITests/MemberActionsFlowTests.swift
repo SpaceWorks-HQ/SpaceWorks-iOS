@@ -2,25 +2,24 @@ import XCTest
 
 final class MemberActionsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
+    private func activate(_ element: XCUIElement) {
+        if element.identifier == "submit-request" { capture("Request review before submission") }
+        element.tap()
+    }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) {
+        var reviewDown = false
         var previousReviewFrame: CGRect?
         var capturedReviewStall = false
         for attempt in 0..<24 {
             let scroll = containingScroll(element, app)
             if element.exists {
                 let insideScroll = contains(element, scroll)
-                if element.isHittable && !insideScroll { element.tap(); return }
+                if element.isHittable && !insideScroll { activate(element); return }
                 let frame = element.frame
                 let viewport = visibleContent(scroll, app)
                 let visible = frame.intersection(viewport)
                 if scroll.identifier == "request-review-scroll" {
-                    if attempt == 0 {
-                        let diagnostics = app.descendants(matching: .any)["review-scroll-diagnostics"].firstMatch
-                        print("Initial native review metadata: \(diagnostics.exists ? String(describing: diagnostics.value) : "probe unavailable")")
-                    }
                     if !capturedReviewStall, previousReviewFrame == frame {
-                        let diagnostics = app.descendants(matching: .any)["review-scroll-diagnostics"].firstMatch
-                        print("Native review metadata: \(diagnostics.exists ? String(describing: diagnostics.value) : "probe unavailable")")
                         capture("Review scroll stalled before " + element.identifier)
                         capturedReviewStall = true
                     }
@@ -30,12 +29,12 @@ final class MemberActionsFlowTests: XCTestCase {
                 // A SwiftUI Toggle can expose a label rectangle that differs from its
                 // native UISwitch activation point. Let XCTest activate a visible switch.
                 if element.elementType == .switch, element.isHittable,
-                   !visible.isNull, visible.width > 4, visible.height > 4 { element.tap(); return }
+                   !visible.isNull, visible.width > 4, visible.height > 4 { activate(element); return }
                 if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4,
                    viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)) {
                     // Use the native activation point. A wide Toggle's label centre is not
                     // its switch thumb; coordinates are only needed for clipped text fields.
-                    element.tap(); return
+                    activate(element); return
                 }
                 if (element.elementType == .textField || element.elementType == .secureTextField),
                    element.isHittable, !visible.isNull, visible.width > 8, visible.height > 8 {
@@ -45,8 +44,21 @@ final class MemberActionsFlowTests: XCTestCase {
                 // rotation. Reversing on their midpoint oscillated around hidden controls.
                 // Sweep consistently in each direction; activation still requires a real
                 // visible, hittable target. New screens normally start near their top.
-                drag(scroll, app, target: element, down: attempt >= 12)
-            } else { drag(scroll, app, target: element, down: attempt >= 12) }
+                if scroll.identifier == "request-review-scroll" {
+                    // Native geometry proves this target remains in the same modal.
+                    // Some drags can make no progress; do not reverse a resumed
+                    // search merely because half the gesture budget elapsed.
+                    if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0 {
+                        if frame.maxY <= viewport.minY { reviewDown = true }
+                        else if frame.minY >= viewport.maxY { reviewDown = false }
+                        else if frame.minY < viewport.minY { reviewDown = true }
+                        else if frame.maxY > viewport.maxY { reviewDown = false }
+                    }
+                    drag(scroll, app, target: element, down: reviewDown)
+                } else { drag(scroll, app, target: element, down: attempt >= 12) }
+            } else {
+                drag(scroll, app, target: element, down: scroll.identifier == "request-review-scroll" ? reviewDown : attempt >= 12)
+            }
         }
         let target = element.exists ? (element.identifier.isEmpty ? element.label : element.identifier) : "missing control"
         capture("Unreachable action " + target)
@@ -117,10 +129,6 @@ final class MemberActionsFlowTests: XCTestCase {
         }
         let start = CGPoint(x: x, y: viewport.midY + (down ? -distance : distance) / 2)
         let end = CGPoint(x: x, y: viewport.midY + (down ? distance : -distance) / 2)
-        if scroll.identifier == "request-review-scroll" {
-            let purpose = app.descendants(matching: .any)["request-purpose"].firstMatch
-            print("Review drag \(start) -> \(end), scroll \(scroll.frame), purpose \(purpose.exists ? String(describing: purpose.frame) : "absent")")
-        }
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
             .press(forDuration: 0.05,
                    thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)),

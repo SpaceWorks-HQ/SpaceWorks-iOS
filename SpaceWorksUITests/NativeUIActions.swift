@@ -3,6 +3,7 @@ import XCTest
 /// Native bars can overlap the accessibility scroll frame. Keep gestures in visible content.
 enum NativeUIActions {
     static func tap(_ element: XCUIElement, in app: XCUIApplication) {
+        var reviewDown = false
         for attempt in 0..<24 {
             let scroll = containingScroll(element, app)
             if element.exists {
@@ -30,8 +31,21 @@ enum NativeUIActions {
                 // rotation. Reversing on their midpoint oscillated around hidden controls.
                 // Sweep consistently in each direction; activation still requires a real
                 // visible, hittable target. New screens normally start near their top.
-                drag(scroll, app, target: element, down: attempt >= 12)
-            } else { drag(scroll, app, target: element, down: attempt >= 12) }
+                if scroll.identifier == "request-review-scroll" {
+                    // Native geometry proves this target remains in the same modal.
+                    // Some drags can make no progress; do not reverse a resumed
+                    // search merely because half the gesture budget elapsed.
+                    if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0 {
+                        if frame.maxY <= viewport.minY { reviewDown = true }
+                        else if frame.minY >= viewport.maxY { reviewDown = false }
+                        else if frame.minY < viewport.minY { reviewDown = true }
+                        else if frame.maxY > viewport.maxY { reviewDown = false }
+                    }
+                    drag(scroll, app, target: element, down: reviewDown)
+                } else { drag(scroll, app, target: element, down: attempt >= 12) }
+            } else {
+                drag(scroll, app, target: element, down: scroll.identifier == "request-review-scroll" ? reviewDown : attempt >= 12)
+            }
         }
         XCTFail("Action must be reachable after scrolling visible content.")
     }
@@ -100,10 +114,6 @@ enum NativeUIActions {
         }
         let start = CGPoint(x: x, y: viewport.midY + (down ? -distance : distance) / 2)
         let end = CGPoint(x: x, y: viewport.midY + (down ? distance : -distance) / 2)
-        if scroll.identifier == "request-review-scroll" {
-            let purpose = app.descendants(matching: .any)["request-purpose"].firstMatch
-            print("Review drag \(start) -> \(end), scroll \(scroll.frame), purpose \(purpose.exists ? String(describing: purpose.frame) : "absent")")
-        }
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: start.x - app.frame.minX, dy: start.y - app.frame.minY))
             .press(forDuration: 0.05,
                    thenDragTo: app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: end.x - app.frame.minX, dy: end.y - app.frame.minY)),
