@@ -44,11 +44,11 @@ private final class ReviewScrollProbeView: UIView {
                 if let scroll = view as? UIScrollView {
                     result.append([
                         "class": String(describing: type(of: scroll)),
-                        "windowFrame": NSStringFromCGRect(scroll.convert(scroll.bounds, to: window)),
-                        "bounds": NSStringFromCGRect(scroll.bounds),
-                        "contentSize": NSStringFromCGSize(scroll.contentSize),
-                        "offset": NSStringFromCGPoint(scroll.contentOffset),
-                        "insets": NSStringFromUIEdgeInsets(scroll.adjustedContentInset),
+                        "windowFrame": String(describing: scroll.convert(scroll.bounds, to: window)),
+                        "bounds": String(describing: scroll.bounds),
+                        "contentSize": String(describing: scroll.contentSize),
+                        "offset": String(describing: scroll.contentOffset),
+                        "insets": String(describing: scroll.adjustedContentInset),
                         "enabled": String(scroll.isScrollEnabled),
                         "pan": String(scroll.panGestureRecognizer.state.rawValue)
                     ])
@@ -58,7 +58,7 @@ private final class ReviewScrollProbeView: UIView {
             }
             func hit(_ point: CGPoint) -> [String] {
                 var view = window.hitTest(point, with: nil)
-                var result = [NSStringFromCGPoint(point)]
+                var result = [String(describing: point)]
                 while let current = view, result.count < 20 {
                     result.append(String(describing: type(of: current)))
                     view = current.superview
