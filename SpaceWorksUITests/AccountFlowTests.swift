@@ -84,9 +84,9 @@ final class AccountFlowTests: XCTestCase {
         }
         XCTFail("The actual data export row must be visible and hittable after bounded account-menu navigation.")
     }
-    private func dismissAccountKeyboard(in app: XCUIApplication) {
-        // The floating keyboard accessory need not have a Toolbar AX ancestor.
-        let done = app.buttons["Done"]
+    private func dismissAccountKeyboard(_ identifier: String, in app: XCUIApplication) {
+        // Activate the real focus-bound navigation item, not the inaccessible accessory.
+        let done = app.navigationBars.buttons[identifier]
         XCTAssertTrue(done.waitForExistence(timeout: 5))
         XCTAssertTrue(done.isHittable)
         let frame = done.frame
@@ -102,9 +102,9 @@ final class AccountFlowTests: XCTestCase {
     func testPhoneVerificationThenCurrentSessionRevocationRequiresSignIn() {
         let app = account(); tap(app.buttons["account-phone"], in: app)
         let phone = app.textFields["account-phone-number"]; tap(phone, in: app); phone.typeText("9876543210")
-        dismissAccountKeyboard(in: app); tap(app.buttons["account-phone-send"], in: app)
+        dismissAccountKeyboard("account-phone-keyboard-done", in: app); tap(app.buttons["account-phone-send"], in: app)
         let code = app.textFields["account-phone-code"]; tap(code, in: app); code.typeText("123456")
-        dismissAccountKeyboard(in: app); tap(app.buttons["account-phone-verify"], in: app)
+        dismissAccountKeyboard("account-phone-keyboard-done", in: app); tap(app.buttons["account-phone-verify"], in: app)
         XCTAssertTrue(app.staticTexts["+919876543210"].waitForExistence(timeout: 10)); attach("Account verified phone sample")
         tap(app.navigationBars.buttons.element(boundBy: 0), in: app)
         tap(app.buttons["account-sessions"], in: app); tap(app.buttons["account-revoke-current-session"], in: app)
@@ -180,7 +180,7 @@ final class AccountFlowTests: XCTestCase {
         let app = account(); tap(app.buttons["account-membership"], in: app)
         let reason = app.textViews["account-membership-reason"].exists ? app.textViews["account-membership-reason"] : app.textFields["account-membership-reason"]
         tap(reason, in: app); reason.typeText("Moving away")
-        dismissAccountKeyboard(in: app)
+        dismissAccountKeyboard("account-membership-keyboard-done", in: app)
         tap(app.buttons["account-leave-makerspace"], in: app)
         confirmNativeDialog("Leave this makerspace?", action: "Confirm leave", in: app)
         XCTAssertTrue(app.buttons["demo-space-1"].waitForExistence(timeout: 10)); XCTAssertFalse(app.buttons["demo-space-0"].exists)

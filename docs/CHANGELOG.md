@@ -1,5 +1,11 @@
 # Phase notes
 
+## A7 accessible native keyboard dismissal
+
+- Both corrected devices passed all 285 native tests and 32/34 UI journeys, including the largest-text export menu and native share. The two remaining phone/membership journeys confirm a real accessibility issue: the floating custom keyboard Done is visibly drawn, but the complete accessibility tree exposes an empty toolbar and no Done element.
+- Replace those two custom keyboard toolbar groups with a localized native navigation-bar Done action while the corresponding field is focused. The action clears the existing FocusState. Use a stable per-screen accessibility ID and retain all three strict native activation/keyboard-absence checks and every downstream phone/session/membership assertion.
+- Full 285 native /34 UI /21 Python and unsigned Release validation must pass at this corrected source. Prior failed runs remain diagnostic evidence only.
+
 ## A7 accessible account rows and keyboard journeys
 
 - The corrected phone and tablet runs passed all 285 native tests; tablet passed 33/34 UI journeys and phone passed 32/34. Recordings show a real largest-text layout defect: decorative row glyphs squeeze account titles into fragmented words. Give the unchanged title and detail the full row width at accessibility sizes, preserving font scaling.

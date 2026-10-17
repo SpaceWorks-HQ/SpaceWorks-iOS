@@ -188,7 +188,14 @@ private struct AccountPhoneView: View {
             }
             Button("Remove linked phone", role: .destructive) { unlink = true }.frame(minHeight: 48).disabled(!state.canRequest)
         }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle("Phone sign-in").navigationBarTitleDisplayMode(.inline).scrollDismissesKeyboard(.interactively)
-            .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focused = nil } } }
+            .toolbar {
+                if focused != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { focused = nil }
+                            .accessibilityLabel(Text("Done")).accessibilityIdentifier("account-phone-keyboard-done")
+                    }
+                }
+            }
             .confirmationDialog("Remove phone sign-in?", isPresented: $unlink, titleVisibility: .visible) { Button("Remove phone", role: .destructive) { Task { await state.unlinkPhone() } }; Button("Cancel", role: .cancel) {} }
             .onDisappear { state.code = "" }
     }
@@ -295,7 +302,14 @@ private struct AccountMembershipView: View {
                 }
             }
         }.padding(24).frame(maxWidth: 680).frame(maxWidth: .infinity) }.background(Color.swBg).navigationTitle("Your membership").navigationBarTitleDisplayMode(.inline).scrollDismissesKeyboard(.interactively)
-            .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { reasonFocused = false } } }.task { await state.loadMembership() }
+            .toolbar {
+                if reasonFocused {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { reasonFocused = false }
+                            .accessibilityLabel(Text("Done")).accessibilityIdentifier("account-membership-keyboard-done")
+                    }
+                }
+            }.task { await state.loadMembership() }
             .confirmationDialog(decision == "leave" ? "Leave this makerspace?" : "Cancel membership renewal?", isPresented: Binding(get: { decision != nil }, set: { if !$0 { decision = nil } }), titleVisibility: .visible) {
                 Button(decision == "leave" ? "Confirm leave" : "Confirm cancellation", role: .destructive) { let leave = decision == "leave"; decision = nil; Task { if leave { await state.leaveMakerspace() } else { await state.cancelRenewal() } } }; Button("Keep membership", role: .cancel) { decision = nil }
             }
