@@ -2,6 +2,8 @@
 
 ## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
 
+The first merged A8 [`7455146` matrix](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018807936) stopped during compilation before tests because SwiftUI exposes Reduce Motion as a read-only environment value. The introduction now reads the OS value and combines it locally with the Debug-only UI-test launch flag; Release continues to use the OS setting. The global environment is unchanged, including introduction replay. This compiler checkpoint provides no native test or screenshot acceptance; the corrected exact-head matrix remains required.
+
 This isolated A8 candidate started from A7 `d05dcfc477dae19bd2acd78201f783c9d27cfd61` and now includes the `8ff47bc` staff-title compiler correction through a normal merge. A7 native acceptance remains pending [follow-up workflow 39018648885](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39018648885); the initial 39017485631 checkpoint stopped before tests, as recorded below. This preparation does not claim native acceptance or bypass that gate. The A8 target is 294 native cases and 36 UI journeys, pending actual compiler discovery and the full matrix. Local checks passed 40 Python cases and the 779-key English catalog check.
 
 Add a replayable App guide covering navigation, requests, renewal, bookings, event tickets,

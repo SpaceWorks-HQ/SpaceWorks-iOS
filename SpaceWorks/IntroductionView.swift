@@ -3,7 +3,7 @@ import SwiftUI
 struct IntroductionView: View {
     let finish: () -> Void
     @State private var page = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.dynamicTypeSize) private var typeSize
     private let headings = [String(localized: "Make room."), String(localized: "Borrow with confidence."), String(localized: "One place for your making.")]
     private let details = [String(localized: "Find tools, book a space, and see what's next at your makerspace."),
@@ -12,6 +12,16 @@ struct IntroductionView: View {
     private let symbols = [["wrench.and.screwdriver", "shippingbox", "hammer"],
                            ["list.clipboard", "calendar", "checkmark.seal"],
                            ["calendar", "ticket", "tray"]]
+    private var reduceMotion: Bool {
+        #if DEBUG
+        // Test-only motion preference is consumed locally; Apple's environment is read-only.
+        return systemReduceMotion ||
+            (ProcessInfo.processInfo.arguments.contains("--ui-testing") &&
+             ProcessInfo.processInfo.environment["SPACEWORKS_TEST_REDUCE_MOTION"] == "1")
+        #else
+        return systemReduceMotion
+        #endif
+    }
     var body: some View {
         GeometryReader { geometry in
             ScrollView {

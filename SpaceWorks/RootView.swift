@@ -3,7 +3,6 @@ import SpaceWorksAPI
 
 struct RootView: View {
     @State private var state = AppState()
-    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @State private var linkRouter = MobileLinkRouter()
     @State private var pendingURL: URL?
     @AppStorage("introduction-complete") private var introComplete = false
@@ -26,12 +25,6 @@ struct RootView: View {
         .tint(Color.swAccentInk)
         .foregroundStyle(Color.swInk)
         .preferredColorScheme(state.darkMode ? .dark : .light)
-        #if DEBUG
-        // UI automation exercises the app's reduced-motion environment; Release uses the OS.
-        .environment(\.accessibilityReduceMotion, systemReduceMotion ||
-            (ProcessInfo.processInfo.arguments.contains("--ui-testing") &&
-             ProcessInfo.processInfo.environment["SPACEWORKS_TEST_REDUCE_MOTION"] == "1"))
-        #endif
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack {
                 Spacer()
