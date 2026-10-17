@@ -20,6 +20,10 @@ invalidate cached records before late callbacks can act.
 Bind member reads/actions and payments to the accepted device-session installation before their
 first executor hop. A retained repository cannot borrow a replacement account's credentials, and
 failure callbacks recheck their captured identity on MainActor before changing authentication.
+Expose the actor's epoch-only installation comparison used by the bound repositories. It remains
+available after a refused refresh clears credentials. The first A5 native checkpoint stopped at the
+missing declaration before executing tests; the corrected complete native gate remains pending.
+
 Same-installation token rotation remains valid. Five regressions cover retained reads/mutations,
 receipts/intents, rotation and delayed failure callbacks; native execution remains pending.
 

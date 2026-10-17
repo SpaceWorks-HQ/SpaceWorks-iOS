@@ -110,6 +110,7 @@ public actor RefreshCoordinator {
     public func current() -> TokenPair? { pair }
     public func snapshot() -> CredentialSnapshot { CredentialSnapshot(pair: pair, epoch: generation) }
     public func isCurrent(_ snapshot: CredentialSnapshot) -> Bool { generation == snapshot.epoch && pair != nil }
+    public func isSameInstallation(_ snapshot: CredentialSnapshot) -> Bool { generation == snapshot.epoch }
     public func install(_ value: TokenPair?) throws {
         generation += 1
         flight?.cancel()
