@@ -11,6 +11,7 @@ struct MemberContent: View {
     var cart: RequestCartState? = nil
     var navigation: MemberNavigation? = nil
     var drafts: MemberActionDrafts? = nil
+    var paymentsAvailable = false
     var openLink: ((String) -> Void)? = nil
     @State private var showCard = false
     @State private var renewal: Components.Schemas.MemberLoanActivity?
@@ -37,7 +38,10 @@ struct MemberContent: View {
                         }
                         LazyVGrid(columns: textSize.isAccessibilitySize ? [GridItem(.flexible(), alignment: .topLeading)] : [GridItem(.adaptive(minimum: 320), spacing: 24, alignment: .topLeading)], alignment: .leading, spacing: 24) {
                             loans
-                            if tab == .activity { requests; registrations }
+                            if tab == .activity {
+                                if paymentsAvailable { SWCard { NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48) } }
+                                requests; registrations
+                            }
                             bookings
                             events
                             if tab == .home {
@@ -161,6 +165,7 @@ struct MemberContent: View {
     private var dues: some View {
         SWCard {
             Label("Dues", systemImage: "creditcard").font(.title2.bold())
+            if paymentsAvailable { NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-home-entry") }
             if state.activityLoad == .loading || state.activityLoad == .idle {
                 LoadFeedback(load: state.activityLoad, retryAfter: state.deadline("activity")) { await state.loadActivity() }
             } else {
@@ -340,6 +345,7 @@ struct InventoryDetail: View {
 
 struct MemberInbox: View {
     @Bindable var state: MemberState
+    var paymentsAvailable = false
     var openLink: ((String) -> Void)? = nil
     var body: some View {
         ScrollView {

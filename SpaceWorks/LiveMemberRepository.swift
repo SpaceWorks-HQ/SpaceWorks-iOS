@@ -3,13 +3,18 @@ import SpaceWorksAPI
 
 struct LiveMemberRepository: MemberRepository {
     let service: SpaceWorksService
+    let expectedCredentials: CredentialSnapshot?
     let origin: ServerOrigin
     let id: Int
     let slug: String
     var onUnauthorized: @Sendable (String) async -> Void = { _ in }
     var onForbidden: @Sendable () async -> Void = {}
     private func checked<T: Sendable>(_ work: @Sendable () async throws -> T) async throws -> T {
-        do { return try await service.withMakerspace(id, operation: work) } catch {
+        guard let expectedCredentials, await service.refresh.isSameInstallation(expectedCredentials) else { throw CancellationError() }
+        do { return try await service.withMakerspace(id, expectedCredentials: expectedCredentials, operation: work) }
+        catch {
+            if Task.isCancelled || APIError.isCancellation(error) { throw error }
+            guard await service.refresh.isSameInstallation(expectedCredentials) else { throw CancellationError() }
             let empty = await service.refresh.current() == nil
             if APIError.status(error) == 401 || empty { await onUnauthorized(APIError.display(error)) }
             else if APIError.status(error) == 403 { await onForbidden() }

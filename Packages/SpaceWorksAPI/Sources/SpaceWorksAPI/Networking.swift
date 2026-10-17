@@ -55,6 +55,12 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
         }
     }
 
+    public static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return true }
+        if let error = error as? ClientError { return isCancellation(error.underlyingError) }
+        return false
+    }
+
     public static func display(_ error: Error) -> String {
         if let error = error as? APIError { return error.errorDescription ?? error.detail }
         if let error = error as? ClientError { return display(error.underlyingError) }
@@ -315,8 +321,18 @@ public final class SpaceWorksService: Sendable {
         _ = try result.ok.body.json
     }
     /// A task's makerspace header stays bound to its original repository across actor suspension.
-    public func withMakerspace<T: Sendable>(_ id: Int, operation: @Sendable () async throws -> T) async throws -> T {
-        let credentials = await refresh.snapshot()
+    public func withMakerspace<T: Sendable>(_ id: Int, expectedCredentials: CredentialSnapshot? = nil,
+                                              operation: @Sendable () async throws -> T) async throws -> T {
+        if let expectedCredentials {
+            guard await refresh.isSameInstallation(expectedCredentials) else { throw CancellationError() }
+            guard await refresh.isCurrent(expectedCredentials) else {
+                throw APIError(status: 401, code: "signed_out", detail: "Please sign in again.")
+            }
+        }
+        let credentials: CredentialSnapshot
+        if let existing = DeviceRequestScope.credentials { credentials = existing }
+        else if let expectedCredentials { credentials = expectedCredentials }
+        else { credentials = await refresh.snapshot() }
         return try await DeviceRequestScope.$credentials.withValue(credentials) {
             try await DeviceRequestScope.$makerspace.withValue(id, operation: operation)
         }

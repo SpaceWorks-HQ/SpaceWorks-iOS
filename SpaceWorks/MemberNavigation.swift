@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MemberRoute: Hashable {
-    case product(Int), spaces, space(String), event(String), booking(String), registration(Int), contact, preferences
+    case product(Int), spaces, space(String), event(String), booking(String), registration(Int), contact, preferences, payments, payment(Int)
 }
 
 /// Memory-only navigation belongs to one authenticated account/makerspace, outside adaptive branches.

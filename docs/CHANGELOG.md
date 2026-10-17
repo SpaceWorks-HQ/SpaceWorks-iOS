@@ -1,6 +1,50 @@
 # Phase notes
 
+## A5 Payments — implementation checkpoint (2026-10-17)
+
+Rerun every existing A4 journey with a stronger request-review check: a fitting button must be
+fully inside the visible content before tapping and before the screenshot. Cap review-only drag
+travel to the remaining exposed edge, accounting for the pan activation slop observed in native
+traces; the 24-attempt bound, native gesture and generic controls remain unchanged. The previous
+A4 native/Release run passed, but its clipped before-submit phone capture was not visually accepted.
+This combined gate must demonstrate the entire primary label before further phase acceptance.
+
+Add the generated payment array, native Stripe intent, document list, download grant and authenticated
+PDF operations. Payments are available from Home, Activity and Profile. A checkout callback never
+marks a payment paid: a fresh scoped server list is the authority. A failed post-sheet status read
+keeps every SDK outcome nonpayable until an explicit successful refresh. Bounded reconciliation and
+all document/intent actions honor retained Retry-After deadlines, including a concurrent receipt
+request that becomes throttled. Account, server and makerspace changes cancel presentation and
+invalidate cached records before late callbacks can act.
+
+Bind member reads/actions and payments to the accepted device-session installation before their
+first executor hop. A retained repository cannot borrow a replacement account's credentials, and
+failure callbacks recheck their captured identity on MainActor before changing authentication.
+Same-installation token rotation remains valid. Five regressions cover retained reads/mutations,
+receipts/intents, rotation and delayed failure callbacks; native execution remains pending.
+
+Retain the 120-minute native job allowance established during the A4 validation, with all tests,
+the same device profiles and parallelism. This avoids truncating the expanding simulator journeys
+and physical-device Release compilation; it does not treat a timeout or cached build as a pass.
+
+Use the official pinned Stripe PaymentSheet and per-attempt SDK state; Razorpay's native adapter
+is compiled but remains unavailable until the server supplies its documented vendor configuration.
+The current contract supports Stripe only. Receipts and credit notes open in native QuickLook/share;
+PDF download stays on the generated authenticated same-server route, with bounded validated bytes,
+no arbitrary URL fetch and no credentials forwarded to storage hosts.
+
+The explicit Debug payment preview never launches a payment SDK or creates a charge. It demonstrates
+paid, awaiting confirmation, canceled, failed and late-confirmation journeys using separate per-maker
+in-memory repositories. Native simulator/compiler results remain pending at this checkpoint; real
+provider confirmation/webhooks, device SDK return paths and owner setup remain release gates.
+
+Parity: Payments / Review payment / Continue to payment / Payment pending / Paid online / Paid at the
+desk / Refresh payment status / Receipts and credit notes / Share document / Done. Source adds22
+payment state/API cases and2 native payment journeys; these counts are intended, not evidence of a pass.
+
 ## A4 Notifications and trusted routing — implementation checkpoint (2026-10-17)
+
+Native build evidence (visual follow-up pending): [`a989989` CI38998510266](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38998510266) passed 161 native state/API tests and 20 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The phone before-submit screenshot was rejected because midpoint activation left the second label line below the screen. The stricter request-only visibility check is included with A5; its complete native rerun and fully visible phone screenshot remain required before visual acceptance. These are fixture/compiler results; real backend/provider/device validation remains a release gate.
 
 Wire the native notification delegate, contextual permission UI, per-account device-only Keychain
 registration metadata and generated create/delete operations. Consent differs from OS permission;
@@ -37,8 +81,10 @@ Schedule the request-review countdown only when a Retry-After deadline exists; t
 uses identical static submission controls and keeps the same busy, empty-cart and deadline guards.
 This removes needless scheduled work without claiming a proven cause for the phone scroll stall.
 Allow 120 minutes for the complete native suite and unsigned physical-device Release compilation;
-all tests, profiles, gestures and strict visibility assertions remain enabled. Native acceptance
-is still pending after the tablet passed and the phone request-review journey failed.
+all tests, profiles and gestures remain enabled. Review buttons that fit vertically must be fully
+inside visible content before native activation and the before-submit capture: a hittable midpoint
+could leave the second line below the phone screen at the largest type size. Native and visual
+acceptance of this stronger check remain pending.
 
 Parity: Notifications / Enable notifications / Notifications are off for this device. / Open system
 settings / Open update. Local generation/capability/source checks pass; native state/API/UI tests and

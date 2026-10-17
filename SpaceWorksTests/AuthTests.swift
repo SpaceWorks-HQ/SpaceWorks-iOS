@@ -57,13 +57,34 @@ final class MemoryTokens: TokenStorage, @unchecked Sendable {
         await auth.restore(); XCTAssertEqual(auth.stage, .signIn)
         auth.username = " maker "; auth.password = "password-fixture"
         await auth.signIn()
-        XCTAssertEqual(auth.stage, .signedIn)
+        XCTAssertEqual(auth.stage, .signedIn); XCTAssertNotNil(auth.acceptedCredentials)
         XCTAssertEqual(try storage.load(), TokenPair(access: "test-access", refresh: "test-refresh"))
         XCTAssertEqual(auth.memberships.count, 2); XCTAssertNil(auth.selectedID)
         await auth.select(7); XCTAssertEqual(auth.selectedID, 7)
         XCTAssertEqual(auth.password, ""); XCTAssertFalse(auth.staffToolsAvailable)
-        await auth.signOut(); XCTAssertNil(try storage.load()); XCTAssertNil(auth.user)
+        await auth.signOut(); XCTAssertNil(try storage.load()); XCTAssertNil(auth.user); XCTAssertNil(auth.acceptedCredentials)
         XCTAssertEqual(auth.stage, .signIn)
+    }
+    func testFailureCallbackChecksAcceptedIdentityAfterMainActorHop() async throws {
+        let probe = OwnedRepositoryProbe()
+        let auth = state { request in
+            if request.url?.path == "/api/v1/auth/me" { probe.requested() }
+            return try self.response(request)
+        }
+        await auth.restore(); auth.username = "maker"; auth.password = "password-fixture"; await auth.signIn()
+        let retired = auth.repositoryFailureHandlers()
+        await auth.signOut()
+        auth.username = "maker"; auth.password = "password-fixture"; await auth.signIn()
+        XCTAssertEqual(auth.stage, .signedIn)
+        let before = probe.counts.requests
+        await retired.unauthorized("Retired callback must not sign out the replacement.")
+        await retired.forbidden()
+        XCTAssertEqual(auth.stage, .signedIn); XCTAssertNotNil(auth.user); XCTAssertNotNil(auth.acceptedCredentials)
+        XCTAssertNil(auth.error); XCTAssertEqual(probe.counts.requests, before, "Retired forbidden callback must not refetch the replacement identity")
+        let current = auth.repositoryFailureHandlers()
+        await current.unauthorized("Current session ended.")
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(auth.user); XCTAssertNil(auth.acceptedCredentials)
+        XCTAssertEqual(auth.error, "Current session ended.")
     }
     func testMFARejectsAccessOnlyBrowserResult() async {
         let auth = state { request in

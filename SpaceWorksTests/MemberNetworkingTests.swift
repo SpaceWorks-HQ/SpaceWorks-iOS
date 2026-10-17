@@ -85,7 +85,7 @@ final class MemberNetworkingTests: XCTestCase {
             DebugMemberFixtures.inventory.replacingOccurrences(of: "\"next\": null", with: "\"next\": \"https://other.example/api/v1/inventory/?page=2\"")
         }
         try await client.makerspace.select(7, activeMemberships: [7])
-        let repository = LiveMemberRepository(service: client, origin: try ServerOrigin("https://spaceworks.example"), id: 7, slug: "makerspace-one")
+        let repository = LiveMemberRepository(service: client, expectedCredentials: await client.refresh.snapshot(), origin: try ServerOrigin("https://spaceworks.example"), id: 7, slug: "makerspace-one")
         do { _ = try await repository.inventory(page: 1, search: "", category: nil); XCTFail("Cross-origin next URL was accepted") }
         catch { XCTAssertEqual(APIError.code(error), "invalid_next_page") }
     }

@@ -25,6 +25,7 @@ final class AuthState {
     private let storage: any TokenStorage
     private var restored = false
     private var identityGeneration = 0
+    private(set) var acceptedCredentials: CredentialSnapshot?
     private var identityFlight: Task<Void, Error>?
     private var privateHolders: [UUID: () -> Void] = [:]
     private var mfaExpires: Date?
@@ -250,6 +251,7 @@ final class AuthState {
         try await service.makerspace.select(selection, activeMemberships: ids)
         guard generation == identityGeneration, await service.refresh.isCurrent(credentials) else { throw CancellationError() }
         if let pushAccountID, pushAccountID != identity.id { detachNotifications() }
+        acceptedCredentials = credentials
         user = identity; selectedID = selection
         stage = identity.must_change_password ? .passwordChange : .signedIn
         if stage == .signedIn { configureNotifications(accountID: identity.id, credentials: credentials) }
@@ -314,10 +316,10 @@ final class AuthState {
     private func configureNotifications(accountID: Int, credentials: CredentialSnapshot) {
         guard pushAccountID == nil, notifications == nil else { return }
         pushAccountID = accountID
+        let failureHandlers = repositoryFailureHandlers()
         let registration = PushRegistrationState(repository: LivePushRegistrationRepository(service: service, expectedCredentials: credentials),
             storage: PushRegistrationVault(origin: origin, accountID: accountID), configured: Brand.pushConfigured,
-            onUnauthorized: { [weak self] message in await self?.invalidateSession(message: message) },
-            onForbidden: { [weak self] in await self?.foreground() })
+            onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden)
         let notificationState = NotificationSettingsState(registration: registration, environment: Brand.pushEnvironment,
             memberships: { [weak self] in guard let self, self.user?.id == accountID else { throw CancellationError() }; return try await self.freshMembershipIDs() })
         notifications = notificationState
@@ -344,6 +346,23 @@ final class AuthState {
         let cleanup = detachNotificationCleanup()
         await cleanup.state?.stop(authorizedDirectMembershipIDs: cleanup.ids)
     }
+    /// Capture failure ownership on MainActor before a repository can hop executors.
+    /// The callback rechecks this identity on MainActor, without an intervening await.
+    func repositoryFailureHandlers() -> (unauthorized: @Sendable (String) async -> Void, forbidden: @Sendable () async -> Void) {
+        let generation = identityGeneration; let accountID = user?.id
+        return (
+            { [weak self] message in await self?.repositoryRefused(message, accountID: accountID, generation: generation) },
+            { [weak self] in await self?.repositoryAuthorityChanged(accountID: accountID, generation: generation) }
+        )
+    }
+    private func repositoryRefused(_ message: String, accountID: Int?, generation: Int) async {
+        guard let accountID, identityGeneration == generation, user?.id == accountID, acceptedCredentials != nil else { return }
+        await invalidateSession(message: message)
+    }
+    private func repositoryAuthorityChanged(accountID: Int?, generation: Int) async {
+        guard let accountID, identityGeneration == generation, user?.id == accountID, acceptedCredentials != nil else { return }
+        await foreground()
+    }
     func registerPrivateHolder(_ owner: UUID, clear: @escaping () -> Void) { privateHolders[owner] = clear }
     func unregisterPrivateHolder(_ owner: UUID) { privateHolders.removeValue(forKey: owner) }
     private func clearPrivateHolders() {
@@ -353,6 +372,7 @@ final class AuthState {
     private func clearLocalIdentity() {
         identityGeneration += 1; identityFlight?.cancel(); identityFlight = nil; clearPrivateHolders()
         settings.removeObject(forKey: selectionKey)
+        acceptedCredentials = nil
         user = nil; selectedID = nil; mfa = nil; mfaExpires = nil; enrollment = nil; recoveryCodes = []
         username = ""; password = ""; code = ""; stage = .signIn
     }

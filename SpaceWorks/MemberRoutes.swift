@@ -11,6 +11,7 @@ struct MemberRouteView: View {
     let navigation: MemberNavigation
     let capabilities: MemberCapabilities
     let isDemo: Bool
+    var payments: PaymentsState? = nil
     var profileSaved: () async -> Void = {}
     var body: some View {
         switch route {
@@ -26,6 +27,12 @@ struct MemberRouteView: View {
             } else { missing("Event unavailable", load: member.eventsLoad) { await member.loadEvents() }.task { if member.eventsLoad == .idle { await member.loadEvents() } } }
         case .booking(let token): BookingDestination(member: member, repository: actions, token: token, isDemo: isDemo)
         case .registration(let id): RegistrationDestination(member: member, repository: actions, id: id, isDemo: isDemo, drafts: drafts)
+        case .payments:
+            if let payments { PaymentsView(state: payments) }
+            else { disabledFeature("Payments are unavailable. Try again later.") }
+        case .payment(let id):
+            if let payments { PaymentDetailView(state: payments, paymentID: id) }
+            else { disabledFeature("Payments are unavailable. Try again later.") }
         case .contact:
             if capabilities.selfService { ProfileEditorView(repository: actions, isDemo: isDemo, drafts: drafts, saved: profileSaved) }
             else { disabledFeature("Account self-service is disabled for this makerspace.") }

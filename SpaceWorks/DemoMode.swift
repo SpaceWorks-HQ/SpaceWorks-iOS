@@ -21,6 +21,7 @@ final class DemoSession {
     var retryAfter: Date?
     var selectedSpace = 0
     var notificationState = DemoNotificationState()
+    @ObservationIgnored private var paymentRepositories: [Int: DemoPaymentRepository] = [:]
     var actionScenario = DemoMemberActionsRepository.Scenario.success
     var profileDisplayName: String?
     var memberScenario = DemoMemberRepository.Scenario.populated
@@ -58,7 +59,11 @@ final class DemoSession {
         code = ""; error = nil; stage = scenario == .enrollment ? .recovery : .makerspace
     }
     func acceptDemoProvider() { error = nil; stage = scenario == .enrollment || scenario == .mfa ? .mfa : .makerspace }
-    func reset() { notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
+    func paymentRepository(for makerspaceID: Int) -> DemoPaymentRepository {
+        if let repository = paymentRepositories[makerspaceID] { return repository }
+        let repository = DemoPaymentRepository(); paymentRepositories[makerspaceID] = repository; return repository
+    }
+    func reset() { paymentRepositories = [:]; notificationState = DemoNotificationState(); username = ""; password = ""; code = ""; error = nil; retryAfter = nil; selectedSpace = 0; profileDisplayName = nil; actionScenario = .success; stage = .welcome }
 }
 
 enum DemoProvider: String, CaseIterable, Identifiable {
@@ -253,10 +258,12 @@ struct DemoShell: View {
     @State private var cart: RequestCartState
     @State private var drafts: MemberActionDrafts
     @State private var capabilities: MemberCapabilities
+    @State private var payments: PaymentsState
     @State private var actions: DemoMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     init(session: DemoSession, linkRouter: MobileLinkRouter) {
         self.session = session; self.linkRouter = linkRouter
+        _payments = State(initialValue: PaymentsState(repository: session.paymentRepository(for: session.selectedSpace + 7), isDemo: true, sleep: { _ in }))
         let store = DemoMemberStore()
         let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name)
         _actions = State(initialValue: actions)
@@ -293,10 +300,12 @@ struct DemoShell: View {
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate() }
+        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate() }
         .task(id: linkRouter.approved?.id) {
             if let approved = linkRouter.approved, approved.link.makerspaceID == session.selectedSpace + 7 {
-                await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts)
+                await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts, payment: { id in
+                    try await PaymentsLinkDestination.open(id, state: payments, navigation: navigation) { linkRouter.isCurrent(approved) }
+                })
             }
         }
         .onChange(of: session.actionScenario) { _, scenario in Task { await actions.preview(scenario) } }
@@ -304,9 +313,9 @@ struct DemoShell: View {
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, linkRouter: linkRouter)
+            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, payments: payments, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
-                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true) {
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true, payments: payments) {
                         if let profile = try? await actions.profile() { session.profileDisplayName = profile.display_name }
                     }
                 }
@@ -322,10 +331,11 @@ struct DemoDestination: View {
     let navigation: MemberNavigation
     let capabilities: MemberCapabilities
     let drafts: MemberActionDrafts
+    let payments: PaymentsState
     let linkRouter: MobileLinkRouter
     var body: some View {
         Group {
-        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, openLink: { text in
+        if tab != .profile { MemberContent(state: member, tab: tab, name: session.name, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, openLink: { text in
             guard let origin = try? ServerOrigin("https://demo.spaceworks.invalid") else { return }
             if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
             else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
@@ -341,6 +351,7 @@ struct DemoDestination: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-entry")
                         NavigationLink("Notifications") {
                             DemoNotificationsView(state: session.notificationState, makerspaceID: session.selectedSpace + 7) { link in
                                 let path: String

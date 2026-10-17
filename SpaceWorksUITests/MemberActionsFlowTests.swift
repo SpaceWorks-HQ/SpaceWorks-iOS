@@ -30,8 +30,13 @@ final class MemberActionsFlowTests: XCTestCase {
                 // native UISwitch activation point. Let XCTest activate a visible switch.
                 if element.elementType == .switch, element.isHittable,
                    !visible.isNull, visible.width > 4, visible.height > 4 { activate(element); return }
-                if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4,
-                   viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY)) {
+                // A fitting review button must reveal its entire label before activation.
+                // Its midpoint can be hittable while the second line is below the screen.
+                let fullReviewButton = scroll.identifier == "request-review-scroll" && element.elementType == .button
+                    && frame.height > 0 && frame.height <= viewport.height - 4
+                let positioned = fullReviewButton ? viewport.insetBy(dx: 2, dy: 2).contains(frame)
+                    : viewport.insetBy(dx: 2, dy: 2).contains(CGPoint(x: frame.midX, y: frame.midY))
+                if element.isHittable, !visible.isNull, visible.width > 4, visible.height > 4, positioned {
                     // Use the native activation point. A wide Toggle's label centre is not
                     // its switch thumb; coordinates are only needed for clipped text fields.
                     activate(element); return
@@ -107,7 +112,19 @@ final class MemberActionsFlowTests: XCTestCase {
         // A fast released drag flung landscape content ~300pt across a 139pt
         // viewport. Hold at a slow, bounded endpoint so the next visible target is
         // examined before momentum can carry it under the navigation/tab bars.
-        let distance = min(200, viewport.height * 0.4)
+        var distance = min(200, viewport.height * 0.4)
+        if scroll.identifier == "request-review-scroll", target.exists {
+            let frame = target.frame
+            if frame.minY.isFinite, frame.maxY.isFinite, frame.height > 0, frame.height <= viewport.height - 4 {
+                let inset = viewport.insetBy(dx: 2, dy: 2)
+                let remaining = down ? inset.minY - frame.minY : frame.maxY - inset.maxY
+                if remaining > 0 {
+                    // Native traces move 190pt for a 200pt drag (10pt pan slop).
+                    // Approach the exposed edge precisely in short landscape content.
+                    distance = min(distance, max(12, remaining + 10))
+                }
+            }
+        }
         // The modal's multiline purpose field owns an inner scroll; its gutter
         // moves the parent. A generic tablet viewport may include the sidebar, so
         // keep other gestures within the target's horizontal content column.
