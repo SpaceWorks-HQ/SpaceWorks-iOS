@@ -2025,6 +2025,28 @@
         }
       }
     },
+    "Demo checkout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo checkout"
+          }
+        }
+      }
+    },
+    "Demo checkout · no money moves": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo checkout · no money moves"
+          }
+        }
+      }
+    },
     "Demo code ready. Use 123456. No email was sent.": {
       "extractionState": "manual",
       "localizations": {

@@ -22,17 +22,47 @@ final class PaymentsFlowTests: XCTestCase {
         tap(app.buttons["payments-entry"], in: app)
         return app
     }
+    private func demoOutcomeViewport(in app: XCUIApplication) -> CGRect {
+        var viewport = app.scrollViews["demo-payment-outcome-scroll"].frame.intersection(app.frame)
+        let bar = app.navigationBars["Demo checkout"]
+        if bar.exists, bar.isHittable, bar.frame.intersects(viewport) {
+            let bottom = viewport.maxY
+            viewport.origin.y = max(viewport.minY, bar.frame.maxY)
+            viewport.size.height = max(0, bottom - viewport.minY)
+        }
+        return viewport.insetBy(dx: 2, dy: 2)
+    }
+    private func revealDemoOutcome(_ action: XCUIElement, in app: XCUIApplication) {
+        let scroll = app.scrollViews["demo-payment-outcome-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        attach("Demo checkout preview choices")
+        for attempt in 0..<24 {
+            let viewport = demoOutcomeViewport(in: app), frame = action.frame
+            print("Demo outcome \(action.label), attempt \(attempt), frame \(frame), viewport \(viewport), hittable \(action.isHittable)")
+            if action.isHittable, frame.width > 0, frame.height > 0, viewport.contains(frame) { return }
+            guard viewport.width > 32, viewport.height > 64 else { break }
+            let down = frame.minY < viewport.minY
+            let distance = min(200, viewport.height * 0.45)
+            let x = viewport.midX, y = down ? viewport.minY + 16 : viewport.maxY - 16
+            let start = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y - app.frame.minY))
+            let end = app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: x - app.frame.minX, dy: y + (down ? distance : -distance) - app.frame.minY))
+            start.press(forDuration: 0.1, thenDragTo: end, withVelocity: XCUIGestureVelocity(250), thenHoldForDuration: 0.3)
+        }
+        attach("Demo outcome action not fully visible")
+        XCTFail("The complete native outcome action must be reachable inside its own sheet scroll view.")
+    }
     private func chooseDemoOutcome(_ title: String, in app: XCUIApplication) {
-        // A system confirmation popover exposes separate title/action scroll areas.
-        // Its flattened AX descendants are not an app-content scroll hierarchy.
+        // Reveal only the identified native sheet content; never scroll its backing page.
         XCTAssertTrue(app.staticTexts["Demo checkout · no money moves"].waitForExistence(timeout: 5))
         let action = app.buttons[title]
         XCTAssertTrue(action.waitForExistence(timeout: 5))
+        revealDemoOutcome(action, in: app)
         XCTAssertTrue(action.isHittable)
         let frame = action.frame
         XCTAssertGreaterThan(frame.width, 0)
         XCTAssertGreaterThan(frame.height, 0)
         XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        XCTAssertTrue(demoOutcomeViewport(in: app).contains(frame))
         attach("Native demo checkout outcome")
         action.tap()
     }

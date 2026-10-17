@@ -125,13 +125,9 @@ struct PaymentDetailView: View {
             .background(PaymentPresentationAnchor(context: presentation).frame(width: 0, height: 0))
             .task { if state.load == .idle { await state.refresh() } }
             #if DEBUG
-            .confirmationDialog("Demo checkout · no money moves", isPresented: $demoChoice, titleVisibility: .visible) {
-                Button("Preview confirmed payment") { Task { await state.simulateDemo(paymentID: paymentID, scenario: .paid) } }
-                Button("Preview waiting for confirmation") { Task { await state.simulateDemo(paymentID: paymentID, scenario: .pending) } }
-                Button("Preview failed checkout") { Task { await state.simulateDemo(paymentID: paymentID, scenario: .failed) } }
-                Button("Preview canceled checkout") { Task { await state.simulateDemo(paymentID: paymentID, scenario: .cancelled) } }
-                Button("Cancel", role: .cancel) {}
-            } message: { Text("These sample results do not open a payment SDK or contact a server.") }
+            .sheet(isPresented: $demoChoice) {
+                DemoPaymentOutcomeSheet(state: state, paymentID: paymentID)
+            }
             #endif
     }
     @ViewBuilder private var checkoutStatus: some View {
@@ -174,6 +170,40 @@ struct PaymentDetailView: View {
         }
     }
 }
+
+#if DEBUG
+private struct DemoPaymentOutcomeSheet: View {
+    @Bindable var state: PaymentsState
+    let paymentID: Int
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("Demo checkout · no money moves").font(.title.bold()).accessibilityAddTraits(.isHeader)
+                    Text("These sample results do not open a payment SDK or contact a server.").foregroundStyle(Color.swMuted)
+                    choice("Preview confirmed payment", scenario: .paid)
+                    choice("Preview waiting for confirmation", scenario: .pending)
+                    choice("Preview failed checkout", scenario: .failed)
+                    choice("Preview canceled checkout", scenario: .cancelled)
+                }.padding(24).frame(maxWidth: 680, alignment: .leading).frame(maxWidth: .infinity)
+            }.accessibilityIdentifier("demo-payment-outcome-scroll")
+                .background(Color.swBg).foregroundStyle(Color.swInk).tint(Color.swAccentInk)
+                .navigationTitle("Demo checkout").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel", role: .cancel) { dismiss() } } }
+        }.presentationDetents([.large]).tint(Color.swAccentInk)
+    }
+    private func choice(_ title: LocalizedStringKey, scenario: DemoPaymentScenario) -> some View {
+        Button {
+            dismiss()
+            Task { await state.simulateDemo(paymentID: paymentID, scenario: scenario) }
+        } label: {
+            Text(title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 48)
+        }.buttonStyle(SWPrimary())
+    }
+}
+#endif
 
 struct PaymentDocumentsView: View {
     @Bindable var state: PaymentsState
