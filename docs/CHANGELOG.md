@@ -2,6 +2,8 @@
 
 ## A8 Usage guide and release handoff — implementation checkpoint (2026-10-17)
 
+This candidate normally merges reviewed actual dev `3193b08`, replacing a custom keyboard accessory that recordings showed visually but native accessibility could not expose, with focus-bound native navigation-bar Done actions. Its exact per-screen native queries preserve strict hittable/full-window activation and keyboard-dismissal checks. The prior `bdc4add` matrix was canceled after this concrete shared correction; partial results are diagnostic, not acceptance. All A8 guide, row, countdown, branding and split-CI changes remain included; complete exact-head native/UI/Release validation remains required.
+
 A follow-up source audit found the same decorative-glyph width pressure in the staff menu and inventory rows as the recorded Account row defect. At accessibility Dynamic Type sizes these two rows now give their unchanged title/detail content the full width; ordinary-size layouts, fonts, scaling, server text, semantics and navigation are retained. This is a source-audit correction, not a claim that a staff or inventory screenshot failed. The prior `ba22d5f` matrix is diagnostic once superseded; the corrected exact-head full matrix and actual row visuals remain required.
 
 The `988b8ad` compact checkpoint passed all 294 native tests and executed all 36 UI journeys. Five UI failures identified three shared account navigation/layout issues plus two A8 paragraph queries exceeding XCTest's 128-character identifier limit. This candidate normally merges actual dev `a1ad7b2` for the reviewed account corrections. The two guide checks now use exact full-label predicates, preserving their complete paragraph assertions without identifier-length lookup. The old matrix was canceled for diagnosis and is not acceptance; introduction replay and typed bookings actions after those checks still require the new complete run. All cases, six profiles, gesture budgets and timeout settings remain unchanged.
@@ -53,6 +55,12 @@ Staff retry timers retain even very large finite server deadlines while sleeping
 chunks of at most 3600 seconds. This avoids an overflowing UInt64 nanosecond conversion and keeps
 canceled or superseded timers from reopening requests. One state regression exercises extreme
 server deadlines, replacement and private-scope invalidation; native execution is still required.
+
+## A7 accessible native keyboard dismissal
+
+- Both corrected devices passed all 285 native tests and 32/34 UI journeys, including the largest-text export menu and native share. The two remaining phone/membership journeys confirm a real accessibility issue: the floating custom keyboard Done is visibly drawn, but the complete accessibility tree exposes an empty toolbar and no Done element.
+- Replace those two custom keyboard toolbar groups with a localized native navigation-bar Done action while the corresponding field is focused. The action clears the existing FocusState. Use a stable per-screen accessibility ID and retain all three strict native activation/keyboard-absence checks and every downstream phone/session/membership assertion.
+- Full 285 native /34 UI /21 Python and unsigned Release validation must pass at this corrected source. Prior failed runs remain diagnostic evidence only.
 
 ## A7 accessible account rows and keyboard journeys
 
