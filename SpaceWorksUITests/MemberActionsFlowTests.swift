@@ -200,11 +200,11 @@ final class MemberActionsFlowTests: XCTestCase {
     }
     private func tab(_ app: XCUIApplication, _ name: String) {
         if app.tabBars.buttons[name].exists { app.tabBars.buttons[name].tap(); return }
-        let item = app.descendants(matching: .any)["nav-\(name)"].firstMatch
+        let item = app.buttons["nav-\(name)"]
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == true AND isHittable == true"), object: item)
         if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
-            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch
-            if sidebar.exists { sidebar.tap() }
+            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+            if sidebar.exists && sidebar.isHittable { sidebar.tap() }
         }
         tap(item, in: app)
     }

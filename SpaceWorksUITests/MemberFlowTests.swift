@@ -30,6 +30,7 @@ final class MemberFlowTests: XCTestCase {
         let product = app.buttons["product-1"].firstMatch
         let link = app.descendants(matching: .any)["product-1"].firstMatch
         XCTAssertTrue(link.waitForExistence(timeout: 5))
+        capture("Inventory list before item activation")
         if product.exists { product.tap() } else { link.tap() }
         XCTAssertTrue(app.staticTexts["About this item"].waitForExistence(timeout: 5))
         capture("Inventory item detail")

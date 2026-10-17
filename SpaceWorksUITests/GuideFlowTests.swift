@@ -56,7 +56,7 @@ final class GuideFlowTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Book a space"].waitForExistence(timeout: 5))
         tab("Home", app: app); tap(app.buttons["View bookings"], in: app)
         XCTAssertTrue(app.navigationBars["Bookings"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Workshop bench"].exists)
+        XCTAssertTrue(app.buttons["Electronics workbench"].waitForExistence(timeout: 5))
         capture("Start here opens bookings above retained activity draft")
         tab("Home", app: app)
         makerspace("Maker Space Bengaluru", app: app)

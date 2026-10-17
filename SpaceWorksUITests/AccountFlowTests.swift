@@ -93,6 +93,7 @@ final class AccountFlowTests: XCTestCase {
         XCTAssertGreaterThan(frame.width, 0)
         XCTAssertGreaterThan(frame.height, 0)
         XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        attach("Native account keyboard action \(identifier)")
         done.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5), "The keyboard must close before continuing the account flow.")
     }

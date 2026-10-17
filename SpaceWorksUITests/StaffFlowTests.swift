@@ -53,6 +53,7 @@ final class StaffFlowTests: XCTestCase {
     }
     func testGuidedIssueRequiresBorrowerEvidenceAndFinalConfirmation() {
         let app = staff()
+        attach("Staff menu before requests")
         tap(app.buttons["staff-requests"], in: app); tap(app.buttons["staff-request-queue"], in: app)
         tap(app.buttons["Ready for issue"], in: app); tap(app.buttons["staff-request-602"], in: app)
         tap(app.buttons["Start guided issue"], in: app); tap(app.buttons["Scan handover code"], in: app)
