@@ -28,6 +28,18 @@ final class StaffFlowTests: XCTestCase {
         let field = app.textFields["scanner-manual-code"]
         tap(field, in: app); field.typeText(payload + "\n")
     }
+    private func recordHandover(in app: XCUIApplication) {
+        // Native confirmation dialogs have separate title/action scroll regions.
+        XCTAssertTrue(app.staticTexts["Record this handout?"].waitForExistence(timeout: 5))
+        let action = app.buttons["Record handover"]
+        XCTAssertTrue(action.waitForExistence(timeout: 5)); XCTAssertTrue(action.isHittable)
+        let frame = action.frame
+        XCTAssertTrue([frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite))
+        XCTAssertGreaterThan(frame.width, 0); XCTAssertGreaterThan(frame.height, 0)
+        XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+        attach("Native staff handover confirmation")
+        action.tap()
+    }
     private func attach(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
@@ -45,7 +57,7 @@ final class StaffFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["staff-handover-confirm"].waitForExistence(timeout: 5)); attach("Staff issue evidence and review")
         tap(app.buttons["staff-handover-confirm"], in: app)
         XCTAssertFalse(app.descendants(matching: .any)["staff-handover-recorded"].firstMatch.exists)
-        tap(app.buttons["Record handover"], in: app)
+        recordHandover(in: app)
         XCTAssertTrue(app.descendants(matching: .any)["staff-handover-recorded"].firstMatch.waitForExistence(timeout: 10)); attach("Staff handover recorded")
     }
     func testEventScanShowsPersonBeforeAttendanceConfirmation() {
