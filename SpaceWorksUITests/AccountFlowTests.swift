@@ -37,16 +37,20 @@ final class AccountFlowTests: XCTestCase {
             let alert = app.alerts.firstMatch
             XCTAssertTrue(alert.waitForExistence(timeout: 5))
             XCTAssertTrue(alert.staticTexts[title].waitForExistence(timeout: 5))
-            let action = alert.buttons[label]
-            XCTAssertTrue(action.waitForExistence(timeout: 5))
-            XCTAssertTrue(action.isHittable)
-            let frame = action.frame
-            XCTAssertGreaterThan(frame.width, 0)
-            XCTAssertGreaterThan(frame.height, 0)
-            XCTAssertTrue(alert.frame.insetBy(dx: 2, dy: 2).contains(frame))
-            XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+            let primaryLabel = title == "Leave this makerspace?" ? "Leave" : "Stop renewal"
+            for control in [alert.buttons[primaryLabel], alert.buttons["Cancel"]] {
+                XCTAssertTrue(control.waitForExistence(timeout: 5))
+                XCTAssertTrue(control.isEnabled)
+                XCTAssertTrue(control.isHittable)
+                let frame = control.frame
+                XCTAssertGreaterThan(frame.width, 0)
+                XCTAssertGreaterThan(frame.height, 0)
+                XCTAssertTrue(alert.frame.insetBy(dx: 2, dy: 2).contains(frame))
+                XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(frame))
+            }
             attach("Native account confirmation")
-            action.tap()
+            alert.buttons[label].tap()
+            XCTAssertTrue(alert.waitForNonExistence(timeout: 5))
             return
         }
         // Native confirmation popovers own separate title/action scroll regions.
@@ -213,7 +217,27 @@ final class AccountFlowTests: XCTestCase {
         tap(reason, in: app); reason.typeText("Moving away")
         dismissAccountKeyboard("account-membership-keyboard-done", in: app)
         tap(app.buttons["account-leave-makerspace"], in: app)
-        confirmNativeDialog("Leave this makerspace?", action: "Confirm leave", in: app)
+        confirmNativeDialog("Leave this makerspace?", action: "Cancel", in: app)
+        XCTAssertTrue(app.navigationBars["Your membership"].exists)
+        XCTAssertTrue(app.staticTexts["Active"].exists)
+        XCTAssertEqual(reason.value as? String, "Moving away")
+        let renewal = app.buttons["Cancel membership renewal"]
+        tap(renewal, in: app)
+        confirmNativeDialog("Cancel membership renewal?", action: "Cancel", in: app)
+        XCTAssertTrue(app.staticTexts["Active"].exists)
+        XCTAssertEqual(reason.value as? String, "Moving away")
+        XCTAssertTrue(renewal.exists)
+        tap(renewal, in: app)
+        confirmNativeDialog("Cancel membership renewal?", action: "Stop renewal", in: app)
+        XCTAssertTrue(app.staticTexts["Membership renewal cancelled."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Your membership"].exists)
+        XCTAssertTrue(app.staticTexts["Active"].exists)
+        XCTAssertTrue(renewal.waitForNonExistence(timeout: 5))
+        let finalReason = app.textViews["account-membership-reason"].exists ? app.textViews["account-membership-reason"] : app.textFields["account-membership-reason"]
+        tap(finalReason, in: app); finalReason.typeText("Moving away")
+        dismissAccountKeyboard("account-membership-keyboard-done", in: app)
+        tap(app.buttons["account-leave-makerspace"], in: app)
+        confirmNativeDialog("Leave this makerspace?", action: "Leave", in: app)
         XCTAssertTrue(app.buttons["demo-space-1"].waitForExistence(timeout: 10)); XCTAssertFalse(app.buttons["demo-space-0"].exists)
         attach("Confirmed membership leave keeps other makerspace")
     }

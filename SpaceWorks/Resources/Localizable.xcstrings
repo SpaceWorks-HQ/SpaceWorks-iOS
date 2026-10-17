@@ -3587,6 +3587,17 @@
         }
       }
     },
+    "Leave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave"
+          }
+        }
+      }
+    },
     "Leave makerspace": {
       "extractionState": "manual",
       "localizations": {
@@ -6729,6 +6740,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Still waiting for confirmation. You can safely leave and check again later."
+          }
+        }
+      }
+    },
+    "Stop renewal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop renewal"
           }
         }
       }
