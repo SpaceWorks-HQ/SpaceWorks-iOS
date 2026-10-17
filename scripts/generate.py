@@ -115,6 +115,10 @@ def generate(raster=True):
     fixture_module = importlib.util.module_from_spec(fixture_spec)
     fixture_spec.loader.exec_module(fixture_module)
     fixture_module.generate_member_fixtures(ROOT)
+    staff_spec = importlib.util.spec_from_file_location("spaceworks_staff_fixtures", ROOT / "scripts/generate_staff_fixtures.py")
+    staff_module = importlib.util.module_from_spec(staff_spec)
+    staff_spec.loader.exec_module(staff_module)
+    staff_module.generate_staff_fixtures(ROOT)
     wordmark = assets / "Wordmark.imageset"
     wordmark.mkdir(parents=True, exist_ok=True)
     for name, master in [("light.png", "lockup-horizontal-one-colour-ink.png"), ("dark.png", "lockup-horizontal-reversed.png")]:

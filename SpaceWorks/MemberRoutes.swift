@@ -12,6 +12,7 @@ struct MemberRouteView: View {
     let capabilities: MemberCapabilities
     let isDemo: Bool
     var payments: PaymentsState? = nil
+    var staff: StaffState? = nil
     var profileSaved: () async -> Void = {}
     var body: some View {
         switch route {
@@ -27,6 +28,9 @@ struct MemberRouteView: View {
             } else { missing("Event unavailable", load: member.eventsLoad) { await member.loadEvents() }.task { if member.eventsLoad == .idle { await member.loadEvents() } } }
         case .booking(let token): BookingDestination(member: member, repository: actions, token: token, isDemo: isDemo)
         case .registration(let id): RegistrationDestination(member: member, repository: actions, id: id, isDemo: isDemo, drafts: drafts)
+        case .staff:
+            if let staff { StaffView(state: staff) }
+            else { disabledFeature("Staff tools require an authorized native staff session.") }
         case .payments:
             if let payments { PaymentsView(state: payments) }
             else { disabledFeature("Payments are unavailable. Try again later.") }

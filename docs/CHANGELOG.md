@@ -1,6 +1,45 @@
 # Phase notes
 
+## A6 Staff — implementation checkpoint (2026-10-17)
+
+Add the generated request queues, request decisions, QR resolution, container/kit preview, issue,
+return, direct handout, booking decisions, event attendance and evidence operations. Staff tools
+remain closed in production until a fresh native staff authority and the required makerspace actions
+are documented by the server. A role name alone never unlocks them. The clearly labeled Debug staff
+preview supplies independent per-makerspace fixtures and actual native flow UI.
+
+Handover progresses through code resolution, borrower/items, contextual camera permission, a bounded
+JPEG evidence photo, review and explicit confirmation. Returns require their remark and resolutions;
+attendance resolves the person and shows server status before confirmation. Native VisionKit uses an
+AVFoundation fallback and manual entry when unavailable. Camera photos are normalized/downsampled,
+re-encoded without location metadata, capped and reviewed before upload. Generated evidence grants
+use exact POST fields with file last or raw PUT headers, with no app credentials on storage requests.
+
+Conflict, upload refusal, stale scope, duplicate item selection and invalid metadata remain recoverable
+without issuing equipment locally. Receipts come from confirmed server results; pending callbacks
+cannot mutate an invalidated workspace. This checkpoint adds26 state/API cases plus2 native staff
+journeys; Mac compilation/runtime and phone/tablet captures remain pending. Physical cameras,
+owner provisioning and real staff authority remain deployment validation gates.
+
+Parity: Staff tools / Pending requests / Accept request / Reject request / Issue equipment / Return
+equipment / Direct handout / Take evidence photo / Confirm handout / Confirm return / Record handover / Confirm check-in.
+
+
+Staff repositories also retain their accepted installation. A new replacement-account regression
+requires zero queue, container-assignment or booking-approval requests and zero replacement
+authentication callbacks after the old owner is retired. Native proof remains pending.
+
+Carry the A5 receipt visual follow-up into this full native gate: its initial screenshot showed only
+an early blank QuickLook canvas, so it did not prove rendered receipt content. The existing payment
+journey now waits at most 20 seconds for native Vision to recognize both unique sample PDF phrases
+in the actual full-OS pixels before capture. On refusal it preserves the screenshot, native AX tree
+and recognized text. No app marker, viewer replacement, fixed sleep or test removal is involved.
+All earlier payment, request-review, staff and Release checks still run; native rendered-page proof
+on phone and tablet remains pending.
+
 ## A5 Payments — implementation checkpoint (2026-10-17)
+
+Native build evidence (rendered-PDF follow-up pending): [`072275f` CI39004152168](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39004152168) passed 188 native state/API cases and 22 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The native outcome popover, awaiting confirmation, canceled/pending state and complete request-submit action were visually reviewed. Both PDF captures showed an early blank preview canvas; opening chrome does not prove rendered document content. The stricter actual-page check accompanies A6 and must demonstrate the receipt on both device sizes before visual acceptance. These are fixture/compiler results; real backend/provider/device setup remains a release gate.
 
 Rerun every existing A4 journey with a stronger request-review check: a fitting button must be
 fully inside the visible content before tapping and before the screenshot. Cap review-only drag
@@ -55,7 +94,9 @@ payment behavior are unchanged. The complete corrected phone/tablet and Release 
 
 ## A4 Notifications and trusted routing — implementation checkpoint (2026-10-17)
 
-Native build evidence (visual follow-up pending): [`a989989` CI38998510266](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38998510266) passed 161 native state/API tests and 20 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The phone before-submit screenshot was rejected because midpoint activation left the second label line below the screen. The stricter request-only visibility check is included with A5; its complete native rerun and fully visible phone screenshot remain required before visual acceptance. These are fixture/compiler results; real backend/provider/device validation remains a release gate.
+Visual follow-up accepted: the complete two-line Submit request button is visible in the current phone capture, and [`072275f` CI39004152168](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/39004152168) reran every inherited journey successfully on phone and tablet. Request-review buttons that fit the viewport require their entire frame before activation; other app controls retain their prior native behavior. The native trace showed valid modal scroll extent: search resumed, but its old fixed half-budget reversal undid progress. Request-only direction now follows target edges with the same 24-attempt bound. The cause of individual injected gesture no-ops remains unproven; diagnostic overlays and the targeted workflow were removed before this accepted run.
+
+Native build evidence (visual follow-up pending): [`a989989` CI38998510266](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/actions/runs/38998510266) passed 161 native state/API tests and 20 native UI journeys on both phone and tablet, 18 Python generation/fixture checks, and the unsigned physical-device Release build, with no failed or skipped tests. The phone before-submit screenshot was rejected because midpoint activation left the second label line below the screen. The stricter request-only visibility check was included with A5; its complete native rerun and fully visible phone screenshot are accepted in the follow-up above. These are fixture/compiler results; real backend/provider/device validation remains a release gate.
 
 Wire the native notification delegate, contextual permission UI, per-account device-only Keychain
 registration metadata and generated create/delete operations. Consent differs from OS permission;

@@ -53,3 +53,28 @@ filter:
     - api_v1_member_makerspaces_payment_documents_retrieve
     - api_v1_member_makerspaces_payment_documents_download_url_retrieve
     - api_v1_payment_documents_download_retrieve
+
+    - api_v1_admin_makerspace_pending_requests_list
+    - api_v1_admin_makerspace_accepted_requests_list
+    - api_v1_admin_makerspace_active_loans_list
+    - api_v1_admin_requests_accept_create
+    - api_v1_admin_requests_reject_create
+    - api_v1_admin_requests_assign_box_create
+    - api_v1_admin_requests_issue_create
+    - api_v1_admin_requests_return_create
+    - api_v1_admin_qr_resolve_create
+    - api_v1_admin_makerspace_direct_loans_list
+    - api_v1_admin_makerspace_direct_loan_members_list
+    - api_v1_admin_makerspace_inventory_list
+    - api_v1_admin_makerspace_containers_list
+    - api_v1_admin_makerspace_direct_loans_create
+    - api_v1_admin_direct_loans_return_create
+    - api_v1_admin_makerspaces_uploads_evidence_url_create
+    - api_v1_admin_makerspace_kit_checklist_preview_create
+    - api_v1_admin_makerspaces_events_retrieve
+    - api_v1_admin_events_check_in_resolve_create
+    - api_v1_admin_event_registrations_mark_attended_create
+    - api_v1_admin_makerspaces_spaces_retrieve
+    - api_v1_admin_spaces_bookings_retrieve
+    - api_v1_admin_bookings_approve_create
+    - api_v1_admin_bookings_reject_create

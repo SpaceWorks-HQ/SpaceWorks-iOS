@@ -1,4 +1,5 @@
 import XCTest
+import Vision
 
 final class PaymentsFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
@@ -35,6 +36,32 @@ final class PaymentsFlowTests: XCTestCase {
         attach("Native demo checkout outcome")
         action.tap()
     }
+    private func waitForRenderedReceipt(in app: XCUIApplication) {
+        var lastRecognizedText = ""
+        let visibleReceipt = NSPredicate { _, _ in
+            guard let image = XCUIScreen.main.screenshot().image.cgImage else { return false }
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate
+            request.recognitionLanguages = ["en-US"]
+            request.usesLanguageCorrection = false
+            do { try VNImageRequestHandler(cgImage: image, options: [:]).perform([request]) }
+            catch { return false }
+            lastRecognizedText = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            let text = lastRecognizedText.uppercased()
+            // Both phrases occur in the actual PDF page, never in the backing document list.
+            return text.contains("DEMO RECEIPT") && text.contains("NO MONEY MOVED")
+        }
+        let ready = XCTNSPredicateExpectation(predicate: visibleReceipt, object: nil)
+        let result = XCTWaiter.wait(for: [ready], timeout: 20)
+        if result != .completed {
+            attach("Native receipt rendering not ready")
+            let hierarchy = XCTAttachment(string: app.debugDescription)
+            hierarchy.name = "Native receipt accessibility hierarchy"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+            let recognized = XCTAttachment(string: lastRecognizedText)
+            recognized.name = "Native receipt visible text"; recognized.lifetime = .keepAlways; add(recognized)
+        }
+        XCTAssertEqual(result, .completed, "The actual native PDF page must render its sample receipt before capture.")
+    }
     private func attach(_ name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
@@ -47,7 +74,9 @@ final class PaymentsFlowTests: XCTestCase {
         tap(app.buttons["payment-demo-delayed-confirmation"], in: app)
         XCTAssertTrue(app.descendants(matching: .any)["payment-confirmed"].firstMatch.waitForExistence(timeout: 10))
         tap(app.buttons["Receipts and credit notes"], in: app); tap(app.buttons["document-901"], in: app)
-        XCTAssertTrue(app.navigationBars["Payment document"].waitForExistence(timeout: 10)); attach("Payment native PDF receipt")
+        XCTAssertTrue(app.navigationBars["Payment document"].waitForExistence(timeout: 10))
+        waitForRenderedReceipt(in: app)
+        attach("Payment native PDF receipt")
         tap(app.buttons["Done"], in: app)
         XCTAssertTrue(app.buttons["document-901"].waitForExistence(timeout: 5))
     }

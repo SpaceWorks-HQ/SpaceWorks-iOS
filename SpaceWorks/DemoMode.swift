@@ -22,6 +22,7 @@ final class DemoSession {
     var selectedSpace = 0
     var notificationState = DemoNotificationState()
     @ObservationIgnored private var paymentRepositories: [Int: DemoPaymentRepository] = [:]
+    var staffScenario = DemoStaffScenario.populated
     var actionScenario = DemoMemberActionsRepository.Scenario.success
     var profileDisplayName: String?
     var memberScenario = DemoMemberRepository.Scenario.populated
@@ -126,6 +127,7 @@ struct DemoAuthView: View {
                         Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text($0.rawValue) } }
                             .pickerStyle(.segmented).accessibilityIdentifier("demo-role")
                         Picker("Sign-in preview", selection: $session.scenario) { ForEach(DemoSession.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
+                        Picker("Staff data preview", selection: $session.staffScenario) { ForEach(DemoStaffScenario.allCases, id: \.self) { Text($0.rawValue) } }
                         Picker("App data preview", selection: $session.memberScenario) { ForEach(DemoMemberRepository.Scenario.allCases, id: \.self) { Text($0.rawValue) } }
                         Button("Continue as \(session.role.rawValue.lowercased())") { session.stage = .signIn }.buttonStyle(SWPrimary())
                     case .signIn:
@@ -259,10 +261,13 @@ struct DemoShell: View {
     @State private var drafts: MemberActionDrafts
     @State private var capabilities: MemberCapabilities
     @State private var payments: PaymentsState
+    @State private var staff: StaffState?
     @State private var actions: DemoMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     init(session: DemoSession, linkRouter: MobileLinkRouter) {
         self.session = session; self.linkRouter = linkRouter
+        _staff = State(initialValue: session.role == .staff ? StaffState(repository: DemoStaffRepository(scenario: session.staffScenario, makerspaceID: session.selectedSpace + 7), makerspaceID: session.selectedSpace + 7,
+            actions: ["accept_request", "reject_request", "assign_box", "issue_request", "return_request", "upload_evidence", "issue_direct_loan", "manage_events", "manage_bookings"], features: ["loans.kit_checklist"]) : nil)
         _payments = State(initialValue: PaymentsState(repository: session.paymentRepository(for: session.selectedSpace + 7), isDemo: true, sleep: { _ in }))
         let store = DemoMemberStore()
         let actions = DemoMemberActionsRepository(store: store, scenario: session.actionScenario, name: session.name)
@@ -300,7 +305,7 @@ struct DemoShell: View {
         }.onChange(of: geometry.size.width, initial: true) { _, width in
             columns = width >= 1000 ? .all : .detailOnly
         }
-        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate() }
+        }.task { async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config }.onDisappear { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); staff?.invalidate() }
         .task(id: linkRouter.approved?.id) {
             if let approved = linkRouter.approved, approved.link.makerspaceID == session.selectedSpace + 7 {
                 await MobileLinkDestination.open(approved, router: linkRouter, member: member, navigation: navigation, drafts: drafts, payment: { id in
@@ -313,9 +318,9 @@ struct DemoShell: View {
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, payments: payments, linkRouter: linkRouter)
+            DemoDestination(session: session, member: member, tab: tab, actions: actions, cart: cart, navigation: navigation, capabilities: capabilities, drafts: drafts, payments: payments, staff: staff, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
-                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true, payments: payments) {
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: true, payments: payments, staff: staff) {
                         if let profile = try? await actions.profile() { session.profileDisplayName = profile.display_name }
                     }
                 }
@@ -332,6 +337,7 @@ struct DemoDestination: View {
     let capabilities: MemberCapabilities
     let drafts: MemberActionDrafts
     let payments: PaymentsState
+    let staff: StaffState?
     let linkRouter: MobileLinkRouter
     var body: some View {
         Group {
@@ -351,6 +357,7 @@ struct DemoDestination: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        if staff != nil { NavigationLink("Staff tools", value: MemberRoute.staff).frame(minHeight: 48).accessibilityIdentifier("staff-tools") }
                         NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-entry")
                         NavigationLink("Notifications") {
                             DemoNotificationsView(state: session.notificationState, makerspaceID: session.selectedSpace + 7) { link in
