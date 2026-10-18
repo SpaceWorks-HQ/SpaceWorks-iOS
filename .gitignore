@@ -20,3 +20,13 @@ __pycache__/
 /build.log
 /SourcePackages/
 /release-build.log
+
+# Private deployment inputs; templates remain reviewable.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+/dependency-lock-validation.json
+/build-tools.json

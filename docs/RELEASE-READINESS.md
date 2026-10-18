@@ -5,8 +5,10 @@ store submission. Phase implementation and passing checks are recorded in `docs/
 The owner requested phones and tablets and deferred backend setup; that instruction supersedes
 the original PRD's tablet exclusion and intermediate merge requirement. Under the owner's latest
 delivery instruction, work stays on `dev` until required repository native/CI tests, unsigned Release
-validation and actual visual review pass, then the tested branch merges directly into `main`. No
-final pull request is required; deployment and store-provisioning gates below remain separate.
+validation and actual visual review pass, then the exact reviewed head merges into `main` through
+the already-open iOS [pull request #4](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/pull/4). Keep
+`dev` and phase commits; do not create another pull request or feature branch for this batch.
+Deployment and store-provisioning gates below remain separate.
 
 ## Reproduce the app
 
@@ -18,18 +20,22 @@ On a Mac:
 
 ```sh
 brew install xcodegen librsvg
+python3 scripts/check_build_tools.py
 python3 scripts/generate.py
 python3 -m unittest discover -s scripts/tests -v
 python3 scripts/lint.py
 xcodegen generate
+python3 scripts/dependency_lock.py stage
 export GITHUB_ENV="$(mktemp)"
 python3 scripts/device-matrix.py phone
 SIMULATOR_ID="$(python3 -c 'import json; print(json.load(open("validation-device.json"))["udid"])')"
 xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks \
   -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
   -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult \
+  -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile \
   -skipPackagePluginValidation ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual \
   CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=
+python3 scripts/dependency_lock.py check
 ```
 
 `device-matrix.py` writes to `GITHUB_ENV` in CI. The temporary-file assignment above supports a
@@ -142,7 +148,7 @@ Record distribution evidence here after owner provisioning; no credentials belon
 | Evidence | Value |
 |---|---|
 | Accepted app / Design commits | Record the exact tested application SHA, pinned Design input and matching accepted CI artifacts in the final delivery ledger. If a later documentation-only commit follows validation, disclose it separately and verify that every application, resource, test and build input is unchanged; do not relabel the native evidence. |
-| Full device-matrix CI run | The final delivery ledger must link the accepted exact-source six-profile run, canonical `dev` push validation and actually reviewed artifacts; a pending or failed run does not establish acceptance. Merge to `main` only after the required repository gates pass. |
+| Full device-matrix CI run | The final delivery ledger must link the accepted exact-source six-profile run, canonical `dev` push validation and actually reviewed artifacts; a pending or failed run does not establish acceptance. Merge the exact reviewed head through existing iOS pull request #4 only after the required repository gates pass; keep `dev` and phase commits. |
 | Signed archive / version / build | Owner signing environment required |
 | Real-device provider test record | Owner backend/configuration required |
 | Whole-account deletion verification | Updated owner contract required |

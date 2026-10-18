@@ -27,22 +27,25 @@ jobs:
       matrix:
         device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && (inputs.orientation_diagnostic && '["tablet-landscape"]' || '["compact","phone","large","tablet","tablet-landscape","large-tablet"]') || '["phone","tablet"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream and actual focused47 job
         with:
           submodules: recursive
+          persist-credentials: false
       - name: Verify pinned Xcode and SDK
         run: |
           xcodebuild -version
           xcrun --sdk iphonesimulator --show-sdk-version
           xcrun --sdk iphoneos --show-sdk-version
       - name: Install project and icon generators
-        run: brew install xcodegen librsvg
+        run: |
+          brew install xcodegen librsvg
+          python3 scripts/check_build_tools.py
       - name: Restore Swift package sources
         id: package-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: SourcePackages
-          key: ${{ runner.os }}-${{ runner.arch }}-spm-v2-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-v2-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-spm-v2-
             ${{ runner.os }}-${{ runner.arch }}-spm-
@@ -56,29 +59,32 @@ jobs:
           echo "identity=$XCODE_BUILD-$SIM_SDK_BUILD-$DEVICE_SDK_BUILD" >> "$GITHUB_OUTPUT"
       - name: Cache compiled dependencies and build intermediates
         id: compiled-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             DerivedData/Build
             DerivedData/ModuleCache.noindex
             DerivedData/SDKStatCaches.noindex
-          key: ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-${{ matrix.device }}-${{ github.sha }}
+          key: ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-${{ matrix.device }}-${{ github.sha }}
           restore-keys: |
-            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-${{ matrix.device }}-
-            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift') }}-
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-${{ matrix.device }}-
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-
       - name: Generate and validate source inputs
         run: |
           python3 scripts/generate.py
           python3 -m unittest discover -s scripts/tests -v
           python3 scripts/lint.py
           xcodegen generate
+          python3 scripts/dependency_lock.py stage
       - name: Select phone or tablet simulator
         run: |
           python3 scripts/device-matrix.py '${{ matrix.device }}'
       - name: Compile app and native test bundles
         run: |
           set -o pipefail
-          xcodebuild build-for-testing -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+          xcodebuild build-for-testing -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+      - name: Verify reviewed dependency lock
+        run: python3 scripts/dependency_lock.py check
       - name: Inspect actual built Debug bundle metadata
         run: |
           python3 - <<'PY'
@@ -96,7 +102,8 @@ jobs:
               'phone_orientations': required <= set(info.get('UISupportedInterfaceOrientations~iphone', info.get('UISupportedInterfaceOrientations', []))),
               'tablet_orientations': required <= set(info.get('UISupportedInterfaceOrientations~ipad', []))}
           diagnostic = os.environ['ORIENTATION_DIAGNOSTIC'] == 'true'
-          report = {'kind': 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source,
+          dependency_lock = json.loads(pathlib.Path('dependency-lock-validation.json').read_text(encoding='utf-8'))
+          report = {'dependency_lock': dependency_lock, 'kind': 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source,
                     'purpose': 'read-only-orientation-diagnostic' if diagnostic else 'complete-native-validation',
                     'ui_selection': 'SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel' if diagnostic else 'SpaceWorksUITests',
                     'profile': os.environ['DEVICE_PROFILE'], 'bundle_id': info.get('CFBundleIdentifier'),
@@ -110,7 +117,7 @@ jobs:
         timeout-minutes: 10
         run: |
           set -o pipefail
-          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath NativeTestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksTests | tee -a build.log
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -resultBundlePath NativeTestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksTests | tee -a build.log
       - name: Run native UI journeys
         run: |
           set -o pipefail
@@ -118,7 +125,7 @@ jobs:
           if [ "$ORIENTATION_DIAGNOSTIC" = true ]; then
             UI_SELECTION=SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel
           fi
-          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= "-only-testing:$UI_SELECTION" | tee -a build.log
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= "-only-testing:$UI_SELECTION" | tee -a build.log
       - name: Export UI screenshots
         if: always()
         run: |
@@ -129,10 +136,12 @@ jobs:
         if: success() && matrix.device == 'phone'
         run: |
           set -o pipefail
-          xcodebuild build -project SpaceWorks.xcodeproj -scheme SpaceWorks -configuration Release -destination 'generic/platform=iOS' -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee release-build.log
+          xcodebuild build -project SpaceWorks.xcodeproj -scheme SpaceWorks -configuration Release -destination 'generic/platform=iOS' -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee release-build.log
       - name: Audit unsigned Release bundle resources
         if: success() && matrix.device == 'phone'
-        run: python3 scripts/audit_bundle.py DerivedData/Build/Products/Release-iphoneos/SpaceWorks.app
+        run: |
+          python3 scripts/audit_bundle.py DerivedData/Build/Products/Release-iphoneos/SpaceWorks.app
+          python3 scripts/dependency_lock.py check
       - name: Collect read-only native orientation diagnostics
         if: always()
         run: |
@@ -141,7 +150,7 @@ jobs:
           fi
       - name: Archive validation evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ env.ORIENTATION_DIAGNOSTIC == 'true' && 'ios-orientation-diagnostic' || 'ios-validation' }}-${{ matrix.device }}
           path: |
@@ -153,19 +162,22 @@ jobs:
             validation-device.json
             validation-bundle.json
             validation-debug-bundle.json
+            dependency-lock-validation.json
+            build-tools.json
+            Dependencies/Package.resolved
             orientation-system.log
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7
       - name: Save Swift package sources after validation
         if: always() && !cancelled() && steps.package-cache.outputs.cache-primary-key != '' && steps.package-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: SourcePackages
           key: ${{ steps.package-cache.outputs.cache-primary-key }}
       - name: Save compiler cache after validation
         if: always() && !cancelled() && steps.compiled-cache.outputs.cache-primary-key != '' && steps.compiled-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             DerivedData/Build

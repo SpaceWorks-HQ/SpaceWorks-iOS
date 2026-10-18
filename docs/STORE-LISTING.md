@@ -69,7 +69,9 @@ Retain original dimensions and current console device slots; never stretch a pho
 a tablet image. Keep recovery codes, verification codes and QR payloads out of store assets;
 do not weaken secure-window protections to capture them. Optional staff images must show a
 verified authorized staff deployment. The final repository delivery ledger links the accepted
-layout-proof artifacts and exact tested application SHA.
+layout-proof artifacts, exact tested application SHA and guarded merge of the already-open iOS
+[pull request #4](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/pull/4). Keep `dev`; do not create
+another pull request or feature branch for this batch.
 
 ## Reviewer access and review notes
 
