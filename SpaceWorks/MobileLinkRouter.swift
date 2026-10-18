@@ -30,7 +30,10 @@ import SpaceWorksAPI
     func refuseURL() { cancelIntent(); error = String(localized: "That link can't be opened in this app.") }
     func receive(_ hint: NotificationHint) {
         if hint.version == 2, let path = hint.relativeLink, let legacy = MobileLink.legacy(path) {
-            receive(MobileLink.Legacy(slug: legacy.slug, staffInbox: legacy.staffInbox, expectedMakerspaceID: hint.makerspaceID))
+            receive(MobileLink.Legacy(slug: legacy.slug, staffInbox: legacy.staffInbox, expectedMakerspaceID: hint.makerspaceID, destination: legacy.destination))
+        } else if hint.version == 2, let path = hint.relativeLink, let destination = MobileLink.customDomain(path) {
+            // The payload's makerspace owns a custom-domain path; fresh membership still gates it.
+            receive(MobileLink(makerspaceID: hint.makerspaceID, destination: destination))
         } else { receive(MobileLink.notification(hint)) }
         pendingNeedsInbox = true
     }

@@ -12,7 +12,9 @@ struct NotificationHint: Equatable {
     let inboxRowID: Int?
     let relativeLink: String?
 
-    init?(payload: [AnyHashable: Any]) {
+    /// APNs delivers the string-valued routing keys under `data` beside `aps`; older payloads were flat.
+    init?(payload notification: [AnyHashable: Any]) {
+        let payload = (notification["data"] as? [AnyHashable: Any]) ?? notification
         guard let id = Self.positiveID(payload["makerspace_id"]) else { return nil }
         makerspaceID = id
         version = Int(Self.string(payload["v"]) ?? "1") ?? 0

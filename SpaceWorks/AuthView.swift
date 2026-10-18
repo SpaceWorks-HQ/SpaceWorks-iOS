@@ -51,7 +51,7 @@ struct AuthRoot: View {
                 guard let membership = auth.memberships.first(where: { $0.slug == legacy.slug }), !legacy.staffInbox || auth.staffToolsAvailable else {
                     throw APIError(status: 403, code: "link_membership_unavailable", detail: String(localized: "This update isn't available to your account."))
                 }
-                return MobileLink(makerspaceID: membership.id, destination: legacy.staffInbox ? .inbox : .home)
+                return legacy.link(makerspaceID: membership.id)
             }, owner: routingOwner)
             Task { await linkRouter.process() }
         } else { linkRouter.unbind(owner: routingOwner) }

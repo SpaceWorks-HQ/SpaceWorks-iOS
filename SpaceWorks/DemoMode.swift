@@ -138,7 +138,7 @@ struct DemoRoot: View {
         }, resolveLegacy: { legacy in
             guard session.stage == .shell, !legacy.staffInbox || session.role == .staff,
                   let id = ["fab-lab-kochi": 7, "maker-space-bengaluru": 8][legacy.slug], session.availableSpaces.contains(id - 7) else { throw CancellationError() }
-            return MobileLink(makerspaceID: id, destination: legacy.staffInbox ? .inbox : .home)
+            return legacy.link(makerspaceID: id)
         })
         Task { await linkRouter.process() }
     }

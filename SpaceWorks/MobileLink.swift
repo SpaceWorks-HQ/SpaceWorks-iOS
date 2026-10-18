@@ -12,11 +12,18 @@ struct MobileLink: Equatable, Sendable {
         guard hint.version == 2, let relative = hint.relativeLink, let link = path(relative), link.makerspaceID == hint.makerspaceID else { return .init(makerspaceID: hint.makerspaceID, destination: .inbox) }
         return link
     }
+    /// A shared-host web path (`/m/{slug}/…`) from the server's mobile link contract. The slug is resolved
+    /// against a fresh membership list before any navigation.
     struct Legacy: Equatable {
         let slug: String
         let staffInbox: Bool
         let expectedMakerspaceID: Int?
-        init(slug: String, staffInbox: Bool, expectedMakerspaceID: Int? = nil) { self.slug = slug; self.staffInbox = staffInbox; self.expectedMakerspaceID = expectedMakerspaceID }
+        let destination: Destination
+        init(slug: String, staffInbox: Bool, expectedMakerspaceID: Int? = nil, destination: Destination = .home) {
+            self.slug = slug; self.staffInbox = staffInbox; self.expectedMakerspaceID = expectedMakerspaceID; self.destination = destination
+        }
+        /// The membership-scoped intent once the slug has resolved to an authorized makerspace.
+        func link(makerspaceID: Int) -> MobileLink { MobileLink(makerspaceID: makerspaceID, destination: staffInbox ? .inbox : destination) }
     }
     static func legacy(_ raw: String, origin: ServerOrigin? = nil) -> Legacy? {
         let path: String
@@ -33,9 +40,39 @@ struct MobileLink: Equatable, Sendable {
         let pieces = path.split(separator: "/").map(String.init)
         guard pieces.count >= 3, pieces[0] == "m", pieces[1].count <= 200,
               pieces[1].range(of: "^[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { return nil }
-        if pieces.count == 3, pieces[2] == "member" { return Legacy(slug: pieces[1], staffInbox: false) }
         if pieces.count == 4, pieces[2] == "admin", pieces[3] == "notifications" { return Legacy(slug: pieces[1], staffInbox: true) }
-        return nil
+        guard let destination = contract(Array(pieces.dropFirst(2))) else { return nil }
+        return Legacy(slug: pieces[1], staffInbox: false, destination: destination)
+    }
+    /// The custom-domain form of the contract: the verified host names the makerspace, so the path has no
+    /// `/m/{slug}` prefix. Only usable where the makerspace is already known (a push payload or its inbox).
+    static func customDomain(_ path: String) -> Destination? {
+        guard path.utf8.count <= 2048, path.hasPrefix("/"), !path.contains("//"), !path.contains("%"), !path.contains("\\"),
+              !path.contains("?"), !path.contains("#"), path.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else { return nil }
+        return contract(path.split(separator: "/").map(String.init))
+    }
+    /// DESTINATIONS from the backend's mobile_link_contract.py, after any `/m/{slug}` prefix.
+    /// Staff admin, control, API and other web pages are never claimed.
+    private static func contract(_ pieces: [String]) -> Destination? {
+        guard !pieces.contains("."), !pieces.contains("..") else { return nil }
+        switch pieces.count {
+        case 1 where pieces[0] == "member": return .home
+        case 2 where pieces[0] == "member":
+            switch pieces[1] {
+            case "account": return .profile
+            case "loans": return .activity
+            case "bookings": return .bookings
+            case "events": return .events
+            case "payments": return .payments
+            case "inbox": return .inbox
+            default: return .home
+            }
+        case 2 where pieces[0] == "events": return uuid(pieces[1]).map { .event($0) }
+        case 2 where pieces[0] == "bookings": return uuid(pieces[1]).map { .booking($0) }
+        case 2 where pieces[0] == "items": return positive(pieces[1]).map { .product($0) }
+        case 4 where pieces[0] == "member" && pieces[1] == "events" && pieces[3] == "ticket": return positive(pieces[2]).map { .registrations($0) }
+        default: return nil
+        }
     }
     static func inbox(_ value: String, origin: ServerOrigin) -> MobileLink? {
         if value.hasPrefix("/") { return path(value) }

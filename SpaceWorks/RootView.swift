@@ -324,6 +324,7 @@ private struct MemberScreen: View {
             guard let origin = state.connectedOrigin else { linkRouter.refuseURL(); return }
             if let link = MobileLink.inbox(text, origin: origin) { linkRouter.receive(link) }
             else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
+            else if let destination = MobileLink.customDomain(text), let id = auth.selectedID { linkRouter.receive(MobileLink(makerspaceID: id, destination: destination)) }
             else { linkRouter.refuseURL() }
         }) }
         else { ScrollView {
