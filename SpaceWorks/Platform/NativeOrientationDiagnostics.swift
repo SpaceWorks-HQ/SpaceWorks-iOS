@@ -122,10 +122,20 @@ private final class OrientationObserverBag {
                                     "device_idiom": UIDevice.current.userInterfaceIdiom.rawValue,
                                     "scene_interface_orientation": scene.interfaceOrientation.rawValue,
                                     "scene_activation": scene.activationState.rawValue,
+                                    "application_supported_mask": UIApplication.shared.supportedInterfaceOrientations(for: window).rawValue,
                                     "host_window_frame": geometry(window.frame),
                                     "scene_bounds": geometry(scene.coordinateSpace.bounds),
                                     "screen_bounds": geometry(window.screen.bounds), "windows": windows,
                                     "controller_limit_reached": remaining == 0]
+        if #available(iOS 26.0, *) {
+            let effective = scene.effectiveGeometry
+            record["effective_geometry"] = [
+                "interface_orientation": effective.interfaceOrientation.rawValue,
+                "coordinate_bounds": geometry(effective.coordinateSpace.bounds),
+                "interface_orientation_locked": effective.isInterfaceOrientationLocked,
+                "interactively_resizing": effective.isInteractivelyResizing
+            ] as [String: Any]
+        }
         guard let fingerprint = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) else { return }
         // Keep actual notifications even if policy is unchanged; suppress layout-only duplicates.
         if !reason.hasPrefix("notification:"), fingerprint == lastState { return }
@@ -135,7 +145,7 @@ private final class OrientationObserverBag {
         guard let bytes = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]),
               let text = String(data: bytes, encoding: .utf8) else { return }
         print("SpaceWorksOrientation " + text)
-        Self.logger.info("SpaceWorksOrientation \(text, privacy: .public)")
+        Self.logger.notice("SpaceWorksOrientation \(text, privacy: .public)")
     }
     private func geometry(_ frame: CGRect) -> [Any] {
         [frame.minX, frame.minY, frame.width, frame.height].map { value in

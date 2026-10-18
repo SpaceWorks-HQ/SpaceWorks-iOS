@@ -3,6 +3,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      orientation_diagnostic:
+        description: Read-only tablet landscape diagnostic (one existing UI journey; not final acceptance)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -13,13 +18,14 @@ jobs:
     runs-on: macos-15
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      ORIENTATION_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.orientation_diagnostic && 'true' || 'false' }}
     timeout-minutes: 120
     name: Build and test (${{ matrix.device }})
     strategy:
       fail-fast: false
       max-parallel: 6
       matrix:
-        device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["compact","phone","large","tablet","tablet-landscape","large-tablet"]' || '["phone","tablet"]') }}
+        device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && (inputs.orientation_diagnostic && '["tablet-landscape"]' || '["compact","phone","large","tablet","tablet-landscape","large-tablet"]') || '["phone","tablet"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -89,7 +95,10 @@ jobs:
               'phone_and_tablet_families': set(info.get('UIDeviceFamily', [])) == {1, 2},
               'phone_orientations': required <= set(info.get('UISupportedInterfaceOrientations~iphone', info.get('UISupportedInterfaceOrientations', []))),
               'tablet_orientations': required <= set(info.get('UISupportedInterfaceOrientations~ipad', []))}
-          report = {'kind': 'canonical-built-debug-metadata', 'source_sha': source,
+          diagnostic = os.environ['ORIENTATION_DIAGNOSTIC'] == 'true'
+          report = {'kind': 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source,
+                    'purpose': 'read-only-orientation-diagnostic' if diagnostic else 'complete-native-validation',
+                    'ui_selection': 'SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel' if diagnostic else 'SpaceWorksUITests',
                     'profile': os.environ['DEVICE_PROFILE'], 'bundle_id': info.get('CFBundleIdentifier'),
                     'sdk': info.get('DTSDKName'), 'device_families': info.get('UIDeviceFamily'),
                     'fonts': info.get('UIAppFonts', []), 'scene_manifest': scene,
@@ -105,7 +114,11 @@ jobs:
       - name: Run native UI journeys
         run: |
           set -o pipefail
-          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksUITests | tee -a build.log
+          UI_SELECTION=SpaceWorksUITests
+          if [ "$ORIENTATION_DIAGNOSTIC" = true ]; then
+            UI_SELECTION=SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel
+          fi
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= "-only-testing:$UI_SELECTION" | tee -a build.log
       - name: Export UI screenshots
         if: always()
         run: |
@@ -124,13 +137,13 @@ jobs:
         if: always()
         run: |
           if [ -n "$SIMULATOR_ID" ]; then
-            xcrun simctl spawn "$SIMULATOR_ID" log show --last 120m --style compact --predicate 'subsystem == "org.spaceworks.orientation-diagnostics" AND category == "orientation"' > orientation-system.log 2>&1 || true
+            xcrun simctl spawn "$SIMULATOR_ID" log show --last 120m --style compact --info --predicate 'subsystem == "org.spaceworks.orientation-diagnostics" AND category == "orientation"' > orientation-system.log 2>&1 || true
           fi
       - name: Archive validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ios-validation-${{ matrix.device }}
+          name: ${{ env.ORIENTATION_DIAGNOSTIC == 'true' && 'ios-orientation-diagnostic' || 'ios-validation' }}-${{ matrix.device }}
           path: |
             NativeTestResults.xcresult
             TestResults.xcresult
