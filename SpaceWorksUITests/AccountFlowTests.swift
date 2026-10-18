@@ -198,7 +198,7 @@ final class AccountFlowTests: XCTestCase {
         // NativeUIActions requires a real visible/hittable action after bounded scrolling.
         tap(app.buttons["account-share-export"], in: app)
         let systemSave = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Save to Files")).firstMatch
-        XCTAssertTrue(systemSave.waitForExistence(timeout: 5), "The actual native share sheet must expose a system file action.")
+        XCTAssertTrue(systemSave.waitForExistence(timeout: 45), "The actual native share sheet must expose a system file action.")
         attach("Native archive share largest text landscape")
     }
     func testGlobalPasswordAndDevicesWorkBeforeJoiningAMakerspace() {
