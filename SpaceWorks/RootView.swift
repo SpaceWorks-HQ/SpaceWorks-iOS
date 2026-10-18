@@ -304,6 +304,7 @@ private struct MemberScreen: View {
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
     @State private var confirmSignOut = false
+    @State private var confirmSignOutEverywhere = false
     var body: some View {
         Group {
         if tab != .profile { MemberContent(state: member, tab: tab, name: auth.displayName, selectTab: { navigation.selected = $0 }, actions: actions, cart: cart, navigation: navigation, drafts: drafts, paymentsAvailable: true, guidanceBookingsEnabled: capabilities.bootstrap?.modules.contains("bookable_spaces") == true, openLink: { text in
@@ -336,6 +337,8 @@ private struct MemberScreen: View {
                         }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
+                        Button("Sign out everywhere", role: .destructive) { confirmSignOutEverywhere = true }
+                            .frame(minHeight: 48).disabled(auth.busy).accessibilityIdentifier("sign-out-everywhere")
                     }
             }.padding(24).frame(maxWidth: 960, alignment: .leading).frame(maxWidth: .infinity)
         } }
@@ -346,6 +349,15 @@ private struct MemberScreen: View {
             Button("Sign out", role: .destructive) { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); Task { await auth.signOut() } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("You'll need to sign in again to use this account.") }
+        .confirmationDialog("Sign out everywhere?", isPresented: $confirmSignOutEverywhere, titleVisibility: .visible) {
+            Button("Sign out everywhere", role: .destructive) {
+                Task {
+                    await auth.signOutEverywhere()
+                    if auth.stage != .signedIn { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate() }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { Text("This signs you out on every device and browser.") }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {

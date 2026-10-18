@@ -21,7 +21,9 @@ struct AuthRoot: View {
             } else {
             switch auth.stage {
             case .restoring: ProgressView("Opening your makerspace…").frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.swBg)
+            case .updateRequired: UpdateRequiredView(auth: auth, state: state)
             case .signIn: SignInView(auth: auth, state: state)
+            case .webConsole: WebConsoleNoticeView(auth: auth)
             case .mfa, .recoveryCodes: MFAView(auth: auth)
             case .passwordChange: PasswordChangeView(auth: auth)
             case .securityCompletion:
@@ -116,6 +118,7 @@ struct SignInView: View {
     @State private var showPassword = false
     @State private var passwordFocused = false
     @State private var accountForm: AccountAccessState?
+    @State private var phoneForm: PhoneSignInState?
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { geometry in
@@ -131,10 +134,16 @@ struct SignInView: View {
                                 Text("Couldn't load sign-in options. Try again.").foregroundStyle(Color.swMuted)
                                 if let error = auth.error { SWError(message: error) }
                                 Button("Try again") { Task { await auth.retryRestore() } }.buttonStyle(SWPrimary())
-                            } else if !auth.passwordEnabled {
+                            } else if !auth.passwordEnabled && !auth.hasProviders {
                                 Text("Sign-in isn't available here").brandFont(.headline)
                                 Text("Ask your makerspace for help, or check the server address.").foregroundStyle(Color.swMuted)
                             } else {
+                            if auth.hasProviders {
+                                ProviderSignInSection(auth: auth, phone: $phoneForm)
+                                if auth.passwordEnabled { Text("or with your email").brandFont(.caption).foregroundStyle(Color.swMuted) }
+                            }
+                            if !auth.passwordEnabled, let error = auth.error { SWError(message: error) }
+                            if auth.passwordEnabled {
                             field("Email or username") {
                                 TextField("Email or username", text: $auth.username,
                                           prompt: Text("Email or username").foregroundColor(Color.swMuted)).textContentType(.username)
@@ -154,6 +163,7 @@ struct SignInView: View {
                                 Button(auth.busy ? "Signing in…" : "Sign in") { Task { await auth.signIn() } }
                                     .buttonStyle(SWPrimary()).disabled(auth.busy || (auth.retryAfter ?? .distantPast) > context.date)
                                     .accessibilityIdentifier("sign-in")
+                            }
                             }
                             if auth.signupEnabled {
                                 if typeSize.isAccessibilitySize {
@@ -184,6 +194,8 @@ struct SignInView: View {
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("sign-in-scroll")
         }
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { auth.username = form.email; accountForm = nil } }
+        .sheet(item: $phoneForm) { form in PhoneSignInView(form: form) }
+        .onChange(of: auth.stage) { _, stage in if stage != .signIn { phoneForm = nil } }
     }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {

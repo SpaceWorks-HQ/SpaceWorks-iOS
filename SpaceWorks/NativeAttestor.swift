@@ -21,8 +21,8 @@ enum NativeAttestor {
         }
         let key = try await service.generateKey()
         let proof = try await service.attestKey(key, clientDataHash: Data(SHA256.hash(data: Data(challenge.utf8))))
-        // PRD §7 specifies these attestation fields; the API deliberately accepts arbitrary JSON.
-        return try JSONSerialization.data(withJSONObject: ["key_id": key, "attestation": proof.base64EncodedString()])
+        // PRD §7: base64 key ID and CBOR attestation, sent through the schema's open proof alternative.
+        return try JSONSerialization.data(withJSONObject: ["type": "app_attest", "key_id": key, "attestation": proof.base64EncodedString()])
         #endif
     }
 }

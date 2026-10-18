@@ -68,7 +68,7 @@ import SpaceWorksAPI
         await state.confirm(); XCTAssertNil(state.result)
         await state.check(); await repository.preview(.conflict); await state.confirm()
         XCTAssertNil(state.result); XCTAssertNil(state.availability); XCTAssertNotNil(state.error)
-        await repository.preview(.success); await state.check(); await state.confirm(); XCTAssertEqual(state.result?.status.value1, .confirmed)
+        await repository.preview(.success); await state.check(); await state.confirm(); XCTAssertEqual(state.result?.pending, false)
     }
     func testUnknownCustomQuestionAndMalformedNumbersFailClosed() throws {
         let form = MemberCustomForm(data: Data(#"[{"id":"q1","label":"How many?","type":"number","required":true,"options":[]}]"#.utf8))

@@ -13,6 +13,11 @@ enum DebugAuthFixtures {
     static var tokens: String { "{\"access\":\"test-access\",\"refresh\":\"test-refresh\",\"user\":\(user),\"device_grant\":\(grant)}" }
     static let mfa = #"{"mfa_required":true,"enrollment_required":false,"challenge":"test-mfa-challenge-of-valid-length","expires_in":300}"#
     static let config = #"{"email_enabled":false,"public_image_max_bytes":10485760,"password_login":{"member":true,"staff":true},"social_auth":{}}"#
+    /// The schema's `native` discovery block: password and phone enabled, optional iOS minimum.
+    static func nativeConfig(minimum: String? = nil) -> String {
+        let value = minimum.map { "\"\($0)\"" } ?? "null"
+        return #"{"email_enabled":false,"public_image_max_bytes":10485760,"password_login":{"member":true},"native":{"min_app_version":{"android":null,"ios":"# + value + #"},"providers":{"password":true,"phone":true,"google":null,"apple":null,"oidc":[]}}}"#
+    }
     static let enrollment = #"{"secret":"TESTAUTHENTICATORKEY","provisioning_uri":"otpauth://totp/SpaceWorks:maker?secret=TESTAUTHENTICATORKEY&issuer=SpaceWorks","qr_data_url":""}"#
 }
 #endif

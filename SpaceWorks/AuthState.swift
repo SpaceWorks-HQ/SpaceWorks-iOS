@@ -4,7 +4,7 @@ import SpaceWorksAPI
 
 @MainActor @Observable
 final class AuthState {
-    enum Stage: Equatable { case restoring, signIn, mfa, recoveryCodes, passwordChange, securityCompletion, signedIn }
+    enum Stage: Equatable { case restoring, updateRequired, signIn, webConsole, mfa, recoveryCodes, passwordChange, securityCompletion, signedIn }
     private(set) var stage: Stage = .restoring
     private(set) var feedback: NativeFeedbackEvent?
     var username = ""
@@ -25,6 +25,7 @@ final class AuthState {
     let service: SpaceWorksService
     private let attest: @Sendable (String) async throws -> Data
     private let settings: UserDefaults
+    private let appVersion: String
     private let storage: any TokenStorage
     private var restored = false
     private var identityGeneration = 0
@@ -44,13 +45,14 @@ final class AuthState {
     private static var notificationOwner: UUID?
 
     init(origin: ServerOrigin, session: URLSession = DeploymentSession.make(), settings: UserDefaults = .standard,
-         storage: (any TokenStorage)? = nil,
+         storage: (any TokenStorage)? = nil, appVersion: String = AppVersion.current,
          attest: @escaping @Sendable (String) async throws -> Data = { try await NativeAttestor.attest($0) }) {
         let storage = storage ?? TokenVault(origin: origin)
         self.storage = storage
         self.origin = origin
         self.attest = attest
         self.settings = settings
+        self.appVersion = appVersion
         self.serverScope = origin.url.absoluteString
         var pair: TokenPair?
         var storageError: String?
@@ -64,10 +66,25 @@ final class AuthState {
     }
     var selectedMembership: Components.Schemas.AuthMembership? { memberships.first { $0.id == selectedID } }
     var displayName: String { user?.display_name.isEmpty == false ? user!.display_name : user?.username ?? "" }
+    /// `PublicConfig.native` publishes the enabled native methods. Older servers without it keep the
+    /// documented password switch and offer no native providers.
     var passwordEnabled: Bool {
-        guard configuration != nil else { return false }
+        guard let configuration else { return false }
+        if let native = configuration.native { return native.providers.password }
         return configFlag("password_login")
     }
+    var phoneEnabled: Bool { configuration?.native?.providers.phone == true }
+    var googleClientID: String? {
+        guard let id = configuration?.native?.providers.google?.value1.ios_client_id, !id.isEmpty else { return nil }
+        return id
+    }
+    var appleEnabled: Bool { configuration?.native?.providers.apple?.value1.enabled == true }
+    var organizationProviders: [Components.Schemas.NativeOidc] {
+        configuration?.native?.providers.oidc.filter { NativeOIDCClient.slug(fromKey: $0.key) != nil && !$0.client_id.isEmpty } ?? []
+    }
+    var hasProviders: Bool { googleClientID != nil || appleEnabled || !organizationProviders.isEmpty || phoneEnabled }
+    var minimumVersion: String? { configuration?.native?.min_app_version.ios ?? nil }
+    var updateRequired: Bool { AppVersion.isBelow(appVersion, minimum: minimumVersion) }
     var signupEnabled: Bool { configuration != nil && configFlag("member_accounts") && configFlag("self_registration") }
     private func configFlag(_ key: String) -> Bool {
         guard let configuration, let data = try? JSONEncoder().encode(configuration),
@@ -76,8 +93,9 @@ final class AuthState {
         // PublicConfig's extensible object; same documented switch consumed by MemberAuthPanel.
         return login["enabled"] as? Bool != false
     }
-    // Fail closed until the schema supplies native_staff authority (backend 1a).
-    var staffToolsAvailable: Bool { false }
+    /// Staff tools require a native staff session; phone and member sessions never receive them.
+    /// Each tool is additionally gated by the selected membership's server-supplied actions.
+    var staffToolsAvailable: Bool { stage == .signedIn && user?.session_authority == "native_staff" }
     private var selectionKey: String { "makerspace-selection.\(serverScope).\(user?.id ?? 0)" }
     func retryRestore() async {
         guard !busy else { return }
@@ -139,6 +157,8 @@ final class AuthState {
         restored = true
         do {
             configuration = try await service.configuration()
+            // Stored credentials stay in Keychain so an updated app can resume without signing in again.
+            if updateRequired { stage = .updateRequired; return }
             guard await service.refresh.current() != nil else { stage = .signIn; return }
             try await loadIdentity()
         } catch {
@@ -169,17 +189,105 @@ final class AuthState {
                 try await accept(TokenPair(access: tokens.access, refresh: tokens.refresh))
                 await authenticationFeedback(generation: feedbackGeneration)
             case .MFAChallengeResponse(let challenge):
-                mfa = challenge
-                mfaExpires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
-                if challenge.enrollment_required { enrollment = try await service.enroll(challenge: challenge.challenge) }
-                stage = .mfa
-                if identityGeneration == feedbackGeneration { feedback = .init(.selection) }
+                try await beginMFA(challenge, generation: feedbackGeneration)
+            }
+        } catch { refuse(error, generation: feedbackGeneration) }
+    }
+
+    /// Google, Apple and organization OIDC share one attested device flow: challenge, provider nonce,
+    /// native provider credential, attestation, then a device grant from the generated operation.
+    func signIn(with provider: NativeSocialProvider, credential: @escaping @MainActor (String) async throws -> ProviderCredential) async {
+        guard !busy, stage == .signIn, (retryAfter ?? .distantPast) <= Date() else { return }
+        let feedbackGeneration = identityGeneration
+        busy = true; error = nil
+        defer { busy = false }
+        do {
+            let challenge = try await service.challenge(appID: Brand.bundleID, development: NativeAttestor.development)
+            let expires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
+            let nonce = try await service.socialNonce(provider: provider, challenge: challenge.challenge)
+            let provided = try await credential(nonce.nonce)
+            let proof = try await attest(challenge.challenge)
+            guard Date() < expires else { throw expiredSignIn }
+            let result = try await service.socialSignIn(provider: provider, idToken: provided.idToken, nonce: nonce.nonce,
+                challenge: challenge.challenge, attestationJSON: proof, authorizationCode: provided.authorizationCode, appleName: provided.appleName)
+            guard let pair = NativeDeviceCompletion.tokens(access: result.access, refresh: result.refresh, grant: result.device_grant) else { throw missingDeviceSession }
+            try await accept(pair)
+            await authenticationFeedback(generation: feedbackGeneration)
+        } catch { refuse(error, generation: feedbackGeneration) }
+    }
+
+    /// Phone sign-in is member-only. The code request binds a fresh attestation challenge.
+    func phoneSignIn() -> PhoneSignInState {
+        let service = service
+        return PhoneSignInState(begin: { phone in
+            let challenge = try await service.challenge(appID: Brand.bundleID, development: NativeAttestor.development)
+            let started = PhoneSignInState.Started(challenge: challenge.challenge, expires: Date().addingTimeInterval(TimeInterval(challenge.expires_in)))
+            try await service.phoneSignInStart(phone: phone, challenge: challenge.challenge)
+            return started
+        }, finish: { [weak self] phone, code, challenge in
+            guard let self else { throw CancellationError() }
+            try await self.completePhoneSignIn(phone: phone, code: code, challenge: challenge)
+        })
+    }
+
+    private func completePhoneSignIn(phone: String, code: String, challenge: String) async throws {
+        guard !busy, stage == .signIn else { throw CancellationError() }
+        let feedbackGeneration = identityGeneration
+        busy = true; error = nil
+        defer { busy = false }
+        do {
+            let proof = try await attest(challenge)
+            switch try await service.phoneSignInConfirm(phone: phone, code: code, challenge: challenge, attestationJSON: proof) {
+            case .DeviceTokenResponse(let tokens):
+                try await accept(TokenPair(access: tokens.access, refresh: tokens.refresh))
+                await authenticationFeedback(generation: feedbackGeneration)
+            case .MFAChallengeResponse(let challenge):
+                try await beginMFA(challenge, generation: feedbackGeneration)
+            case .MFACompleted(let completed):
+                try await complete(completed, generation: feedbackGeneration)
             }
         } catch {
-            fail(error)
+            if APIError.code(error) == "device_superadmin_not_supported" { refuse(error, generation: feedbackGeneration); return }
             if identityGeneration == feedbackGeneration, !APIError.isCancellation(error) { feedback = .init(.error) }
+            throw error
         }
     }
+
+    private func beginMFA(_ challenge: Components.Schemas.MFAChallengeResponse, generation: Int) async throws {
+        mfa = challenge
+        mfaExpires = Date().addingTimeInterval(TimeInterval(challenge.expires_in))
+        if challenge.enrollment_required { enrollment = try await service.enroll(challenge: challenge.challenge) }
+        stage = .mfa
+        if identityGeneration == generation { feedback = .init(.selection) }
+    }
+
+    private func complete(_ result: Components.Schemas.MFACompleted, generation: Int) async throws {
+        guard let pair = NativeDeviceCompletion.tokens(access: result.access, refresh: result.refresh, grant: result.device_grant, surface: result.surface) else {
+            throw missingDeviceSession
+        }
+        recoveryCodes = result.recovery_codes ?? []
+        try await accept(pair)
+        if !recoveryCodes.isEmpty { stage = .recoveryCodes }
+        await authenticationFeedback(generation: generation)
+    }
+
+    private var expiredSignIn: APIError { APIError(status: 0, code: "challenge_expired", detail: String(localized: "Your sign-in expired. Try again.")) }
+    private var missingDeviceSession: APIError {
+        APIError(status: 0, code: "native_session_missing", detail: String(localized: "This server did not provide a device session. Contact your makerspace."))
+    }
+
+    /// Superadmin accounts are refused on devices; every other failure stays on its current screen.
+    private func refuse(_ failure: Error, generation: Int) {
+        if APIError.code(failure) == "device_superadmin_not_supported" {
+            mfa = nil; mfaExpires = nil; enrollment = nil; code = ""; password = ""; error = nil
+            stage = .webConsole
+            if identityGeneration == generation { feedback = .init(.error) }
+            return
+        }
+        fail(failure)
+        if identityGeneration == generation, !APIError.isCancellation(failure) { feedback = .init(.error) }
+    }
+    func leaveWebConsoleNotice() { guard stage == .webConsole else { return }; error = nil; stage = .signIn }
     func verify() async {
         guard !busy, let mfa, (retryAfter ?? .distantPast) <= Date() else { return }
         guard (mfaExpires ?? .distantPast) > Date() else {
@@ -191,20 +299,8 @@ final class AuthState {
         defer { busy = false; code = "" }
         do {
             let result = try await service.verify(challenge: mfa.challenge, code: code, enrolling: mfa.enrollment_required)
-            let grantData = try result.device_grant.map { try JSONEncoder().encode($0) }
-            let grant = grantData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-            guard let refresh = result.refresh, !refresh.isEmpty, !result.access.isEmpty,
-                  result.surface != "verification_only", let grantID = grant?["id"] as? String, UUID(uuidString: grantID) != nil else {
-                throw APIError(status: 0, code: "native_session_missing", detail: String(localized: "This server did not provide a device session. Contact your makerspace."))
-            }
-            recoveryCodes = result.recovery_codes ?? []
-            try await accept(TokenPair(access: result.access, refresh: refresh))
-            if !recoveryCodes.isEmpty { stage = .recoveryCodes }
-            await authenticationFeedback(generation: feedbackGeneration)
-        } catch {
-            fail(error)
-            if identityGeneration == feedbackGeneration, !APIError.isCancellation(error) { feedback = .init(.error) }
-        }
+            try await complete(result, generation: feedbackGeneration)
+        } catch { refuse(error, generation: feedbackGeneration) }
     }
     func confirmRecoveryCodes() { recoveryCodes = []; stage = user?.must_change_password == true ? .passwordChange : .signedIn }
     func backToSignIn() {
@@ -257,6 +353,33 @@ final class AuthState {
             if revocationFailed { error = String(localized: "Signed out on this device. Server revocation could not be confirmed.") }
         } catch { await clear(); fail(error) }
     }
+    /// Revokes every browser session, device grant and push destination for this account, then clears
+    /// this device. A refused or offline request keeps the current session.
+    func signOutEverywhere() async {
+        guard stage == .signedIn, !busy, !endingSession, let accountID = user?.id, let credentials = acceptedCredentials else { return }
+        let generation = identityGeneration
+        busy = true; error = nil
+        do {
+            let service = service
+            _ = try await service.withSession(expectedCredentials: credentials) { try await service.signOutEverywhere() }
+        } catch {
+            busy = false
+            guard identityGeneration == generation, user?.id == accountID else { return }
+            if APIError.status(error) == 401 { await invalidateSession(message: APIError.display(error)) } else { fail(error) }
+            return
+        }
+        busy = false
+        guard identityGeneration == generation, user?.id == accountID else { return }
+        // The server already removed this device's grant and push destinations.
+        endingSession = true
+        detachNotifications()
+        clearLocalIdentity()
+        try? await service.refresh.install(nil)
+        try? await service.makerspace.select(nil, activeMemberships: [])
+        endingSession = false
+        error = String(localized: "Signed out on every device and browser.")
+    }
+
     func changePassword(current: String, new: String, confirmation: String) async {
         guard stage == .passwordChange, !busy, (retryAfter ?? .distantPast) <= Date(), let accountID = user?.id, let credentials = acceptedCredentials else { return }
         guard !current.isEmpty, !new.isEmpty, new == confirmation else {

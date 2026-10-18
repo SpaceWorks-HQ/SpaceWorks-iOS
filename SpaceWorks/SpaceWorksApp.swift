@@ -67,13 +67,20 @@ final class PreviewHealthProtocol: URLProtocol {
         let arguments = ProcessInfo.processInfo.arguments
         let path = "/" + request.url!.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let failure = arguments.contains("--health-unavailable") && path == "/api/v1/health"
-        let code = failure ? 503 : 200
+        let superadmin = arguments.contains("--superadmin") && path == "/api/v1/auth/device/login"
+        let code = failure ? 503 : superadmin ? 403 : 200
         let body: String
         if failure { body = #"{"detail":"Try again later.","code":"service_unavailable"}"# }
+        else if superadmin { body = #"{"detail":"Use the web console.","code":"device_superadmin_not_supported"}"# }
         else if let member = PreviewMemberResponses.response(for: request) { body = member }
         else {
             switch path {
-            case "/api/v1/config": body = DebugAuthFixtures.config
+            case "/api/v1/config":
+                body = arguments.contains("--native-min-version") ? DebugAuthFixtures.nativeConfig(minimum: "99.0")
+                    : arguments.contains("--native-providers") ? DebugAuthFixtures.nativeConfig() : DebugAuthFixtures.config
+            case "/api/v1/auth/phone/login/start": body = #"{"detail":"If the number can sign in, a code was sent."}"#
+            case "/api/v1/auth/phone/login/confirm": body = DebugAuthFixtures.tokens
+            case "/api/v1/auth/logout-all": body = #"{"web_sessions":1,"devices":2}"#
             case "/api/v1/bootstrap": body = DebugMemberFixtures.bootstrap
             case "/api/v1/auth/device/attestation-challenge": body = #"{"challenge":"fresh-test-challenge","expires_in":120}"#
             case "/api/v1/auth/device/login": body = arguments.contains("--mfa") ? DebugAuthFixtures.mfa : DebugAuthFixtures.tokens
