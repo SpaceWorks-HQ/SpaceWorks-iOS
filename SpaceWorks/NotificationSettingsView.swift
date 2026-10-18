@@ -48,6 +48,7 @@ struct NotificationSettingsView: View {
                 SWCard { Text("Choose which updates you receive in Communication preferences. Required safety messages remain available in your inbox.").foregroundStyle(Color.swMuted) }
             }.padding(dynamicTypeSize.isAccessibilitySize ? 12 : 24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg).navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
             .task { await state.prepare() }
     }
 }

@@ -52,6 +52,7 @@ struct DemoNotificationsView: View {
                 }.disabled(!state.enabled || state.permissionDenied)
             }.padding(dynamicTypeSize.isAccessibilitySize ? 12 : 24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg).navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
     }
 }
 #endif
