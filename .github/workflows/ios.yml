@@ -8,6 +8,10 @@ on:
         description: Read-only tablet landscape diagnostic (one existing UI journey; not final acceptance)
         type: boolean
         default: false
+      export_diagnostic:
+        description: Read-only large phone and tablet export diagnostic (one existing UI journey; not final acceptance)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -19,18 +23,25 @@ jobs:
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
       ORIENTATION_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.orientation_diagnostic && 'true' || 'false' }}
+      EXPORT_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.export_diagnostic && 'true' || 'false' }}
     timeout-minutes: 120
     name: Build and test (${{ matrix.device }})
     strategy:
       fail-fast: false
       max-parallel: 6
       matrix:
-        device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && (inputs.orientation_diagnostic && '["tablet-landscape"]' || '["compact","phone","large","tablet","tablet-landscape","large-tablet"]') || '["phone","tablet"]') }}
+        device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && (inputs.export_diagnostic && '["large","tablet"]' || inputs.orientation_diagnostic && '["tablet-landscape"]' || '["compact","phone","large","tablet","tablet-landscape","large-tablet"]') || '["phone","tablet"]') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream and actual focused47 job
         with:
           submodules: recursive
           persist-credentials: false
+      - name: Validate diagnostic selection
+        run: |
+          if [ "$ORIENTATION_DIAGNOSTIC" = true ] && [ "$EXPORT_DIAGNOSTIC" = true ]; then
+            echo "Select at most one explicit diagnostic purpose."
+            exit 1
+          fi
       - name: Verify pinned Xcode and SDK
         run: |
           xcodebuild -version
@@ -102,10 +113,12 @@ jobs:
               'phone_orientations': required <= set(info.get('UISupportedInterfaceOrientations~iphone', info.get('UISupportedInterfaceOrientations', []))),
               'tablet_orientations': required <= set(info.get('UISupportedInterfaceOrientations~ipad', []))}
           diagnostic = os.environ['ORIENTATION_DIAGNOSTIC'] == 'true'
+          export_diagnostic = os.environ['EXPORT_DIAGNOSTIC'] == 'true'
+          assert not (diagnostic and export_diagnostic)
           dependency_lock = json.loads(pathlib.Path('dependency-lock-validation.json').read_text(encoding='utf-8'))
-          report = {'dependency_lock': dependency_lock, 'kind': 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source,
-                    'purpose': 'read-only-orientation-diagnostic' if diagnostic else 'complete-native-validation',
-                    'ui_selection': 'SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel' if diagnostic else 'SpaceWorksUITests',
+          report = {'dependency_lock': dependency_lock, 'kind': 'export-diagnostic-built-debug-metadata' if export_diagnostic else 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source,
+                    'purpose': 'read-only-native-export-diagnostic' if export_diagnostic else 'read-only-orientation-diagnostic' if diagnostic else 'complete-native-validation',
+                    'ui_selection': 'SpaceWorksUITests/AccountFlowTests/testLargestTextLandscapeExportCanReachNativeShare' if export_diagnostic else 'SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel' if diagnostic else 'SpaceWorksUITests',
                     'profile': os.environ['DEVICE_PROFILE'], 'bundle_id': info.get('CFBundleIdentifier'),
                     'sdk': info.get('DTSDKName'), 'device_families': info.get('UIDeviceFamily'),
                     'fonts': info.get('UIAppFonts', []), 'scene_manifest': scene,
@@ -122,7 +135,9 @@ jobs:
         run: |
           set -o pipefail
           UI_SELECTION=SpaceWorksUITests
-          if [ "$ORIENTATION_DIAGNOSTIC" = true ]; then
+          if [ "$EXPORT_DIAGNOSTIC" = true ]; then
+            UI_SELECTION=SpaceWorksUITests/AccountFlowTests/testLargestTextLandscapeExportCanReachNativeShare
+          elif [ "$ORIENTATION_DIAGNOSTIC" = true ]; then
             UI_SELECTION=SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel
           fi
           xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= "-only-testing:$UI_SELECTION" | tee -a build.log
@@ -148,11 +163,38 @@ jobs:
           if [ -n "$SIMULATOR_ID" ]; then
             xcrun simctl spawn "$SIMULATOR_ID" log show --last 120m --style compact --info --predicate 'subsystem == "org.spaceworks.orientation-diagnostics" AND category == "orientation"' > orientation-system.log 2>&1 || true
           fi
+      - name: Collect bounded native presentation service metadata
+        if: always() && env.EXPORT_DIAGNOSTIC == 'true'
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess
+          predicate = '(process == "SpaceWorks" OR process CONTAINS[c] "ShareSheet" OR process == "sharingd" OR process CONTAINS[c] "Activity" OR subsystem CONTAINS[c] "Share")'
+          report = {'kind': 'redacted-native-presentation-service-metadata', 'purpose': 'read-only-native-export-diagnostic', 'source_sha': os.environ['GITHUB_SHA'], 'profile': os.environ['DEVICE_PROFILE'], 'window_minutes': 20, 'raw_messages_retained': False, 'records': []}
+          try:
+              result = subprocess.run(['xcrun', 'simctl', 'spawn', os.environ['SIMULATOR_ID'], 'log', 'show', '--last', '20m', '--style', 'json', '--info', '--predicate', predicate], capture_output=True, text=True, timeout=60)
+              report['collection_exit_code'] = result.returncode
+              entries = json.loads(result.stdout) if result.returncode == 0 else []
+              report['matched_events'] = len(entries)
+              for event in entries[-10000:]:
+                  message = event.get('eventMessage', '')
+                  classifications = [word for word in ['error', 'fault', 'crash', 'termination', 'dismiss', 'load', 'invalid', 'interrupt', 'connection', 'present', 'activity', 'extension'] if word in message.lower()]
+                  if not classifications:
+                      continue
+                  # Export only fixed classifications/numeric error codes and log metadata.
+                  # Never retain arbitrary app/system messages, archive paths or user text.
+                  domains = sorted(set(re.findall(r'\b(?:NSCocoaErrorDomain|NSPOSIXErrorDomain|NSOSStatusErrorDomain|NSMachErrorDomain|RBSRequestErrorDomain|RBSAssertionErrorDomain)\b', message)))
+                  codes = sorted(set(re.findall(r'\bCode\s*=\s*(-?\d+)\b', message)))
+                  report['records'].append({'timestamp': event.get('timestamp'), 'process': pathlib.PurePosixPath(event.get('processImagePath', '')).name, 'subsystem': event.get('subsystem'), 'category': event.get('category'), 'message_type': event.get('messageType'), 'classifications': classifications, 'error_domains': domains, 'error_codes': codes})
+              report['truncated_to_last_events'] = len(entries) > 10000
+          except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
+              report['collection_error_kind'] = type(error).__name__
+          pathlib.Path('native-presentation-service-metadata.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          PY
       - name: Archive validation evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ${{ env.ORIENTATION_DIAGNOSTIC == 'true' && 'ios-orientation-diagnostic' || 'ios-validation' }}-${{ matrix.device }}
+          name: ${{ env.EXPORT_DIAGNOSTIC == 'true' && 'ios-export-diagnostic' || env.ORIENTATION_DIAGNOSTIC == 'true' && 'ios-orientation-diagnostic' || 'ios-validation' }}-${{ matrix.device }}
           path: |
             NativeTestResults.xcresult
             TestResults.xcresult
@@ -166,6 +208,7 @@ jobs:
             build-tools.json
             Dependencies/Package.resolved
             orientation-system.log
+            native-presentation-service-metadata.json
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7

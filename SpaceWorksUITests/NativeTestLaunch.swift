@@ -18,8 +18,20 @@ extension XCUIApplication {
         if diagnostic {
             print("SpaceWorksOrientationTest after device=\(XCUIDevice.shared.orientation.rawValue) lastPredicateFrame=\(lastFrame) waitResult=\(result.rawValue)")
         }
+        if result != .completed { attachFailedOrientationEvidence() }
         XCTAssertEqual(result, .completed,
                        "Requested landscape orientation must actually be visible.")
+    }
+
+    private func attachFailedOrientationEvidence() {
+        XCTContext.runActivity(named: "Failed native orientation evidence") { activity in
+            let pixels = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            pixels.name = "Failed orientation full OS screen"; pixels.lifetime = .keepAlways
+            activity.add(pixels)
+            let hierarchy = XCTAttachment(string: debugDescription)
+            hierarchy.name = "Failed orientation app hierarchy"; hierarchy.lifetime = .keepAlways
+            activity.add(hierarchy)
+        }
     }
 
     func launchForDeviceProfile() {
@@ -40,7 +52,9 @@ extension XCUIApplication {
         let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             landscape ? self.frame.width > self.frame.height : self.frame.height > self.frame.width
         }, object: nil)
-        XCTAssertEqual(XCTWaiter.wait(for: [orientation], timeout: 10), .completed, "Requested launch orientation must actually be visible.")
+        let orientationResult = XCTWaiter.wait(for: [orientation], timeout: 10)
+        if orientationResult != .completed { attachFailedOrientationEvidence() }
+        XCTAssertEqual(orientationResult, .completed, "Requested launch orientation must actually be visible.")
         let appearance = buttons["appearance"]
         XCTAssertTrue(appearance.waitForExistence(timeout: 10))
         XCTAssertEqual(appearance.label, dark ? "Light mode" : "Dark mode", "The app's explicit theme must match its matrix profile.")

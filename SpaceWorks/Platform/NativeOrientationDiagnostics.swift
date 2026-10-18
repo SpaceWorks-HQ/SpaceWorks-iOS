@@ -42,6 +42,8 @@ private final class OrientationObserverBag {
     private var readScheduled = false
     private var readRevision = 0
     private var lastState: Data?
+    private var settledRevision = 0
+    private var settledTasks: [Task<Void, Never>] = []
     private static let logger = Logger(subsystem: "org.spaceworks.orientation-diagnostics", category: "orientation")
 
     override func didMoveToWindow() {
@@ -52,7 +54,13 @@ private final class OrientationObserverBag {
                      UIScene.willDeactivateNotification] {
             let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
                 MainActor.assumeIsolated {
-                    self?.read(reason: "notification:" + notification.name.rawValue)
+                    guard let self else { return }
+                    self.read(reason: "notification:" + notification.name.rawValue)
+                    if notification.name == UIDevice.orientationDidChangeNotification {
+                        self.scheduleSettledReads()
+                    } else if notification.name == UIScene.willDeactivateNotification {
+                        self.cancelSettledReads()
+                    }
                 }
             }
             observers.tokens.append(token)
@@ -64,6 +72,7 @@ private final class OrientationObserverBag {
         scheduleRead(reason: "layout")
     }
     func stop() {
+        cancelSettledReads()
         readRevision += 1
         readScheduled = false
         observers.cancel()
@@ -78,6 +87,29 @@ private final class OrientationObserverBag {
             self.readScheduled = false
             guard let window, self.window === window else { return }
             self.read(reason: reason)
+        }
+    }
+
+    private func cancelSettledReads() {
+        settledRevision += 1
+        settledTasks.forEach { $0.cancel() }
+        settledTasks.removeAll()
+    }
+    private func scheduleSettledReads() {
+        cancelSettledReads()
+        guard enabled, let window else { return }
+        let revision = readRevision
+        let orientationRevision = settledRevision
+        for delay in [1, 3] {
+            settledTasks.append(Task { @MainActor [weak self, weak window] in
+                do { try await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000) }
+                catch { return }
+                guard !Task.isCancelled, let self, self.enabled,
+                      self.readRevision == revision, self.settledRevision == orientationRevision,
+                      let window, self.window === window,
+                      window.windowScene?.activationState == .foregroundActive else { return }
+                self.read(reason: "settled-orientation:\(delay)s")
+            })
         }
     }
 
@@ -138,7 +170,7 @@ private final class OrientationObserverBag {
         }
         guard let fingerprint = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]) else { return }
         // Keep actual notifications even if policy is unchanged; suppress layout-only duplicates.
-        if !reason.hasPrefix("notification:"), fingerprint == lastState { return }
+        if !reason.hasPrefix("notification:"), !reason.hasPrefix("settled-orientation:"), fingerprint == lastState { return }
         lastState = fingerprint
         record["event"] = reason
         record["uptime_seconds"] = ProcessInfo.processInfo.systemUptime
