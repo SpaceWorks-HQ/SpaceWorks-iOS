@@ -3,12 +3,23 @@ import UserNotifications
 
 /// OS delivery permission and account-level server registration are separate controls.
 struct NotificationSettingsView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let state: NotificationSettingsState
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 SWCard {
-                    Label("Notifications", systemImage: "bell.badge").brandFont(.title2, weight: .bold)
+                    Group {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Image(systemName: "bell.badge").accessibilityHidden(true)
+                                Text("Notifications").frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            Label("Notifications", systemImage: "bell.badge")
+                        }
+                    }.brandFont(.title2, weight: .bold)
+                        .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
                     Text("Keep up with requests, bookings, and important makerspace updates. Your inbox is always available.").foregroundStyle(Color.swMuted)
                     if !state.registration.configured {
                         Text("Notifications are not configured for this build. Your inbox is still available.").foregroundStyle(Color.swMuted)

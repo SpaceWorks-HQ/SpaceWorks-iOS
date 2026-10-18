@@ -267,8 +267,16 @@ final class MemberActionsFlowTests: XCTestCase {
     }
     func testProfileDraftSurvivesRotationAndOptionalPreferencesCanChange() {
         let app = demo(); tab(app, "Profile"); tap(app.buttons["Edit profile"], in: app)
-        let name = app.textFields["profile-display-name"]; tap(name, in: app)
-        let old = name.value as? String ?? ""; name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.count) + "Meera Maker\n")
+        let name = app.textFields["profile-display-name"]
+        NativeUIActions.tap(name, in: app, requireWholeFrame: true)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        name.press(forDuration: 1)
+        let selectAll = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Select All")).firstMatch
+        XCTAssertTrue(selectAll.waitForExistence(timeout: 5), "The native text edit menu must offer Select All.")
+        XCTAssertTrue(selectAll.isHittable)
+        selectAll.tap()
+        name.typeText("Meera Maker\n")
+        XCTAssertEqual(name.value as? String, "Meera Maker", "Verify the replacement before testing rotation preservation.")
         app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height); XCTAssertEqual(name.value as? String, "Meera Maker")
         tap(app.buttons["Save changes"], in: app); XCTAssertTrue(app.staticTexts["Profile saved."].waitForExistence(timeout: 5)); capture("Native profile saved landscape")

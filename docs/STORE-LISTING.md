@@ -68,7 +68,8 @@ final submitted build against the owner's supported backend with a synthetic rev
 Retain original dimensions and current console device slots; never stretch a phone image into
 a tablet image. Keep recovery codes, verification codes and QR payloads out of store assets;
 do not weaken secure-window protections to capture them. Optional staff images must show a
-verified authorized staff deployment. The final PR links the accepted layout-proof artifacts.
+verified authorized staff deployment. The final repository delivery ledger links the accepted
+layout-proof artifacts and exact tested application SHA.
 
 ## Reviewer access and review notes
 

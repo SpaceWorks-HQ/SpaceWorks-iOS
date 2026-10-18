@@ -132,9 +132,19 @@ final class AccountFlowTests: XCTestCase {
     }
     func testPhoneVerificationThenCurrentSessionRevocationRequiresSignIn() {
         let app = account(); tap(app.buttons["account-phone"], in: app)
-        let phone = app.textFields["account-phone-number"]; tap(phone, in: app); phone.typeText("9876543210")
+        let phone = app.textFields["account-phone-number"]
+        NativeUIActions.tap(phone, in: app, requireWholeFrame: true)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars.buttons["account-phone-keyboard-done"].waitForExistence(timeout: 5))
+        phone.typeText("9876543210")
+        XCTAssertEqual(phone.value as? String, "9876543210")
         dismissAccountKeyboard("account-phone-keyboard-done", in: app); tap(app.buttons["account-phone-send"], in: app)
-        let code = app.textFields["account-phone-code"]; tap(code, in: app); code.typeText("123456")
+        let code = app.textFields["account-phone-code"]
+        NativeUIActions.tap(code, in: app, requireWholeFrame: true)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars.buttons["account-phone-keyboard-done"].waitForExistence(timeout: 5))
+        code.typeText("123456")
+        XCTAssertEqual(code.value as? String, "123456")
         dismissAccountKeyboard("account-phone-keyboard-done", in: app); tap(app.buttons["account-phone-verify"], in: app)
         XCTAssertTrue(app.staticTexts["+919876543210"].waitForExistence(timeout: 10)); attach("Account verified phone sample")
         tap(app.navigationBars.buttons.element(boundBy: 0), in: app)

@@ -19,18 +19,21 @@
 
 ## Branch delivery workflow
 
-The owner merged the A0 foundation and requested this workflow on 2026-10-16:
+The owner merged the A0 foundation and subsequently updated the delivery workflow:
 
 - Start ongoing work from `dev`, commit there, and push to `origin/dev`.
-- Finish the phase's implementation and validation before opening its final `dev` → `main` pull request.
-- Keep `main` for reviewed merges. Preserve the owner's configured commit identity and the required Codex co-author trailer.
+- Do not open pull requests or create feature branches for this batch; consolidate on `dev`. After the required repository native/CI, unsigned Release and actual visual gates pass, merge the tested `dev` directly into `main`, as authorized by the owner.
+- Retire obsolete work branches only after their work is safely retained. Preserve the owner's configured commit identity and the required Codex co-author trailer.
 
-## Complete-build execution addendum (owner, 2026-10-16)
+## Complete-build execution addendum (owner, 2026-10-16; delivery updated 2026-10-18)
 
 The owner requested the remaining phases as one batch, with Android and iOS agents in parallel.
 Implement each phase sequentially on `dev`, with phase commits, tests, CI evidence, and a changelog
-parity checklist. A green phase may proceed without an intermediate merge; the existing final
-`dev` → `main` PR tracks the batch. The owner performs merges. Preserve `docs/PRD.md` byte-for-byte.
+parity checklist. A green phase may proceed without an intermediate merge. Consolidate the batch
+on `dev`, complete the required repository validation and actual visual review, then merge the tested
+work directly into `main` under the owner's latest authorization. Follow the branch delivery policy
+above; do not open pull requests or create feature branches for this batch. Preserve `docs/PRD.md`
+byte-for-byte.
 Phone and tablet layouts, portrait/landscape, light/dark and largest Dynamic Type are now in scope.
 Use generated contract operations only. Record missing backend contracts as `backend-request`
 issues and continue independent work when prerequisites permit. Local Docker is the development API;

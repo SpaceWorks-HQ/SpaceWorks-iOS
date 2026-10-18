@@ -3,8 +3,10 @@
 Prepared 16 October 2026. This is the release procedure and evidence ledger, not a claim of
 store submission. Phase implementation and passing checks are recorded in `docs/CHANGELOG.md`.
 The owner requested phones and tablets and deferred backend setup; that instruction supersedes
-the original PRD's tablet exclusion and intermediate merge requirement. Work stays on `dev`
-until the owner reviews the final `dev` to `main` pull request.
+the original PRD's tablet exclusion and intermediate merge requirement. Under the owner's latest
+delivery instruction, work stays on `dev` until required repository native/CI tests, unsigned Release
+validation and actual visual review pass, then the tested branch merges directly into `main`. No
+final pull request is required; deployment and store-provisioning gates below remain separate.
 
 ## Reproduce the app
 
@@ -139,8 +141,8 @@ Record distribution evidence here after owner provisioning; no credentials belon
 
 | Evidence | Value |
 |---|---|
-| Accepted app / Design commits | The exact tested source SHA and pinned Design input belong in the final [dev to main PR](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/pull/2) and matching CI artifacts; acceptance requires its completed validation section |
-| Full device-matrix CI run | The final PR validation section must link the accepted six-profile run and reviewed artifacts; a pending or failed run does not establish acceptance |
+| Accepted app / Design commits | Record the exact tested application SHA, pinned Design input and matching accepted CI artifacts in the final delivery ledger. If a later documentation-only commit follows validation, disclose it separately and verify that every application, resource, test and build input is unchanged; do not relabel the native evidence. |
+| Full device-matrix CI run | The final delivery ledger must link the accepted exact-source six-profile run, canonical `dev` push validation and actually reviewed artifacts; a pending or failed run does not establish acceptance. Merge to `main` only after the required repository gates pass. |
 | Signed archive / version / build | Owner signing environment required |
 | Real-device provider test record | Owner backend/configuration required |
 | Whole-account deletion verification | Updated owner contract required |

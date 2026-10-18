@@ -4,7 +4,7 @@ iOS 17+ native SwiftUI app for iPhone and iPad. [The PRD](docs/PRD.md) defines t
 
 ## Development workflow
 
-Use `dev` for ongoing changes and push commits to `origin/dev`. After implementation and CI validation finish, open the final pull request from `dev` to `main`. The A0 foundation is already merged into `main`.
+Use `dev` for ongoing changes and push commits to `origin/dev`. After implementation, required native/CI tests, unsigned Release validation and actual visual review pass, merge the tested `dev` directly into `main`, as authorized by the owner. Do not open pull requests or create feature branches for this batch; consolidate on `dev`. The A0 foundation is already merged into `main`.
 
 ## Build and test
 

@@ -32,11 +32,15 @@ final class NotificationsFlowTests: XCTestCase {
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); image.name = name; image.lifetime = .keepAlways; add(image)
     }
     func testPermissionDeniedAndUnauthorizedTapHaveRecoverableInAppStates() {
-        let app = notifications(); tap(app.switches["Preview permission denied"], app)
+        let app = notifications()
+        XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
+        capture("Native notification heading")
+        NativeUIActions.tap(app.switches["Preview permission denied"], in: app, requireWholeFrame: true)
         XCTAssertTrue(app.staticTexts["Notifications are off for this device."].exists)
         tap(app.buttons["Open system settings"], app)
         XCTAssertTrue(app.staticTexts["notification-preview-feedback"].exists); XCTAssertEqual(app.state, .runningForeground)
-        tap(app.switches["Preview permission denied"], app); tap(app.buttons["enable-demo-notifications"], app)
+        NativeUIActions.tap(app.switches["Preview permission denied"], in: app, requireWholeFrame: true)
+        tap(app.buttons["enable-demo-notifications"], app)
         tap(app.buttons["demo-push-denied"], app)
         XCTAssertTrue(app.staticTexts["mobile-link-error"].waitForExistence(timeout: 5))
         XCTAssertEqual(app.staticTexts["mobile-link-error"].label, "This makerspace isn't available to your account.")

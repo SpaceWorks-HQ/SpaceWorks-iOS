@@ -10,6 +10,7 @@ import Observation
 }
 
 struct DemoNotificationsView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Bindable var state: DemoNotificationState
     let makerspaceID: Int
     let route: (MobileLink) -> Void
@@ -17,7 +18,17 @@ struct DemoNotificationsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 SWCard {
-                    Label("Notifications", systemImage: "bell.badge").brandFont(.title2, weight: .bold)
+                    Group {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Image(systemName: "bell.badge").accessibilityHidden(true)
+                                Text("Notifications").frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            Label("Notifications", systemImage: "bell.badge")
+                        }
+                    }.brandFont(.title2, weight: .bold)
+                        .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
                     Text("Demo only. Changes stay in this preview. No notifications will be sent.").foregroundStyle(Color.swMuted)
                     Toggle("Preview permission denied", isOn: $state.permissionDenied).frame(minHeight: 48)
                     if state.permissionDenied {

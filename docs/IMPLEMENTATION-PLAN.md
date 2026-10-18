@@ -3,7 +3,9 @@
 The owner extended the PRD scope on 2026-10-16 to include tablets and requested the remaining
 phases in one batch on `dev`. The original PRD remains unchanged. Each phase has generated-client
 API coverage, state tests, main-flow UI tests, green macOS CI, commits and a parity note before the
-next independent phase. The owner merges the final `dev` → `main` PR.
+next independent phase. Under the owner's latest delivery instruction, consolidate work on `dev`
+and merge the tested branch directly into `main` after required repository validation and actual
+visual review pass. No final pull request is required.
 
 | Phase | Deliverable | Gate |
 |---|---|---|

@@ -1,5 +1,15 @@
 # Phase notes
 
+## B5 Complete native control activation and accessibility headings — correction checkpoint (2026-10-18)
+
+The exact `34bb979` large-phone run passed all 302 native cases but failed three of 37 UI journeys. Its phone input and permission switch were only partly exposed above the native tab bar: the helper activated an exposed edge without establishing keyboard focus or changing the switch. The two phone fields and both permission-switch actions now use the existing full-frame reveal, preserving the 24-gesture bound and actual native activation. The phone journey checks the actual keyboard, focus-bound Done and each entered value before its unchanged verification and current-session revocation outcomes. No app focus state or shared gesture behavior changes.
+
+The profile recording showed the insertion cursor before the existing surname. Repeated backspaces removed only its prefix, leaving the surname appended before rotation. The journey now fully reveals the field, uses the native Select All edit action, and asserts the exact replacement before the unchanged rotation, save and preference checks. It fails if native selection is unavailable; no clipboard or application-state shortcut is used.
+
+Actual largest-text notification media also showed the decorative bell squeezing the card heading into a split word. Both matching live/demo headings place that decorative symbol above full-width semantic title text at accessibility sizes, retaining the supplied font, scaling, colors and ordinary-size Label. The existing permission journey captures the actual heading for new-source review. All operations, case counts, deadlines and downstream assertions remain. The five active delivery-policy documents now follow the owner's consolidated dev-only/no-PR workflow and authorized tested merge to main; dated implementation history is preserved.
+
+The `34bb979` canonical push separately passed 302 native/37 UI and unsigned device Release, including actual scene=false and bundled-font/resource audits. That proof is historical for that source, not acceptance of this successor. Intended counts remain 302 native/37 UI/42 Python; complete corrected exact-source canonical, six-profile native/Release and actual visual gates remain required before delivery.
+
 ## B4 Native interaction feedback and bounded onboarding motion — implementation checkpoint (2026-10-18)
 
 Explicit onboarding Back/Next actions now request native selection feedback; completion/Skip requests completion feedback. Only its existing page content uses the finite 200ms motion token, with a small eight-point fade/offset transition. The logo stays static. Real Reduce Motion (and the clearly scoped Debug test preference) removes that custom transition. Navigation stacks, tabs, sheets, native bars and system activities keep their native animation and stable ownership; no navigation-host identity or repeating effects are added.
