@@ -37,7 +37,9 @@ final class MobileLinkTests: XCTestCase {
     func testExistingInboxLandingLinksOnlyParseExactSafeCurrentOriginShapes() {
         XCTAssertEqual(MobileLink.legacy("/m/fab-lab-kochi/member", origin: origin), .init(slug: "fab-lab-kochi", staffInbox: false))
         XCTAssertEqual(MobileLink.legacy("https://spaceworks.example:443/m/fab-lab-kochi/admin/notifications", origin: origin), .init(slug: "fab-lab-kochi", staffInbox: true))
-        for value in ["https://evil.example/m/fab-lab-kochi/member", "https://user@spaceworks.example/m/fab-lab-kochi/member", "/m/fab-lab-kochi/member?token=secret", "/m/fab-lab-kochi/member/extra", "/m/fab%2dlab/member", "/m/../member", "/m/fab\\lab/member", "//m/fab/member"] { XCTAssertNil(MobileLink.legacy(value, origin: origin)) }
+        // mobile_link_contract.py claims any single member tab; an unknown tab opens Home like the web portal.
+        XCTAssertEqual(MobileLink.legacy("/m/fab-lab-kochi/member/extra", origin: origin), .init(slug: "fab-lab-kochi", staffInbox: false))
+        for value in ["https://evil.example/m/fab-lab-kochi/member", "https://user@spaceworks.example/m/fab-lab-kochi/member", "/m/fab-lab-kochi/member?token=secret", "/m/fab-lab-kochi/member/extra/more", "/m/fab%2dlab/member", "/m/../member", "/m/fab\\lab/member", "//m/fab/member"] { XCTAssertNil(MobileLink.legacy(value, origin: origin)) }
     }
     func testEncodedTraversalControlCharactersAndInvalidMakerIDsAreRefused() {
         for value in ["//evil.example/makerspaces/7/inbox", "/makerspaces/7/../profile", "/makerspaces/7/./inbox", "/makerspaces/7/%2einbox", "/makerspaces/7/inbox\n", "/makerspaces/0/inbox", "/makerspaces/-7/inbox", "/makerspaces/999999999999999999999999999999/inbox", "/makerspaces/7//inbox"] { XCTAssertNil(MobileLink.path(value)) }
