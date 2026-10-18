@@ -1,5 +1,13 @@
 # Phase notes
 
+## C6 — Give unread Inbox status its own accessibility row (2026-10-18)
+
+Actual full-OS `ed2aca4` large-phone pixels showed the card's Unread status fragmented as Unrea/d beside its title at largest Dynamic Type. The current application's Inbox row was byte-identical. At accessibility text sizes, stack the same message title and existing Unread label vertically with full available width; retain the ordinary horizontal layout, supplied semantic fonts, symbol/color, text, read state and all callbacks. Native accessibility containment preserves the separately spoken title and status children, with stable per-message group and status identifiers. No font cap, truncation or data change is introduced.
+
+Extend the existing forced-AX5 permission/refusal journey only after all its original outcomes: follow the existing authorized-other-makerspace Inbox link, require the actual unread status, reveal its containing heading using the same bounded native helper and independently assert that both title and status fit the native bar-adjusted viewport. Capture the full-OS Inbox heading for fresh review on all six profiles. There are still 302 native, 37 UI and 45 Python cases. Actual new-source compact/large text fit and complete native/Release/visual gates remain pending; prior source results are diagnostic only.
+
+Parity: shared live/demo Inbox keeps the same title, status, authority and actions. This is an iOS accessibility layout correction; no backend, contract or Android source changes.
+
 ## C5 — Request the test profile orientation after native launch (2026-10-18)
 
 The exact `ed2aca4` full tablet-landscape profile failed all 37 UI journeys at their unchanged orientation guards: 34 launch checks and three later foreground rotations. Actual failure-time full-OS pixels stayed portrait. Attach/activation scene samples preceded the relevant request and cannot establish failure-time effective policy. A separate same-source fresh-runner diagnostic passed all 302 native cases and the existing regular-text dark sign-in journey: its portrait launch followed by a foreground landscape request produced actual landscape pixels, the required app frame and settled landscape scene samples. This does not explain the historical full-profile failure, including its three later foreground failures, or establish an app/OS cause.

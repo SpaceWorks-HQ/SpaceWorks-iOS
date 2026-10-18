@@ -47,6 +47,28 @@ final class NotificationsFlowTests: XCTestCase {
         capture("Notification permission and authorization refusal")
         tap(app.buttons["Dismiss"], app)
         XCTAssertTrue(app.buttons["demo-push-product"].exists)
+        tap(app.buttons["demo-push-other-space"], app)
+        XCTAssertTrue(app.buttons["Mark all as read"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Maker Space Bengaluru"].exists)
+        let unread = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "inbox-unread-")).firstMatch
+        XCTAssertTrue(unread.waitForExistence(timeout: 8))
+        XCTAssertEqual(unread.label, "Unread")
+        let heading = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "inbox-heading-")).firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 8))
+        // Reveal the actual containing title/status group with the existing helper.
+        // This group has no action handler; the native tap does not mark it read.
+        NativeUIActions.tap(heading, in: app, requireWholeFrame: true)
+        let title = app.staticTexts["Your kit is ready"].firstMatch
+        XCTAssertTrue(title.exists)
+        let readiness = NativeUIActions.readiness(in: app)
+        let top = app.navigationBars.allElementsBoundByIndex.filter { readiness.evaluate(with: $0) }.map { $0.frame.maxY }.max() ?? app.frame.minY
+        let bottom = app.tabBars.allElementsBoundByIndex.filter { readiness.evaluate(with: $0) }.map { $0.frame.minY }.min() ?? app.frame.maxY
+        let viewport = CGRect(x: app.frame.minX, y: top, width: app.frame.width, height: max(0, bottom - top)).insetBy(dx: 2, dy: 2)
+        for element in [title, unread] {
+            XCTAssertTrue(readiness.evaluate(with: element))
+            XCTAssertTrue(viewport.contains(element.frame), "The whole Inbox title and unread status must be visible.")
+        }
+        capture("Native unread Inbox heading at largest text")
     }
     func testNotificationRefetchOpensProductAndAnotherAuthorizedMakerspaceInboxAcrossRotation() {
         let app = notifications(); tap(app.buttons["enable-demo-notifications"], app)

@@ -359,6 +359,7 @@ struct InventoryDetail: View {
 
 struct MemberInbox: View {
     @Bindable var state: MemberState
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var paymentsAvailable = false
     var openLink: ((String) -> Void)? = nil
     var body: some View {
@@ -371,7 +372,19 @@ struct MemberInbox: View {
                 if state.inboxLoad == .ready && state.messages.isEmpty { SWCard { Text("Nothing here yet.").foregroundStyle(Color.swMuted) } }
                 ForEach(state.messages, id: \.id) { message in
                     SWCard {
-                        HStack { Text(message.title).brandFont(.headline); Spacer(); if message.read_at == nil { Label("Unread", systemImage: "circle.fill").brandFont(.caption).foregroundStyle(Color.swAccentInk) } }
+                        if dynamicTypeSize.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(message.title).brandFont(.headline)
+                                if message.read_at == nil {
+                                    Label("Unread", systemImage: "circle.fill").brandFont(.caption).foregroundStyle(Color.swAccentInk)
+                                        .accessibilityIdentifier("inbox-unread-\(message.id)")
+                                }
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityElement(children: .contain)
+                                .accessibilityIdentifier("inbox-heading-\(message.id)")
+                        } else {
+                            HStack { Text(message.title).brandFont(.headline); Spacer(); if message.read_at == nil { Label("Unread", systemImage: "circle.fill").brandFont(.caption).foregroundStyle(Color.swAccentInk).accessibilityIdentifier("inbox-unread-\(message.id)") } }
+                        }
                         Text(message.summary).foregroundStyle(Color.swMuted)
                         Text(message.created_at.formatted(date: .abbreviated, time: .shortened)).brandFont(.caption).foregroundStyle(Color.swMuted)
                         if let openLink, !message.link.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
