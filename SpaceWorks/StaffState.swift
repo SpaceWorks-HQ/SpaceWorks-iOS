@@ -9,7 +9,10 @@ final class StaffState {
     let repository: any StaffRepository
     let makerspaceID: Int
     let actions: Set<String>
-    let features: Set<String>
+    private(set) var features: Set<String>
+    /// Membership actions that open a staff tool. Any one of them makes the staff entry available.
+    static let toolActions: Set<String> = ["accept_request", "reject_request", "assign_box", "issue_request", "return_request",
+                                           "upload_evidence", "issue_direct_loan", "manage_events", "manage_bookings"]
     var queue = StaffQueue.pending
     private(set) var requests: [Components.Schemas.AdminRequest] = []
     private(set) var directLoans: [Components.Schemas.DirectLoan] = []
@@ -42,6 +45,8 @@ final class StaffState {
         self.actions = actions; self.features = features
     }
     var isDemo: Bool { repository.isDemo }
+    /// Tenant features arrive with the bootstrap after the workspace opens.
+    func update(features: Set<String>) { if active { self.features = features } }
     var isActive: Bool { active }
     var canRequest: Bool { active && !busy && Date() >= retryAfter }
     func can(_ action: String) -> Bool { active && actions.contains(action) }

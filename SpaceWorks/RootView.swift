@@ -176,7 +176,8 @@ struct AppShell: View {
     var body: some View {
         if let membership = auth.selectedMembership, let origin = state.connectedOrigin {
             MemberWorkspace(state: state, auth: auth, origin: origin, id: membership.id, slug: membership.slug, linkRouter: linkRouter)
-                .id("\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(membership.id)")
+                // Staff authority or action changes rebuild every scoped state from a fresh /auth/me.
+                .id("\(origin.url.absoluteString).\(auth.user?.id ?? 0).\(membership.id).\(auth.staffToolsAvailable).\(membership.actions.sorted().joined(separator: ","))")
         }
     }
 }
@@ -196,6 +197,7 @@ private struct MemberWorkspace: View {
     @State private var capabilities: MemberCapabilities
     @State private var payments: PaymentsState
     @State private var account: AccountState?
+    @State private var staff: StaffState?
     let actions: LiveMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     @State private var preferredCompactColumn = NavigationSplitViewColumn.detail
@@ -206,6 +208,12 @@ private struct MemberWorkspace: View {
             onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden)
         self.actions = actions
         _account = State(initialValue: auth.accountState(makerspaceID: id))
+        // Native staff authority plus at least one staff action of this membership; the server still enforces each call.
+        let membershipActions = Set(auth.selectedMembership?.actions ?? [])
+        _staff = State(initialValue: auth.staffToolsAvailable && auth.selectedMembership?.id == id && !membershipActions.isDisjoint(with: StaffState.toolActions)
+            ? StaffState(repository: LiveStaffRepository(service: auth.service, expectedCredentials: auth.acceptedCredentials, makerspaceID: id, origin: origin,
+                onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden),
+                makerspaceID: id, actions: membershipActions, features: []) : nil)
         _payments = State(initialValue: PaymentsState(repository: LivePaymentRepository(service: auth.service, expectedCredentials: auth.acceptedCredentials, makerspaceID: id, origin: origin,
             onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden)))
         _cart = State(initialValue: RequestCartState(repository: actions))
@@ -251,16 +259,17 @@ private struct MemberWorkspace: View {
             columns = width >= 1000 ? .all : .detailOnly
         }
         }.task {
-            auth.registerPrivateHolder(privateHolderOwner) { [member, cart, drafts, capabilities, navigation, payments, account] in
-                member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate()
+            auth.registerPrivateHolder(privateHolderOwner) { [member, cart, drafts, capabilities, navigation, payments, account, staff] in
+                member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate()
             }
             async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config
         }.onDisappear {
             auth.unregisterPrivateHolder(privateHolderOwner)
-            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate()
+            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate()
         }
             .onChange(of: capabilities.selfService, initial: true) { _, _ in account?.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
             .onChange(of: capabilities.exports, initial: true) { _, _ in account?.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
+            .onChange(of: capabilities.bootstrap?.features, initial: true) { _, features in staff?.update(features: Set(features ?? [])) }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { Task { await capabilities.load(); await member.loadHome(); await member.loadUnreadCount() } }
             }
@@ -279,9 +288,9 @@ private struct MemberWorkspace: View {
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, payments: payments, account: account, linkRouter: linkRouter)
+            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, payments: payments, account: account, staff: staff, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
-                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false, payments: payments, account: account) { await auth.foreground() }
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false, payments: payments, staff: staff, account: account) { await auth.foreground() }
                 }
         }
     }
@@ -300,6 +309,7 @@ private struct MemberScreen: View {
     let capabilities: MemberCapabilities
     let payments: PaymentsState
     let account: AccountState?
+    let staff: StaffState?
     let linkRouter: MobileLinkRouter
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
@@ -328,12 +338,13 @@ private struct MemberScreen: View {
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
                         if account != nil { NavigationLink("Account and security", value: MemberRoute.account).frame(minHeight: 48).accessibilityIdentifier("account-entry") }
                         NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-entry")
+                        if staff != nil { NavigationLink("Staff tools", value: MemberRoute.staff).frame(minHeight: 48).accessibilityIdentifier("staff-tools") }
                         if let notifications = auth.notifications {
                             NavigationLink("Notifications") { NotificationSettingsView(state: notifications) }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
                         }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
                         NavigationLink("App guide") {
-                            AppGuideView(serverLabel: state.connectedOrigin?.url.absoluteString, replayTips: member.replayGuidance)
+                            AppGuideView(staffAvailable: staff != nil, serverLabel: state.connectedOrigin?.url.absoluteString, replayTips: member.replayGuidance)
                         }.frame(minHeight: 48).accessibilityIdentifier("app-guide")
                         Button("Show helpful tips") { member.replayGuidance() }.frame(minHeight: 48)
                         Button("Sign out", role: .destructive) { confirmSignOut = true }.frame(minHeight: 48).disabled(auth.busy)
@@ -346,14 +357,14 @@ private struct MemberScreen: View {
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { accountForm = nil } }
         .sheet(isPresented: $replayIntro) { IntroductionView { replayIntro = false } }
         .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Sign out", role: .destructive) { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); Task { await auth.signOut() } }
+            Button("Sign out", role: .destructive) { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate(); Task { await auth.signOut() } }
             Button("Cancel", role: .cancel) {}
         } message: { Text("You'll need to sign in again to use this account.") }
         .confirmationDialog("Sign out everywhere?", isPresented: $confirmSignOutEverywhere, titleVisibility: .visible) {
             Button("Sign out everywhere", role: .destructive) {
                 Task {
                     await auth.signOutEverywhere()
-                    if auth.stage != .signedIn { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate() }
+                    if auth.stage != .signedIn { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate() }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -365,7 +376,7 @@ private struct MemberScreen: View {
                         Button(membership.slug) {
                             guard auth.selectedID != membership.id else { return }
                             linkRouter.cancelIntent()
-                            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate()
+                            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate()
                             Task { await auth.select(membership.id) }
                         }
                     }

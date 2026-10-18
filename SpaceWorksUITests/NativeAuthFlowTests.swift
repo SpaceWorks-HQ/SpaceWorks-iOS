@@ -63,20 +63,44 @@ final class NativeAuthFlowTests: XCTestCase {
         XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))
     }
 
-    func testSignOutEverywhereReturnsToSignIn() {
-        let app = launch([])
-        signIn(app)
+    private func openProfile(_ app: XCUIApplication) {
         let space = app.buttons["makerspace-7"]
         XCTAssertTrue(space.waitForExistence(timeout: 10)); NativeUIActions.tap(space, in: app)
         XCTAssertTrue(app.staticTexts["Welcome back, Maker."].waitForExistence(timeout: 10))
-        if app.tabBars.buttons["Profile"].exists { app.tabBars.buttons["Profile"].tap() }
-        else {
-            let item = app.buttons["nav-Profile"]
-            if !item.waitForExistence(timeout: 3) {
-                app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch.tap()
-            }
-            XCTAssertTrue(item.waitForExistence(timeout: 10)); NativeUIActions.tap(item, in: app)
+        if app.tabBars.buttons["Profile"].exists { app.tabBars.buttons["Profile"].tap(); return }
+        let item = app.buttons["nav-Profile"]
+        let readiness = NativeUIActions.readiness(in: app)
+        if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: readiness, object: item)], timeout: 3) != .completed {
+            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: readiness, object: sidebar)], timeout: 10), .completed)
+            sidebar.tap()
+            XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: readiness, object: item)], timeout: 10), .completed)
         }
+        NativeUIActions.tap(item, in: app)
+    }
+
+    func testNativeStaffSessionOpensTheLiveStaffQueue() {
+        let app = launch(["--native-staff"])
+        signIn(app); openProfile(app)
+        let tools = app.buttons["staff-tools"]
+        XCTAssertTrue(tools.waitForExistence(timeout: 10))
+        NativeUIActions.tap(tools, in: app)
+        let requests = app.buttons["staff-requests"]
+        XCTAssertTrue(requests.waitForExistence(timeout: 10)); NativeUIActions.tap(requests, in: app)
+        XCTAssertTrue(app.buttons["staff-request-601"].waitForExistence(timeout: 10), "The live pending queue comes from the generated admin operation")
+        attach("Live staff queue")
+    }
+
+    func testMemberSessionHasNoStaffTools() {
+        let app = launch([])
+        signIn(app); openProfile(app)
+        XCTAssertTrue(app.buttons["sign-out-everywhere"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["staff-tools"].exists)
+    }
+
+    func testSignOutEverywhereReturnsToSignIn() {
+        let app = launch([])
+        signIn(app); openProfile(app)
         let everywhere = app.buttons["sign-out-everywhere"]
         XCTAssertTrue(everywhere.waitForExistence(timeout: 10))
         NativeUIActions.tap(everywhere, in: app)

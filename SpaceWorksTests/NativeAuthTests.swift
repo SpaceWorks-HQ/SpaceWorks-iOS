@@ -17,7 +17,7 @@ private final class SeenPaths: @unchecked Sendable {
 
 @MainActor final class NativeAuthTests: XCTestCase {
     private let json = ["Content-Type": "application/json"]
-    static func config(minimum: String? = nil, password: Bool = true, phone: Bool = false, google: String? = nil,
+    nonisolated static func config(minimum: String? = nil, password: Bool = true, phone: Bool = false, google: String? = nil,
                        apple: Bool = false, oidc: String = "") -> String {
         let min = minimum.map { "\"\($0)\"" } ?? "null"
         let googleValue = google.map { #"{"android_client_id":"","ios_client_id":"\#($0)"}"# } ?? "null"
