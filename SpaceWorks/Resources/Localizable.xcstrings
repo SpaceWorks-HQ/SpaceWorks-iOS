@@ -1651,6 +1651,17 @@
         }
       }
     },
+    "Confirm it's you": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm it's you"
+          }
+        }
+      }
+    },
     "Confirm password": {
       "extractionState": "manual",
       "localizations": {
@@ -1779,6 +1790,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continue to sign in"
+          }
+        }
+      }
+    },
+    "Continue with phone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with phone"
           }
         }
       }
@@ -1977,6 +1999,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete demo account"
+          }
+        }
+      }
+    },
+    "Delete your whole account on this server": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete your whole account on this server"
           }
         }
       }
@@ -2729,6 +2762,17 @@
         }
       }
     },
+    "Enter the six-digit code from your authenticator app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the six-digit code from your authenticator app."
+          }
+        }
+      }
+    },
     "Enter the six-digit code sent to your email.": {
       "extractionState": "manual",
       "localizations": {
@@ -2736,6 +2780,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enter the six-digit code sent to your email."
+          }
+        }
+      }
+    },
+    "Enter the six-digit code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the six-digit code."
           }
         }
       }
@@ -2835,6 +2890,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enter your name (up to 200 characters)."
+          }
+        }
+      }
+    },
+    "Enter your phone number with its country code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter your phone number with its country code."
           }
         }
       }
@@ -3319,6 +3385,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "In-app inbox"
+          }
+        }
+      }
+    },
+    "Include your country code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include your country code."
           }
         }
       }
@@ -4324,6 +4401,17 @@
         }
       }
     },
+    "One more step": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One more step"
+          }
+        }
+      }
+    },
     "One place for your making.": {
       "extractionState": "manual",
       "localizations": {
@@ -4419,6 +4507,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Open check-in"
+          }
+        }
+      }
+    },
+    "Open in the app": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in the app"
           }
         }
       }
@@ -4837,6 +4936,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pending review"
+          }
+        }
+      }
+    },
+    "Phone code": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phone code"
           }
         }
       }
@@ -5820,6 +5930,17 @@
         }
       }
     },
+    "Resolve these first": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolve these first"
+          }
+        }
+      }
+    },
     "Retry account options": {
       "extractionState": "manual",
       "localizations": {
@@ -6425,6 +6546,17 @@
         }
       }
     },
+    "Sign in again to delete your account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in again to delete your account."
+          }
+        }
+      }
+    },
     "Sign in to continue. You may need to confirm your email.": {
       "extractionState": "manual",
       "localizations": {
@@ -6480,6 +6612,17 @@
         }
       }
     },
+    "Sign out everywhere": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out everywhere"
+          }
+        }
+      }
+    },
     "Sign-in couldn't be completed. Try again.": {
       "extractionState": "manual",
       "localizations": {
@@ -6531,6 +6674,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sign-in preview"
+          }
+        }
+      }
+    },
+    "Signed out on every device and browser.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed out on every device and browser."
           }
         }
       }
@@ -6608,6 +6762,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip introduction"
+          }
+        }
+      }
+    },
+    "Something changed. Review the updated list before continuing.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something changed. Review the updated list before continuing."
           }
         }
       }
@@ -6997,6 +7162,28 @@
         }
       }
     },
+    "This account cannot be restored after deletion.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account cannot be restored after deletion."
+          }
+        }
+      }
+    },
+    "This account has no verification method available in the app. Use the web console to delete it.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account has no verification method available in the app. Use the web console to delete it."
+          }
+        }
+      }
+    },
     "This account requires two-step sign-in.": {
       "extractionState": "manual",
       "localizations": {
@@ -7081,6 +7268,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This deletes your whole Space Works account on this server, across every makerspace."
+          }
+        }
+      }
+    },
+    "This deletes your whole account on this server, across every makerspace.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This deletes your whole account on this server, across every makerspace."
           }
         }
       }
@@ -7481,6 +7679,17 @@
         }
       }
     },
+    "This signs you out on every device and browser.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This signs you out on every device and browser."
+          }
+        }
+      }
+    },
     "This summary reflects the recorded handover. Refresh the loan to see its latest status.": {
       "extractionState": "manual",
       "localizations": {
@@ -7510,6 +7719,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This update isn't available to your account."
+          }
+        }
+      }
+    },
+    "This version of the app is no longer supported by this server. Update the app to continue.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version of the app is no longer supported by this server. Update the app to continue."
           }
         }
       }
@@ -7642,6 +7862,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Type DELETE to clear this demo account. This preview only resets in-memory sample data."
+          }
+        }
+      }
+    },
+    "Type DELETE to confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type DELETE to confirm"
           }
         }
       }
@@ -8042,6 +8273,17 @@
         }
       }
     },
+    "Verification expired. Try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verification expired. Try again."
+          }
+        }
+      }
+    },
     "Verification method": {
       "extractionState": "manual",
       "localizations": {
@@ -8071,6 +8313,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verify a number to use it for sign-in."
+          }
+        }
+      }
+    },
+    "Verify again": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify again"
           }
         }
       }
@@ -8126,6 +8379,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Verify your identity again before deleting."
+          }
+        }
+      }
+    },
+    "Verify your identity to continue.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify your identity to continue."
+          }
+        }
+      }
+    },
+    "Verify your identity to continue. This proof lasts ten minutes.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify your identity to continue. This proof lasts ten minutes."
           }
         }
       }
@@ -8207,6 +8482,17 @@
         }
       }
     },
+    "We sent a verification code to your phone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We sent a verification code to your phone."
+          }
+        }
+      }
+    },
     "We'll send a verification code.": {
       "extractionState": "manual",
       "localizations": {
@@ -8269,6 +8555,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Yes"
+          }
+        }
+      }
+    },
+    "You can ask to restore your identity before the retention period ends. Memberships, roles, sessions and notifications stay revoked.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can ask to restore your identity before the retention period ends. Memberships, roles, sessions and notifications stay revoked."
           }
         }
       }
@@ -8361,6 +8658,28 @@
         }
       }
     },
+    "Your account was deleted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account was deleted."
+          }
+        }
+      }
+    },
+    "Your account was deleted. You can ask to restore it before %@ using password recovery.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account was deleted. You can ask to restore it before %@ using password recovery."
+          }
+        }
+      }
+    },
     "Your card QR code isn't available. Ask the front desk for help.": {
       "extractionState": "manual",
       "localizations": {
@@ -8368,6 +8687,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your card QR code isn't available. Ask the front desk for help."
+          }
+        }
+      }
+    },
+    "Your code expired. Send a new code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your code expired. Send a new code."
           }
         }
       }
@@ -8577,6 +8907,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your security settings changed. Sign in again."
+          }
+        }
+      }
+    },
+    "Your sessions, memberships and notifications end immediately. Payment, loan and audit history is kept anonymised under the retention policy. Leaving one makerspace is a separate action.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your sessions, memberships and notifications end immediately. Payment, loan and audit history is kept anonymised under the retention policy. Leaving one makerspace is a separate action."
           }
         }
       }
