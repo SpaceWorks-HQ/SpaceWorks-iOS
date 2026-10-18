@@ -50,11 +50,18 @@ final class NativeAuthFlowTests: XCTestCase {
         NativeUIActions.tap(code, in: app)
         code.typeText("123456")
         attach("Phone verification code")
-        // A tablet form sheet re-centres when the keyboard hides; settle the layout before acting.
+        // A tablet form sheet re-centres when the keyboard hides; act only once Verify stops moving.
         let done = app.buttons["Done"].firstMatch
         if done.waitForExistence(timeout: 3) { done.tap() }
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
-        NativeUIActions.tap(app.buttons["phone-verify"], in: app)
+        let verify = app.buttons["phone-verify"]
+        var frame = verify.frame
+        for _ in 0..<20 {
+            Thread.sleep(forTimeInterval: 0.5)
+            let next = verify.frame
+            if next == frame { break }
+            frame = next
+        }
+        NativeUIActions.tap(verify, in: app)
         XCTAssertTrue(app.buttons["makerspace-7"].waitForExistence(timeout: 10))
     }
 
