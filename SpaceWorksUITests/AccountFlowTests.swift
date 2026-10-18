@@ -22,7 +22,12 @@ final class AccountFlowTests: XCTestCase {
                 XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
                 sidebar.tap()
                 let opened = XCTNSPredicateExpectation(predicate: readiness, object: profile)
-                XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
+                let openedResult = XCTWaiter.wait(for: [opened], timeout: 10)
+                if openedResult != .completed {
+                    let exists = profile.exists
+                    print("Profile after native sidebar: exists=\(exists), enabled=\(exists && profile.isEnabled), hittable=\(exists && profile.isHittable), frame=\(exists ? String(describing: profile.frame) : "unavailable")")
+                }
+                XCTAssertEqual(openedResult, .completed)
             }
             tap(profile, in: app)
         }

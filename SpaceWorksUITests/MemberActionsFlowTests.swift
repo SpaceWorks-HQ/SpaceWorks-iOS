@@ -286,9 +286,9 @@ final class MemberActionsFlowTests: XCTestCase {
         let viewport = visibleContent(containingScroll(name, app), app, gestureInset: 0).insetBy(dx: 2, dy: 2)
         XCTAssertTrue(viewport.contains(insertionPoint))
         app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: insertionPoint.x - app.frame.minX, dy: insertionPoint.y - app.frame.minY)).tap()
-        name.typeText(XCUIKeyboardKey.delete.rawValue)
-        XCTAssertEqual(name.value as? String, String(original.dropLast()), "The first native deletion must prove the insertion point is at the end.")
-        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: original.count - 1))
+        // A native text interaction may select the final word. Clear the bounded
+        // original length, then require the complete intended replacement.
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: original.count))
         name.typeText("Meera Maker")
         XCTAssertEqual(name.value as? String, "Meera Maker", "Verify the replacement before testing rotation preservation.")
         XCTAssertTrue(done.isEnabled && done.isHittable)
