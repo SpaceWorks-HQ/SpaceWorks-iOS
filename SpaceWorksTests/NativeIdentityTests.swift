@@ -1,4 +1,5 @@
 import CryptoKit
+import SpaceWorksAPI
 import XCTest
 import UIKit
 @testable import SpaceWorks
