@@ -121,7 +121,7 @@ final class MainFlowTests: XCTestCase {
             let adjustmentLimit = min(120, viewport.height * 0.4)
             if abs(translation) <= adjustmentLimit {
                 let movement = (translation < 0 ? -1.0 : 1.0) * min(max(abs(translation), 12), adjustmentLimit)
-                let x = viewport.minX + 12
+                let x = min(max(actionsFrame.minX - 12, viewport.minX + 12), viewport.maxX - 12)
                 let startY = viewport.midY - movement / 2
                 let endY = viewport.midY + movement / 2
                 let dragFrame = CGRect(x: x - 2, y: min(startY, endY) - 2, width: 4, height: abs(movement) + 4)
