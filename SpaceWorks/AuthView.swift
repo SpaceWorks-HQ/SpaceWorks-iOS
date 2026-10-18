@@ -36,7 +36,9 @@ struct AuthRoot: View {
         }
         .nativeFeedback(auth.feedback)
         .task { await auth.restore(); bindRouting() }
-        .onChange(of: auth.stage) { _, _ in bindRouting() }
+        // The phone sheet belongs to this persistent root so it closes when sign-in leaves this stage.
+        .sheet(item: $auth.phoneForm) { form in PhoneSignInView(form: form) }
+        .onChange(of: auth.stage) { _, stage in if stage != .signIn { auth.phoneForm = nil }; bindRouting() }
         .onChange(of: auth.user?.id) { _, _ in bindRouting() }
         .onChange(of: auth.foregroundHintRevision) { _, _ in Task { await auth.processForegroundHint() } }
         .onChange(of: auth.busy) { _, busy in if !busy { Task { await auth.processForegroundHint() } } }
@@ -118,7 +120,6 @@ struct SignInView: View {
     @State private var showPassword = false
     @State private var passwordFocused = false
     @State private var accountForm: AccountAccessState?
-    @State private var phoneForm: PhoneSignInState?
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { geometry in
@@ -139,7 +140,7 @@ struct SignInView: View {
                                 Text("Ask your makerspace for help, or check the server address.").foregroundStyle(Color.swMuted)
                             } else {
                             if auth.hasProviders {
-                                ProviderSignInSection(auth: auth, phone: $phoneForm)
+                                ProviderSignInSection(auth: auth, phone: $auth.phoneForm)
                                 if auth.passwordEnabled { Text("or sign in with a password").brandFont(.caption).foregroundStyle(Color.swMuted) }
                             }
                             if !auth.passwordEnabled, let error = auth.error { SWError(message: error) }
@@ -194,8 +195,6 @@ struct SignInView: View {
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("sign-in-scroll")
         }
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { auth.username = form.email; accountForm = nil } }
-        .sheet(item: $phoneForm) { form in PhoneSignInView(form: form) }
-        .onChange(of: auth.stage) { _, stage in if stage != .signIn { phoneForm = nil } }
     }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {

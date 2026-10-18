@@ -68,6 +68,8 @@ final class NativeAuthFlowTests: XCTestCase {
         XCTAssertTrue(space.waitForExistence(timeout: 10)); NativeUIActions.tap(space, in: app)
         XCTAssertTrue(app.staticTexts["Welcome back, Maker."].waitForExistence(timeout: 10))
         if app.tabBars.buttons["Profile"].exists { app.tabBars.buttons["Profile"].tap(); return }
+        // Tablet portrait hides the sidebar; the live shell keeps it visible in landscape.
+        app.rotateToLandscapeAndWait()
         let item = app.buttons["nav-Profile"]
         let readiness = NativeUIActions.readiness(in: app)
         if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: readiness, object: item)], timeout: 3) != .completed {
@@ -115,7 +117,7 @@ final class NativeAuthFlowTests: XCTestCase {
         XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
         let submit = app.buttons["deletion-submit"]
         XCTAssertFalse(submit.isEnabled, "Deletion needs the typed confirmation")
-        NativeUIActions.tap(confirmation, in: app); confirmation.typeText("DELETE")
+        NativeUIActions.tap(confirmation, in: app); confirmation.typeText("DELETE\n")
         attach("Deletion confirmation")
         NativeUIActions.tap(submit, in: app)
         XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))

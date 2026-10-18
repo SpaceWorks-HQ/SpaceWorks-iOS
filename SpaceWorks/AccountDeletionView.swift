@@ -112,6 +112,7 @@ struct AccountDeletionView: View {
         Text("Type DELETE to confirm").brandFont(.headline)
         TextField("Type DELETE", text: $state.confirmation).textInputAutocapitalization(.characters).autocorrectionDisabled().focused($fieldFocused)
             .padding(16).background(Color.swPanel, in: RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline))
+            .submitLabel(.done).onSubmit { fieldFocused = false }
             .accessibilityIdentifier("deletion-confirmation")
         Button(state.busy ? "Deleting…" : "Delete account", role: .destructive) { Task { await state.delete() } }
             .buttonStyle(SWPrimary()).disabled(!state.canDelete).accessibilityIdentifier("deletion-submit")

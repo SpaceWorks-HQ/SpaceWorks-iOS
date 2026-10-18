@@ -36,6 +36,8 @@ final class AuthState {
     private let serverScope: String
     private let origin: ServerOrigin
     private(set) var notifications: NotificationSettingsState?
+    /// The phone sign-in sheet, presented from the persistent auth root.
+    var phoneForm: PhoneSignInState?
     private(set) var foregroundHintRevision = 0
     private(set) var inboxRefreshRevision = 0
     private(set) var inboxRefreshMakerspaceID: Int?
