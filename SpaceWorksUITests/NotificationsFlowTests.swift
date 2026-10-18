@@ -18,8 +18,8 @@ final class NotificationsFlowTests: XCTestCase {
         }
         tap(item, app)
     }
-    private func notifications() -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"]; app.launchForDeviceProfile()
+    private func notifications(extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launchForDeviceProfile()
         tap(app.buttons["explore-demo"], app); tap(app.buttons["Continue as member"], app)
         let username = app.textFields["demo-username"]; tap(username, app); username.typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")
@@ -31,8 +31,8 @@ final class NotificationsFlowTests: XCTestCase {
     private func capture(_ name: String) {
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); image.name = name; image.lifetime = .keepAlways; add(image)
     }
-    func testPermissionDeniedAndUnauthorizedTapHaveRecoverableInAppStates() {
-        let app = notifications()
+    func testLargestTextPermissionDeniedAndUnauthorizedTapHaveRecoverableInAppStates() {
+        let app = notifications(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
         capture("Native notification heading")
         NativeUIActions.tap(app.switches["Preview permission denied"], in: app, requireWholeFrame: true)

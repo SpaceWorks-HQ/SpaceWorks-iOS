@@ -2,6 +2,8 @@
 
 ## B5 Complete native control activation and accessibility headings — correction checkpoint (2026-10-18)
 
+The existing permission/authorization-refusal journey explicitly requests the largest accessibility text category on every device, including compact phones, and its method name records that comparison launch. The other notification-refetch journey retains ordinary profile text coverage. This strengthens the same heading capture and outcomes without adding a case; the superseded `7236e6a` runs provide no final acceptance.
+
 The exact `34bb979` large-phone run passed all 302 native cases but failed three of 37 UI journeys. Its phone input and permission switch were only partly exposed above the native tab bar: the helper activated an exposed edge without establishing keyboard focus or changing the switch. The two phone fields and both permission-switch actions now use the existing full-frame reveal, preserving the 24-gesture bound and actual native activation. The phone journey checks the actual keyboard, focus-bound Done and each entered value before its unchanged verification and current-session revocation outcomes. No app focus state or shared gesture behavior changes.
 
 The profile recording showed the insertion cursor before the existing surname. Repeated backspaces removed only its prefix, leaving the surname appended before rotation. The journey now fully reveals the field, uses the native Select All edit action, and asserts the exact replacement before the unchanged rotation, save and preference checks. It fails if native selection is unavailable; no clipboard or application-state shortcut is used.
