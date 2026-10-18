@@ -159,7 +159,8 @@ final class MainFlowTests: XCTestCase {
     func testExploreDemoIsIsolatedAndExitsToServerSetup() {
         let app = launch(); app.buttons["explore-demo"].tap()
         XCTAssertTrue(app.staticTexts["Demo mode · sample data"].exists)
-        app.buttons["Continue as member"].tap()
+        NativeUIActions.tap(app.buttons["Continue as member"], in: app, requireWholeFrame: true)
+        XCTAssertTrue(app.textFields["demo-username"].waitForExistence(timeout: 5), "The actual demo sign-in destination must open before scrolling and typing.")
         app.swipeUp()
         app.textFields["demo-username"].tap(); app.textFields["demo-username"].typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")
