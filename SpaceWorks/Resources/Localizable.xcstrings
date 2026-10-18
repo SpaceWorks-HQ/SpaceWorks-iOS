@@ -452,6 +452,17 @@
         }
       }
     },
+    "App lock was not turned on.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App lock was not turned on."
+          }
+        }
+      }
+    },
     "Apple": {
       "extractionState": "manual",
       "localizations": {
@@ -5886,6 +5897,50 @@
         }
       }
     },
+    "Require Face ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Require Face ID"
+          }
+        }
+      }
+    },
+    "Require Optic ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Require Optic ID"
+          }
+        }
+      }
+    },
+    "Require Touch ID": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Require Touch ID"
+          }
+        }
+      }
+    },
+    "Require device passcode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Require device passcode"
+          }
+        }
+      }
+    },
     "Reset helpful tips": {
       "extractionState": "manual",
       "localizations": {
@@ -7932,6 +7987,28 @@
         }
       }
     },
+    "Unlock to continue.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock to continue."
+          }
+        }
+      }
+    },
+    "Unlock your makerspace account.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock your makerspace account."
+          }
+        }
+      }
+    },
     "Unpaid": {
       "extractionState": "manual",
       "localizations": {
@@ -8632,6 +8709,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your account"
+          }
+        }
+      }
+    },
+    "Your account is locked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account is locked"
           }
         }
       }

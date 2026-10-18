@@ -38,6 +38,8 @@ final class AuthState {
     private(set) var notifications: NotificationSettingsState?
     /// The phone sign-in sheet, presented from the persistent auth root.
     var phoneForm: PhoneSignInState?
+    /// Optional Face ID / Touch ID / passcode lock for the signed-in account on this device.
+    private(set) var appLock: NativeAppLock?
     private(set) var foregroundHintRevision = 0
     private(set) var inboxRefreshRevision = 0
     private(set) var inboxRefreshMakerspaceID: Int?
@@ -559,6 +561,8 @@ final class AuthState {
         user = identity; selectedID = selection
         stage = identity.must_change_password ? .passwordChange : .signedIn
         if stage == .signedIn { configureNotifications(accountID: identity.id, credentials: credentials) }
+        let lockScope = serverScope + ".\(identity.id)"
+        if appLock?.scope != lockScope { appLock = NativeAppLock(scope: lockScope, settings: settings) }
     }
     /// Push registration, foreground refresh and notification taps share one current identity read.
     /// Publication and busy-state release happen inside the shared task before any waiter proceeds.
@@ -679,7 +683,7 @@ final class AuthState {
         settings.removeObject(forKey: selectionKey)
         locallyLeftMemberships = []; securityMessage = nil; acceptedCredentials = nil
         user = nil; selectedID = nil; mfa = nil; mfaExpires = nil; enrollment = nil; recoveryCodes = []
-        username = ""; password = ""; code = ""; stage = .signIn
+        username = ""; password = ""; code = ""; appLock = nil; stage = .signIn
     }
     private func clear() async {
         let cleanup = detachNotificationCleanup()

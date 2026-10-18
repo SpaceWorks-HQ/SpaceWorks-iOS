@@ -26,6 +26,7 @@ def audit(app, brand):
     check(info.get('CFBundleShortVersionString') and info.get('CFBundleVersion'), 'Missing version or build number')
     check('NSAppTransportSecurity' not in info, 'Release app contains transport security overrides')
     check(bool(info.get('NSCameraUsageDescription')), 'Missing camera purpose string')
+    check(bool(info.get('NSFaceIDUsageDescription')), 'Missing Face ID purpose string for app lock')
     schemes = {scheme for item in info.get('CFBundleURLTypes', []) for scheme in item.get('CFBundleURLSchemes', [])}
     check('spaceworks' in schemes, 'Missing app callback scheme')
     google = brand.get('google_reversed_client_id')

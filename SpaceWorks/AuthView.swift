@@ -34,6 +34,11 @@ struct AuthRoot: View {
             }
             }
         }
+        .overlay {
+            if auth.stage == .signedIn, let lock = auth.appLock, lock.locked {
+                AppLockView(lock: lock) { Task { await auth.signOut() } }
+            }
+        }
         .nativeFeedback(auth.feedback)
         .task { await auth.restore(); bindRouting() }
         // The phone sheet belongs to this persistent root so it closes when sign-in leaves this stage.
@@ -43,7 +48,10 @@ struct AuthRoot: View {
         .onChange(of: auth.foregroundHintRevision) { _, _ in Task { await auth.processForegroundHint() } }
         .onChange(of: auth.busy) { _, busy in if !busy { Task { await auth.processForegroundHint() } } }
         .onDisappear { linkRouter.unbind(owner: routingOwner); Task { await auth.stopNotifications() } }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await auth.foreground() } } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { auth.appLock?.lock() }
+            if phase == .active { Task { if auth.appLock?.locked == true { await auth.appLock?.unlock() }; await auth.foreground() } }
+        }
     }
     private func bindRouting() {
         NativeNotifications.shared.onTap = { hint in linkRouter.receive(hint) }

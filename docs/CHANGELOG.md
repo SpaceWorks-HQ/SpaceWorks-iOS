@@ -41,6 +41,11 @@ read from the top level, so v2 taps previously fell back). Push, inbox and unive
 the backend `mobile_link_contract.py` destinations — shared-host `/m/{slug}/…` resolved through a
 fresh membership, and custom-domain forms scoped to the payload's makerspace.
 
+**Native app lock.** Profile offers an opt-in "Require Face ID" (or Touch ID, Optic ID or device
+passcode) lock per account using LocalAuthentication device-owner authentication. The app locks when
+it backgrounds and on a cold launch, shows a lock screen with Unlock and Sign out, and never stores
+biometric data. The Face ID purpose string is generated and checked in the Release audit.
+
 **D6 hardening.** The privacy manifest declares no tracking and the account-linked data the app
 sends for app functionality. New copy is seeded in the English catalog. Documentation records the
 owner inputs below.

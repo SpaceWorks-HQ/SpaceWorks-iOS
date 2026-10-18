@@ -346,6 +346,11 @@ private struct MemberScreen: View {
                         if let notifications = auth.notifications {
                             NavigationLink("Notifications") { NotificationSettingsView(state: notifications) }.frame(minHeight: 48).accessibilityIdentifier("notifications-entry")
                         }
+                        if let lock = auth.appLock, lock.available {
+                            Toggle(lock.title, isOn: Binding(get: { lock.enabled }, set: { value in Task { await lock.setEnabled(value) } }))
+                                .frame(minHeight: 48).disabled(lock.busy).accessibilityIdentifier("app-lock-toggle")
+                            if let error = lock.error, !lock.locked { SWError(message: error) }
+                        }
                         Button("Show introduction") { replayIntro = true }.frame(minHeight: 48)
                         NavigationLink("App guide") {
                             AppGuideView(staffAvailable: staff != nil, serverLabel: state.connectedOrigin?.url.absoluteString, replayTips: member.replayGuidance)

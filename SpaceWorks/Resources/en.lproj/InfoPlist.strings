@@ -1,1 +1,2 @@
 "NSCameraUsageDescription" = "Scan member and event codes or photograph handover evidence when you choose to.";
+"NSFaceIDUsageDescription" = "Unlock your makerspace account when you turn on app lock.";

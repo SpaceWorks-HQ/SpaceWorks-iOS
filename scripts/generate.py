@@ -96,6 +96,7 @@ def generate(raster=True):
         info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
         info["UIAppFonts"] = ["Gilroy-Regular.ttf", "Gilroy-Medium.ttf", "Gilroy-SemiBold.ttf", "Gilroy-Bold.ttf", "Unbounded-Variable.ttf"]
         info["NSCameraUsageDescription"] = "Scan member and event codes or photograph handover evidence when you choose to."
+        info["NSFaceIDUsageDescription"] = "Unlock your makerspace account when you turn on app lock."
         schemes = ["spaceworks"]
         google_scheme = brand.get("google_reversed_client_id")
         if google_scheme is not None:
