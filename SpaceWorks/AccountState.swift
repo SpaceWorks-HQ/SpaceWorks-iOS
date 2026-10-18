@@ -17,7 +17,7 @@ final class AccountState {
     @ObservationIgnored var makeDeletion: (@MainActor () -> AccountDeletionState?)?
     @ObservationIgnored var deletionOrigin: ServerOrigin?
     @ObservationIgnored var deletionMemberships: Set<Int> = []
-    @ObservationIgnored var openDeletionFix: ((MobileLink) -> Void)?
+    @ObservationIgnored var openDeletionFix: (@MainActor (MobileLink) -> Void)?
     private let beginSecurityEnrollment: (Components.Schemas.MFAChallengeResponse) async -> Void
     private let endSession: ([String], String?) async -> Void
     private let membershipEnded: () async -> Void

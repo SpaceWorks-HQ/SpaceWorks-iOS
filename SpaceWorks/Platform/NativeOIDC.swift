@@ -55,7 +55,7 @@ struct NativeOIDCClient: Sendable {
     }
 
     static func authorization(_ endpoints: Endpoints, clientID: String, nonce: String,
-                              random: (Int) -> Data = Self.randomBytes) -> Authorization? {
+                              random: (Int) -> Data = NativeOIDCClient.randomBytes) -> Authorization? {
         guard !clientID.isEmpty, !nonce.isEmpty, var parts = URLComponents(url: endpoints.authorization, resolvingAgainstBaseURL: false) else { return nil }
         let state = base64URL(random(16))
         let verifier = base64URL(random(32))

@@ -140,7 +140,7 @@ struct SignInView: View {
                             } else {
                             if auth.hasProviders {
                                 ProviderSignInSection(auth: auth, phone: $phoneForm)
-                                if auth.passwordEnabled { Text("or with your email").brandFont(.caption).foregroundStyle(Color.swMuted) }
+                                if auth.passwordEnabled { Text("or sign in with a password").brandFont(.caption).foregroundStyle(Color.swMuted) }
                             }
                             if !auth.passwordEnabled, let error = auth.error { SWError(message: error) }
                             if auth.passwordEnabled {

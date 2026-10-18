@@ -24,16 +24,16 @@ Original, unmodified Simulator captures from the successful iPhone and large-iPa
 
 | Area | App flows |
 | --- | --- |
-| Getting started | Optional introduction and replay, server selection, password sign-in, MFA and account recovery |
+| Getting started | Optional introduction and replay, server selection, minimum-version gate, password, phone, Google, Apple and organization sign-in, MFA and account recovery |
 | Member workspace | Makerspace switching, inventory and search, loans, requests, spaces, bookings, events, membership card and inbox |
 | Member actions | Request review and submission, loan renewal, booking, event registration, tickets and profile/preferences |
-| Account | Sessions, phone/email verification, membership actions, export and deletion confirmation |
-| Staff | Permission-aware request review, handover, check-in, scanning and evidence entry |
-| Platform integration | Keychain storage, native document/share presentation, notification routing and payment-provider integration seams |
+| Account | Devices and sessions, sign out everywhere, phone/email verification, membership actions, export and whole-account deletion |
+| Staff | Native staff sessions: permission-aware request review, handover, check-in, scanning and evidence entry |
+| Platform integration | App Attest, Keychain storage, native document/share presentation, push v2 and universal-link routing, server-selected Stripe/Razorpay checkout |
 
 Native navigation, forms and system bars adapt to phone and tablet layouts. Space Works semantic colors, supplied static artwork and Gilroy typography support light/dark appearance, Dynamic Type and Bold Text. Motion respects Reduce Motion; feedback follows native platform settings.
 
-**Backend integration is deferred.** Debug includes an explicitly labelled, isolated in-memory demo for reviewing the flows. Release omits demo entry points. Unsupported contracts remain unavailable; see [backend dependencies](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/issues/3). Live attestation, providers, push delivery, checkout and account deletion require deployment configuration and separate verification.
+**Live flows use the pinned mobile backend contract** ([provenance](api/provenance.json)). Debug also includes an explicitly labelled, isolated in-memory demo for reviewing the flows; Release omits demo entry points. A few backend limitations remain unavailable by design (optional authenticator enrollment from a device, native provider linking, later pages of sessions/exports); see the [release guide](docs/RELEASE-READINESS.md). Live attestation, providers, push delivery, checkout and account deletion still require deployment configuration and real-device verification.
 
 ## Build locally
 

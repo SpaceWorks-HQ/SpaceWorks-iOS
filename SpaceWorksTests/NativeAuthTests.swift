@@ -222,6 +222,29 @@ private final class SeenPaths: @unchecked Sendable {
         XCTAssertEqual(auth.error, "Signed out on every device and browser.")
     }
 
+    func testAccountDeletionFromTheSignedInSessionClearsThisDevice() async throws {
+        let storage = MemoryTokens(TokenPair(access: "test-access", refresh: "test-refresh"))
+        let auth = state(storage: storage) { request in
+            if let value = self.common(request) { return value }
+            switch (request.httpMethod ?? "", request.url!.path) {
+            case ("GET", "/api/v1/auth/account/deletion"):
+                return (200, #"{"deletable":true,"restorable":true,"restore_reason":"","blockers":[],"reauth":{"required":true,"methods":["password"]}}"#)
+            case ("GET", "/api/v1/auth/reauth"): return (200, #"{"verified":false,"password_available":true,"mfa_enabled":false,"providers":[]}"#)
+            case ("POST", "/api/v1/auth/reauth"): return (200, #"{"verified":true,"expires_in":600}"#)
+            case ("POST", "/api/v1/auth/account/deletion"): return (202, #"{"deleted_at":"2026-10-18T10:00:00Z","purge_after":"2027-01-16T10:00:00Z"}"#)
+            default: XCTFail("Unexpected API call: \(request.url!)"); return (500, "{}")
+            }
+        }
+        await auth.restore(); XCTAssertEqual(auth.stage, .signedIn)
+        let deletion = try XCTUnwrap(auth.accountDeletion())
+        await deletion.load(); XCTAssertEqual(deletion.stage, .verify)
+        deletion.password = "password-fixture"; await deletion.verifyPassword()
+        deletion.confirmation = "DELETE"; await deletion.delete()
+        XCTAssertEqual(auth.stage, .signIn); XCTAssertNil(auth.user); XCTAssertNil(try storage.load())
+        XCTAssertTrue(auth.error?.hasPrefix("Your account was deleted.") == true)
+        XCTAssertNil(auth.accountDeletion(), "A signed-out device cannot start deletion")
+    }
+
     func testAppAttestProofKeepsItsAppleTypeInTheOpenVerifierAlternative() throws {
         let proof = Data(#"{"type":"app_attest","key_id":"a2V5","attestation":"Y2Jvcg=="}"#.utf8)
         let payload = try DeviceAttestation.payload(proof)

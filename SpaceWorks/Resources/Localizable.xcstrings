@@ -8944,6 +8944,17 @@
         }
       }
     },
+    "or sign in with a password": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "or sign in with a password"
+          }
+        }
+      }
+    },
     "or with your email": {
       "extractionState": "manual",
       "localizations": {

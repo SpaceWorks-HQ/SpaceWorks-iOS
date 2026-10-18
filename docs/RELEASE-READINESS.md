@@ -78,19 +78,24 @@ App Store Connect API key, APNs key, test password or service credential.
 | Camera/evidence | Archive includes the purpose string; test first request, denial, later Settings enablement, no hardware, rotation, cancellation and manual entry. Upload only explicitly confirmed evidence through documented operations. |
 | Payments | Server selects vendor and supplies runtime public checkout values; secrets remain on the server. Verify configured sandbox success, cancellation, failure, delayed webhook and later status refresh. SDK success alone never proves paid status. |
 
-The repository backend-request issue tracks the missing contract work:
-[native backend dependencies](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/issues/3).
-Native minimum-version/provider configuration, staff device authority, push v2/link files,
-Razorpay checkout fields and whole-account deletion need the owner's supported contracts.
-Account management also has confirmed native limitations: the current backend refuses optional
-authenticator enrollment from a device session and provider linking from a native client. Native
-login enrollment challenges remain supported. Account session/export list schemas omit pagination
-parameters; later pages must wait for a published contract. The app must keep these live paths
-explicitly unavailable and never impersonate a browser client. Required-MFA disable controls stay
-hidden; recovery-code replacement and supported MFA changes clear old sessions before returning
-to sign-in. A wrong management password must not destroy a separately verified valid session.
-Debug demo journeys exercise UI states with labelled in-memory data; they do not validate
-attestation, authentication delivery, push, charges or deletion against a real service.
+The pinned contract (SHA-256 `962e6a4b…`, backend `feature/mobile-backend` at `f65ba332`) supplies
+the native contracts the earlier [backend dependencies issue](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/issues/3)
+requested. The app now uses them through generated operations: `PublicConfig.native` provider
+discovery and the minimum-version gate, App Attest proofs, Google/Apple/organization OIDC and phone
+device sign-in, `session_authority` native staff tools, sign out everywhere, vendor-selected
+Stripe/Razorpay intents, push v2 payloads with contract links, and whole-account deletion with
+blockers, fresh reauthentication and typed confirmation.
+
+Remaining backend limitations, documented rather than worked around: optional authenticator
+enrollment from a device session is still refused (login-time enrollment works); provider linking
+still requires a browser client; account session/export list operations still declare no `page`
+parameter, so only the first page is shown; the shared attestation `type` enum still lists only
+`play_integrity`, so Apple proofs use the schema's open alternative. The app never impersonates a
+browser client. Required-MFA disable controls stay hidden; recovery-code replacement and supported
+MFA changes clear old sessions before returning to sign-in. A wrong management or reauthentication
+password never ends a separately verified valid session. Debug demo journeys exercise UI states with
+labelled in-memory data; they do not validate attestation, authentication delivery, push, charges or
+deletion against a real service.
 
 ## Privacy and store content
 
@@ -110,10 +115,12 @@ as the app's practices. [App privacy](https://developer.apple.com/help/app-store
 | Activity/payments | Requests, loans, bookings, event attendance, payment metadata and legally retained records; provider-specific processing. |
 | Diagnostics | Verify actual SDK defaults and server logs; no app analytics was authorized. Do not assume dependencies never transmit diagnostics. |
 
-Account creation requires a genuine in-app way to initiate whole-account deletion. A membership
-leave action, disabled placeholder or demo completion does not satisfy that requirement. The
-owner-deferred deletion contract remains a release gate; implement the PRD's blocker list,
-fix links, reauthentication, confirmation and anonymized retained-record explanation when supplied.
+Account creation requires a genuine in-app way to initiate whole-account deletion. Account and
+security → Delete account now runs the server's flow: every blocker with its server detail and
+in-app or web-console fix, fresh identity proof (password and authenticator code, phone code or a
+linked native provider, plus any requested second factor), the restore explanation and a typed
+`DELETE` confirmation. A conflict at confirmation refetches the blockers; success clears the device
+session. Verify it against the production deployment and a reviewer account before submission.
 [Apple account deletion guidance](https://developer.apple.com/help/app-review/guideline-reference/5-1-1-account-deletion).
 
 Supply the real support/privacy URLs, description, subtitle, category, age/content answers,
@@ -151,5 +158,5 @@ Record distribution evidence here after owner provisioning; no credentials belon
 | Full device-matrix CI run | The final delivery ledger must link the accepted exact-source six-profile run, canonical `dev` push validation and actually reviewed artifacts; a pending or failed run does not establish acceptance. Merge the exact reviewed head through existing iOS pull request #4 only after the required repository gates pass; keep `dev` and phase commits. |
 | Signed archive / version / build | Owner signing environment required |
 | Real-device provider test record | Owner backend/configuration required |
-| Whole-account deletion verification | Updated owner contract required |
+| Whole-account deletion verification | Implemented against the pinned contract; real-deployment verification by the owner required |
 | TestFlight build / tester acceptance | Owner App Store Connect access required |

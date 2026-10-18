@@ -65,11 +65,28 @@ associated-domain file.
 Simulator stubs and Debug fixtures do not prove real APNs delivery or production authorization.
 The existing inbox remains available without notification permission or push configuration.
 
-The pinned hint payload identifies a makerspace but does not identify its deployment origin.
-Offline logout can leave an old server registration, and the OS may later reuse its APNs token.
-The app reauthorizes and fetches all content from the current server before navigation; precise
-cross-deployment attribution still needs an origin-bound server hint contract. Keep live push
-unconfigured until the owner supplies and verifies that deployment contract.
+## Payload and links (push v2)
+
+The server sends `{"aps":{"alert":{title,body},"thread-id":"<makerspace_id>"},"data":{…}}`.
+`thread-id` groups notifications per makerspace. `data` carries string values `v` ("2"),
+`event_id`, `makerspace_id`, `feature`, `event`, member-only `inbox_row_id` and an optional `link`.
+A payload without `v` is treated as v1 (makerspace inbox only); flat legacy payloads are still read.
+Unknown keys are ignored and the body text is never trusted for display or routing.
+
+`link` follows the backend's `mobile_link_contract.py`: shared-host `/m/{slug}/member`,
+`/m/{slug}/member/{tab}` (overview, loans, bookings, events, payments, inbox, account),
+`/m/{slug}/member/events/{registration}/ticket`, `/m/{slug}/events/{token}`,
+`/m/{slug}/bookings/{token}` and `/m/{slug}/items/{item}`, plus the custom-domain forms without
+`/m/{slug}`. The slug must resolve to the payload's makerspace in a fresh `/auth/me`; a custom-domain
+path uses the payload's makerspace. Anything else (staff admin, control, API, query strings,
+unknown destinations) opens that makerspace's inbox. Universal links on the connected deployment
+host use the same parser; inbox rows use it too. A custom-domain universal link cannot be mapped to
+a makerspace on its own and is refused.
+
+The payload identifies a makerspace but not its deployment origin. Offline logout can leave an old
+server registration, and the OS may later reuse its APNs token. The app reauthorizes and fetches all
+content from the current server before navigation. The server publishes no notification categories,
+so the app registers none.
 
 The live registration repository captures its owning credential installation epoch when identity is
 validated. Queued work cannot register or delete using a replacement account's credentials, even if

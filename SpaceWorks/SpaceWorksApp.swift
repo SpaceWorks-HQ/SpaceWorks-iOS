@@ -68,7 +68,8 @@ final class PreviewHealthProtocol: URLProtocol {
         let path = "/" + request.url!.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let failure = arguments.contains("--health-unavailable") && path == "/api/v1/health"
         let superadmin = arguments.contains("--superadmin") && path == "/api/v1/auth/device/login"
-        let code = failure ? 503 : superadmin ? 403 : 200
+        let deletion = path == "/api/v1/auth/account/deletion" && request.httpMethod == "POST"
+        let code = failure ? 503 : superadmin ? 403 : deletion ? 202 : 200
         let body: String
         if failure { body = #"{"detail":"Try again later.","code":"service_unavailable"}"# }
         else if superadmin { body = #"{"detail":"Use the web console.","code":"device_superadmin_not_supported"}"# }
@@ -81,6 +82,12 @@ final class PreviewHealthProtocol: URLProtocol {
             case "/api/v1/auth/phone/login/start": body = #"{"detail":"If the number can sign in, a code was sent."}"#
             case "/api/v1/auth/phone/login/confirm": body = DebugAuthFixtures.tokens
             case "/api/v1/auth/logout-all": body = #"{"web_sessions":1,"devices":2}"#
+            case "/api/v1/auth/account/deletion":
+                body = deletion ? #"{"deleted_at":"2026-10-18T10:00:00Z","purge_after":"2027-01-16T10:00:00Z"}"#
+                    : #"{"deletable":true,"restorable":true,"restore_reason":"","blockers":[],"reauth":{"required":true,"methods":["password"]}}"#
+            case "/api/v1/auth/reauth":
+                body = request.httpMethod == "POST" ? #"{"verified":true,"expires_in":600}"#
+                    : #"{"verified":false,"password_available":true,"mfa_enabled":false,"providers":[]}"#
             case "/api/v1/bootstrap": body = DebugMemberFixtures.bootstrap
             case "/api/v1/auth/device/attestation-challenge": body = #"{"challenge":"fresh-test-challenge","expires_in":120}"#
             case "/api/v1/auth/device/login": body = arguments.contains("--mfa") ? DebugAuthFixtures.mfa : DebugAuthFixtures.tokens

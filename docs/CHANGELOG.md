@@ -1,5 +1,74 @@
 # Phase notes
 
+## D — Mobile backend contract integration (2026-10-18)
+
+The owner asked for both apps to be finished against the mobile backend (`feature/mobile-backend` at
+`f65ba332`), client side only, with no Codex involvement. The backend was read and never modified.
+
+**D1 contract.** `api/openapi.json` is the backend's `frontend/openapi-schema.json` byte-for-byte
+(SHA-256 `962e6a4b…`, 760 paths, recorded in `api/provenance.json`). The generator filter adds social
+nonce/Google/Apple/OIDC device sign-in, phone sign-in, logout-all, account deletion and
+reauthentication. Generated changes adopted: the booking 201 inline union (`MemberBookingCreated`,
+`pending`), the vendor-discriminated `MobilePaymentIntentResponse` (Stripe PaymentSheet or Razorpay
+Checkout with the server's minor-unit amount, name and description), the `EventAttendanceResult`
+union and new required fields in the Debug member/staff fixtures. A new Python check validates every
+member fixture against its operation's response schema.
+
+**D2 native sign-in.** `PublicConfig.native` drives the sign-in screen: provider buttons render
+only when published, the iOS minimum version gates launch before any identity request (stored
+credentials are kept), and older servers without `native` keep the password switch. Google, Apple
+and organization OIDC share one attested flow: challenge → provider nonce → native credential →
+App Attest proof → generated device login; a result without refresh and a UUID device grant is
+refused. OIDC uses discovery and code + PKCE in an ephemeral system session against the published
+issuer. Phone sign-in binds a fresh challenge to the code and checks its expiry before confirming;
+password and phone MFA challenges reuse the existing MFA screens. App Attest proofs now carry
+`type: "app_attest"` through the schema's open proof alternative. Superadmin refusals show "Use the
+web console". Profile adds "Sign out everywhere".
+
+**D3 staff.** Staff tools open only for a `native_staff` session whose selected membership grants a
+staff action; the existing generated staff repository, queues, handover, scanning and approvals now
+run live. A changed authority or action list rebuilds the workspace from a fresh `/auth/me`.
+
+**D4 account deletion.** Account and security → Delete account shows every server blocker with its
+detail, an in-app fix for payment/loan/request/booking/registration blockers in a current
+membership and a web-console fix only on the connected deployment's HTTPS origin. Identity proof
+uses password (+ authenticator code), the separate phone reauthentication code or a linked native
+provider, including a requested second factor. A typed `DELETE` within the proof window deletes;
+a conflict refetches the blockers; success clears this device's session.
+
+**D5 push and links.** APNs routing keys are read from the payload's `data` dictionary (they were
+read from the top level, so v2 taps previously fell back). Push, inbox and universal links parse
+the backend `mobile_link_contract.py` destinations — shared-host `/m/{slug}/…` resolved through a
+fresh membership, and custom-domain forms scoped to the payload's makerspace.
+
+**D6 hardening.** The privacy manifest declares no tracking and the account-linked data the app
+sends for app functionality. New copy is seeded in the English catalog. Documentation records the
+owner inputs below.
+
+Backend limitations kept unavailable (documented, not worked around): optional authenticator
+enrollment from a device session; native provider linking; later pages of account sessions/exports
+(no `page` parameter); the attestation `type` enum lists only `play_integrity`; the v2 PRD's social
+MFA branch does not exist in the schema or the backend.
+
+Owner inputs still required: Apple Team ID / App ID Prefix and bundle ID, signing and provisioning,
+App Attest and Push capabilities, the APNs key and topic on the server, associated domains and the
+served association file, Google iOS client ID and reversed scheme, Sign in with Apple native app IDs,
+the OIDC native redirect registration, Stripe/Razorpay credentials per makerspace, support/privacy
+URLs, store listing and a reviewer account. Live Docker integration was not run: GitHub's macOS
+runners cannot reach this machine, and the local stack has no approved native development
+registration.
+
+Parity checklist (shared copy recorded for the Android session):
+- [x] Update required / "This version of the app is no longer supported by this server. Update the app to continue." / Check again / Change server.
+- [x] Provider buttons before the password form; "Continue with {provider}", "Continue with phone", "or sign in with a password".
+- [x] Phone: Phone number, Send verification code, Verification code, Verify, Send another code, Change number; "Enter your phone number with its country code.", "Enter the six-digit code.", "Your code expired. Send a new code."
+- [x] Use the web console / "Superadmin accounts cannot sign in on a phone or tablet." / Back to sign in.
+- [x] Sign out everywhere / "This signs you out on every device and browser." / "Signed out on every device and browser."
+- [x] Staff tools entry only for native staff with a staff action.
+- [x] Delete account: Check account obligations, Resolve these first, Open in the app, Open in the web console, Confirm it's you, Type DELETE to confirm, Delete account.
+- [x] Push/inbox/universal links follow the contract; unsupported links open the makerspace inbox.
+- [x] Light/dark, Dynamic Type headings and 48 pt actions on every new screen; phone and iPad widths constrained.
+
 ## C7 — Preserve independent push and pull-request validation (2026-10-18)
 
 The normal push and pull-request workflows shared a concurrency key for the same repository and branch, so the newer pull-request event canceled the same-head push run. GitHub's required-check inventory can retain that canceled push check and require a separate rerun after the pull-request jobs finish. Include the event name in the normal concurrency group so both event types can complete independently, while newer runs still cancel older runs of their own event and branch. Manual validation retains its unique run-ID concurrency group.

@@ -32,7 +32,8 @@ struct LiveAccountDeletionRepository: AccountDeletionRepository {
                 do { _ = try await service.withSession(expectedCredentials: expectedCredentials) { try await service.me() } }
                 catch {
                     if Task.isCancelled || APIError.isCancellation(error) { throw error }
-                    if APIError.status(error) == 401 || (await service.refresh.current() == nil) { await onUnauthorized(APIError.display(error)) }
+                    let signedOut = await service.refresh.current() == nil
+                    if APIError.status(error) == 401 || signedOut { await onUnauthorized(APIError.display(error)) }
                     throw error
                 }
                 throw APIError(status: 0, code: "identity_verification_failed", detail: APIError.display(error), retryAfter: APIError.retryDeadline(error))
@@ -107,7 +108,7 @@ final class AccountDeletionState {
     var blockers: [Components.Schemas.AccountDeletionBlocker] { preview?.blockers ?? [] }
     /// Server-listed methods this app can complete natively. TOTP is the password's second factor.
     var methods: [Method] {
-        (preview?.reauth.methods ?? []).compactMap { key in
+        (preview?.reauth.methods ?? []).compactMap { (key: String) -> Method? in
             switch key {
             case "password": return .password
             case "phone": return .phone

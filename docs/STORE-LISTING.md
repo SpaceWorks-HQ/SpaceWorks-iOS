@@ -1,7 +1,8 @@
 # App Store listing draft
 
-Prepared 17 October 2026 for owner review and later deployment. The backend and store
-provisioning remain deferred. Use this copy only for features verified in the submitted build.
+Prepared 17 October 2026 for owner review; updated 18 October 2026 after the app adopted the
+mobile backend contract. Store provisioning remains with the owner. Use this copy only for features
+verified in the submitted build and deployment.
 
 ## Product fields
 
@@ -43,9 +44,10 @@ Space Works adapts to phones and tablets, with light and dark appearance and an 
 You need a compatible makerspace server and an account. Member features require the relevant makerspace membership. Available tools, services and actions depend on your makerspace. Internet access is required for current availability and protected actions.
 ```
 
-This is the base member listing. Do not add unsupported native provider, offline-cache,
-whole-account deletion or live staff claims. Add the following staff paragraph only after the
-owner's native authority contract and the submitted deployment actually enable those controls:
+This is the base member listing. Do not add offline-cache claims. Mention a sign-in provider only
+when the submitted deployment publishes it. In-app whole-account deletion is available; verify it
+with the reviewer account before submission. Add the following staff paragraph only when the
+submitted deployment grants native staff sessions and the reviewer can see those controls:
 
 ```text
 Authorized staff can review requests and approvals, check items before handover or return, and confirm attendance. Scanning finds a record; staff review and confirm each action.
@@ -76,8 +78,8 @@ another pull request or feature branch for this batch.
 ## Reviewer access and review notes
 
 The in-app **Explore demo** is a Debug-only, in-memory preview. Its sample credentials do not
-authenticate the signed Release build. The owner-deferred backend must provide a stable real
-reviewer account and makerspace before submission. Store credentials only in the private console
+authenticate the signed Release build. The owner must provide a stable real reviewer account and
+makerspace on the submitted deployment before submission. Store credentials only in the private console
 app-access/review fields, never in this repository.
 
 | Private console input | Owner-provisioned value |

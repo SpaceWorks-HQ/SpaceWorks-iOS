@@ -98,6 +98,29 @@ final class NativeAuthFlowTests: XCTestCase {
         XCTAssertFalse(app.buttons["staff-tools"].exists)
     }
 
+    func testWholeAccountDeletionVerifiesIdentityAndReturnsToSignIn() {
+        let app = launch([])
+        signIn(app); openProfile(app)
+        let account = app.buttons["account-entry"]
+        XCTAssertTrue(account.waitForExistence(timeout: 10)); NativeUIActions.tap(account, in: app)
+        let delete = app.buttons["account-delete"]
+        XCTAssertTrue(delete.waitForExistence(timeout: 10)); NativeUIActions.tap(delete, in: app)
+        let check = app.buttons["deletion-check"]
+        XCTAssertTrue(check.waitForExistence(timeout: 10)); NativeUIActions.tap(check, in: app)
+        let password = app.secureTextFields["deletion-password"]
+        XCTAssertTrue(password.waitForExistence(timeout: 10)); NativeUIActions.tap(password, in: app)
+        password.typeText("fixture-password\n")
+        NativeUIActions.tap(app.buttons["deletion-verify"], in: app)
+        let confirmation = app.textFields["deletion-confirmation"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
+        let submit = app.buttons["deletion-submit"]
+        XCTAssertFalse(submit.isEnabled, "Deletion needs the typed confirmation")
+        NativeUIActions.tap(confirmation, in: app); confirmation.typeText("DELETE")
+        attach("Deletion confirmation")
+        NativeUIActions.tap(submit, in: app)
+        XCTAssertTrue(app.textFields["username"].waitForExistence(timeout: 10))
+    }
+
     func testSignOutEverywhereReturnsToSignIn() {
         let app = launch([])
         signIn(app); openProfile(app)

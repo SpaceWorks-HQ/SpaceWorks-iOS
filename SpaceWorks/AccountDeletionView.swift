@@ -5,12 +5,12 @@ import SpaceWorksAPI
 struct AccountDeletionView: View {
     @State private var state: AccountDeletionState
     let origin: ServerOrigin?
-    let openFix: ((MobileLink) -> Void)?
+    let openFix: (@MainActor (MobileLink) -> Void)?
     let memberships: Set<Int>
     @State private var passwordFocused = false
     @FocusState private var fieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
-    init(state: AccountDeletionState, origin: ServerOrigin?, memberships: Set<Int>, openFix: ((MobileLink) -> Void)?) {
+    init(state: AccountDeletionState, origin: ServerOrigin?, memberships: Set<Int>, openFix: (@MainActor (MobileLink) -> Void)?) {
         _state = State(initialValue: state); self.origin = origin; self.memberships = memberships; self.openFix = openFix
     }
     var body: some View {
