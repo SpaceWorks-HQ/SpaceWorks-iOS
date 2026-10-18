@@ -1,5 +1,11 @@
 # Phase notes
 
+## C7 — Preserve independent push and pull-request validation (2026-10-18)
+
+The normal push and pull-request workflows shared a concurrency key for the same repository and branch, so the newer pull-request event canceled the same-head push run. GitHub's required-check inventory can retain that canceled push check and require a separate rerun after the pull-request jobs finish. Include the event name in the normal concurrency group so both event types can complete independently, while newer runs still cancel older runs of their own event and branch. Manual validation retains its unique run-ID concurrency group.
+
+No app, test selection, outcome, timeout, SDK, action pin, permission or diagnostic flag changes. Push and pull-request validation still run both representative profiles, and the default manual matrix still runs all six profiles with every 302 native and 37 UI case. Actual new-source canonical, complete-matrix, Release and visual proof remain mandatory and pending.
+
 ## C6 — Give unread Inbox status its own accessibility row (2026-10-18)
 
 Actual full-OS `ed2aca4` large-phone pixels showed the card's Unread status fragmented as Unrea/d beside its title at largest Dynamic Type. The current application's Inbox row was byte-identical. At accessibility text sizes, stack the same message title and existing Unread label vertically with full available width; retain the ordinary horizontal layout, supplied semantic fonts, symbol/color, text, read state and all callbacks. Native accessibility containment preserves the separately spoken title and status children, with stable per-message group and status identifiers. No font cap, truncation or data change is introduced.
