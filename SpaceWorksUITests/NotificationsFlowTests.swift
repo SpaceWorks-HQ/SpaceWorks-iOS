@@ -6,7 +6,7 @@ final class NotificationsFlowTests: XCTestCase {
     private func tab(_ app: XCUIApplication, _ name: String) {
         if app.tabBars.buttons[name].exists { tap(app.tabBars.buttons[name], app); return }
         let item = app.buttons["nav-\(name)"]
-        let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+        let readiness = NativeUIActions.readiness(in: app)
         let ready = XCTNSPredicateExpectation(predicate: readiness, object: item)
         if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
             let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch

@@ -15,7 +15,7 @@ final class StaffFlowTests: XCTestCase {
         if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
         else {
             let profile = app.buttons["nav-Profile"]
-            let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+            let readiness = NativeUIActions.readiness(in: app)
             let ready = XCTNSPredicateExpectation(predicate: readiness, object: profile)
             if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
                 let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch

@@ -14,7 +14,7 @@ final class AccountFlowTests: XCTestCase {
         if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
         else {
             let profile = app.buttons["nav-Profile"]
-            let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+            let readiness = NativeUIActions.readiness(in: app)
             let ready = XCTNSPredicateExpectation(predicate: readiness, object: profile)
             if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
                 let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
@@ -25,7 +25,7 @@ final class AccountFlowTests: XCTestCase {
                 let openedResult = XCTWaiter.wait(for: [opened], timeout: 10)
                 if openedResult != .completed {
                     let exists = profile.exists
-                    print("Profile after native sidebar: exists=\(exists), enabled=\(exists && profile.isEnabled), hittable=\(exists && profile.isHittable), frame=\(exists ? String(describing: profile.frame) : "unavailable")")
+                    print("Profile after native sidebar: exists=\(exists), enabled=\(exists && profile.isEnabled), ready=\(readiness.evaluate(with: profile)), frame=\(exists ? String(describing: profile.frame) : "unavailable")")
                 }
                 XCTAssertEqual(openedResult, .completed)
             }

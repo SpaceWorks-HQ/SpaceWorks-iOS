@@ -28,7 +28,7 @@ final class MainFlowTests: XCTestCase {
     private func tab(_ app: XCUIApplication, _ title: String) {
         if app.tabBars.buttons[title].exists { app.tabBars.buttons[title].tap(); return }
         let item = app.buttons["nav-\(title)"]
-        let readiness = NSPredicate(format: "exists == true AND isEnabled == true AND isHittable == true")
+        let readiness = NativeUIActions.readiness(in: app)
         let ready = XCTNSPredicateExpectation(predicate: readiness, object: item)
         if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
             let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch

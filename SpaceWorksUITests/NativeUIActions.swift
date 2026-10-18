@@ -2,6 +2,22 @@ import XCTest
 
 /// Native bars can overlap the accessibility scroll frame. Keep gestures in visible content.
 enum NativeUIActions {
+    /// XCTest can transiently expose an infinite/empty native window during transitions.
+    /// Reject that snapshot before asking its descendant for a native activation point.
+    static func readiness(in app: XCUIApplication) -> NSPredicate {
+        NSPredicate { object, _ in
+            guard let element = object as? XCUIElement, app.exists else { return false }
+            let applicationFrame = app.frame
+            guard [applicationFrame.minX, applicationFrame.minY, applicationFrame.width, applicationFrame.height].allSatisfy(\.isFinite),
+                  applicationFrame.width > 0, applicationFrame.height > 0,
+                  element.exists else { return false }
+            let targetFrame = element.frame
+            guard [targetFrame.minX, targetFrame.minY, targetFrame.width, targetFrame.height].allSatisfy(\.isFinite),
+                  targetFrame.width > 0, targetFrame.height > 0 else { return false }
+            return element.isEnabled && element.isHittable
+        }
+    }
+
     static func tap(_ element: XCUIElement, in app: XCUIApplication, requireWholeFrame: Bool = false) {
         var reviewDown = false
         for attempt in 0..<24 {

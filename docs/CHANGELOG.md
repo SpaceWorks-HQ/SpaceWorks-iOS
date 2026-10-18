@@ -1,5 +1,9 @@
 # Phase notes
 
+## C3 — Guard native navigation readiness geometry (2026-10-18)
+
+In the historical `775f298` tablet-landscape Guide journey, XCTest exposed infinite origins and zero sizes for the native window and Activity target while evaluating a raw `isHittable` predicate. Actual full-OS frames showed the sidebar and Activity row; no persistent missing content or product navigation cause was established. The shared test readiness predicate now requires finite, positive app and target frames before querying native enabled/hittable state. Apply that same predicate to the eight existing sidebar helpers and its failed-readiness diagnostic. Every existing three/ten-second wait, single native sidebar/item activation, content gesture bound and guide/account/member/staff/payment outcome remains unchanged. No app code, timeout extension, synthetic navigation or repeated input is added; fresh native proof remains required.
+
 ## C2 — Native presentation diagnostic checkpoint (2026-10-18)
 
 The historical `775f298` six-profile run exposed two different export failures: the large-phone app-frame landscape predicate failed while its actual settled scene geometry remained unverified, while the tablet rotated successfully but the actual native Save to Files action remained absent through the existing 45-second expectation. The tablet's final native hierarchy contained an empty remote activity container; its recording covered only roughly three seconds after Share, so it does not establish a 45-second blank visual or an app/OS cause.
