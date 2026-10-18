@@ -7,7 +7,7 @@ protocol MemberActionsRepository: Sendable {
     func submit(items: [Components.Schemas.RequestItemInput], purpose: String, key: String) async throws -> Components.Schemas.RequestSubmitResponse
     func renew(request: Int) async throws -> Components.Schemas.LoanRenewal
     func availability(space: String, start: Date, end: Date) async throws -> Components.Schemas.PublicSpaceAvailability
-    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> Components.Schemas.PublicBookingResponse
+    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> MemberBookingCreated
     func cancelBooking(token: String) async throws -> Components.Schemas.MemberBooking
     func register(event: String, input: Components.Schemas.PublicEventRegistrationInput) async throws -> Components.Schemas.PublicEventRegistrationResponse
     func cancelEvent(registration: Int) async throws -> Components.Schemas.MemberRegistrationCancelResponse

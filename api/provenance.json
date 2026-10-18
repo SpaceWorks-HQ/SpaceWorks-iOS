@@ -1,11 +1,14 @@
 {
-  "source": "Owner-supplied SpaceWorks/frontend/openapi-schema.json",
+  "source": "Owner backend mobile contract snapshot SpaceWorks/frontend/openapi-schema.json",
   "source_repository": "https://github.com/SpaceWorks-HQ/SpaceWorks.git",
-  "source_file_commit": "e7c2803a4a57870e11dc4faf9adc40ee54401632",
-  "received": "2026-10-16",
+  "source_branch": "feature/mobile-backend",
+  "source_file_commit": "3123173da58dee1d174ac5be8b9f3a9cc3313ffb",
+  "source_head": "f65ba332f702ac49dbd59d3897490bccf3e18053",
+  "received": "2026-10-18",
   "openapi": "3.0.3",
-  "paths": 635,
-  "bytes": 4063303,
-  "sha256": "d5ec904eb2a52ca948ee38dae7840c8859a43e034a22f3b8dc478fd8851cbb9b",
-  "note": "Copied byte-for-byte; no backend source accessed. Operations already include the API prefix, so clients use a validated deployment origin. The generator filter selects implemented operations and their generated dependencies. The mechanical build projection selects documented JSON request media or an optional no-body request where malformed content declares no media type; paths, DTO fields and response schemas are preserved."
+  "paths": 760,
+  "bytes": 4997776,
+  "sha256": "962e6a4b5b6927db0214c11e4b3b5ff688f660dccb8e674a7403b996cb1d8460",
+  "supersedes_sha256": "d5ec904eb2a52ca948ee38dae7840c8859a43e034a22f3b8dc478fd8851cbb9b",
+  "note": "Copied byte-for-byte from the read-only mobile backend worktree; the backend was not modified. Operations already include the API prefix, so clients use a validated deployment origin. The generator filter selects implemented operations and their generated dependencies. The mechanical build projection selects documented JSON request media or an optional no-body request where malformed content declares no media type; paths, DTO fields and response schemas are preserved."
 }

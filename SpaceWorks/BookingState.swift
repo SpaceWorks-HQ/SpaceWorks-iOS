@@ -9,7 +9,7 @@ final class BookingState {
     var start = Date().addingTimeInterval(3600) { didSet { if oldValue != start { changed() } } }
     var end = Date().addingTimeInterval(7200) { didSet { if oldValue != end { changed() } } }
     private(set) var availability: Components.Schemas.PublicSpaceAvailability?
-    private(set) var result: Components.Schemas.PublicBookingResponse?
+    private(set) var result: MemberBookingCreated?
     private(set) var busy = false
     private(set) var error: String?
     private(set) var retryAfter: Date?

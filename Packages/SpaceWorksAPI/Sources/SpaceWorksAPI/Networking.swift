@@ -83,6 +83,14 @@ public struct APIError: Error, LocalizedError, Sendable, Equatable {
     }
 }
 
+/// App Attest and development proofs travel in the schema's open verifier alternative. The shared
+/// generated `type` enum lists only `play_integrity` (PRD §7), so Apple's wire `type` is kept verbatim.
+public enum DeviceAttestation {
+    public static func payload(_ json: Data) throws -> Components.Schemas.DeviceAttestationPayload {
+        .init(value4: try JSONDecoder().decode(OpenAPIObjectContainer.self, from: json))
+    }
+}
+
 /// Local credentials, not a hand-written API payload. Persist together in Keychain in A1.
 public struct TokenPair: Sendable, Equatable, Codable {
     public let access: String
@@ -394,7 +402,7 @@ public final class SpaceWorksService: Sendable {
                        attestationJSON: Data) async throws -> Components.Schemas.DeviceLoginResult {
         let input = try Components.Schemas.DeviceLogin(platform: .apple, app_id: appID, environment: development ? .development : .production,
             username: username, password: password, challenge: challenge,
-            attestation: JSONDecoder().decode(OpenAPIValueContainer.self, from: attestationJSON))
+            attestation: DeviceAttestation.payload(attestationJSON))
         return try await publicClient.api_v1_auth_device_login_create(.init(body: .json(input))).ok.body.json
     }
     public func me() async throws -> Components.Schemas.AuthUserPayload {

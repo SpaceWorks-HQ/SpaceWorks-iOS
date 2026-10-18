@@ -31,7 +31,7 @@ class GenerationTests(unittest.TestCase):
                 elif content and not any("/" in media for media in content) and not operation["requestBody"].get("required", False):
                     del operation["requestBody"]
         self.assertEqual(staged, expected, "Only documented JSON or optional no-body representations may be selected; all models remain unchanged")
-        self.assertEqual(len(json.loads(source)["paths"]), 635)
+        self.assertEqual(len(json.loads(source)["paths"]), 760)
 
     def test_brand_config_drives_project_display_name_bundle_and_icon(self):
         brand = json.loads((ROOT / "branding/brand.json").read_text())

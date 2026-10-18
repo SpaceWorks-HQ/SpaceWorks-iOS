@@ -100,3 +100,21 @@ filter:
     - api_v1_auth_phone_destroy
     - api_v1_auth_social_providers_list
     - api_v1_auth_social_providers_destroy
+
+
+    - api_v1_auth_social_nonce_create
+    - api_v1_auth_social_google_create
+    - api_v1_auth_social_apple_create
+    - api_v1_auth_social_oidc_create
+    - api_v1_auth_phone_login_start_create
+    - api_v1_auth_phone_login_confirm_create
+    - api_v1_auth_logout_all_create
+    - api_v1_auth_account_deletion_retrieve
+    - api_v1_auth_account_deletion_create
+    - api_v1_auth_reauth_retrieve
+    - api_v1_auth_reauth_create
+    - api_v1_auth_reauth_phone_start_create
+    - api_v1_auth_reauth_phone_confirm_create
+    - api_v1_auth_reauth_social_start_create
+    - api_v1_auth_reauth_social_complete_create
+    - api_v1_auth_reauth_social_factor_create

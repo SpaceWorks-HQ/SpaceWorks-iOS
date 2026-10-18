@@ -49,8 +49,8 @@ struct SpaceBookingView: View {
                 if isDemo { Text("Demo mode · no real booking is made").brandFont(.caption, weight: .bold).foregroundStyle(Color.swMuted) }
                 if let result = state.result {
                     SWCard {
-                        Label(result.status.value1 == .pending ? "Booking request received" : "Space booked", systemImage: "checkmark.circle").brandFont(.title2, weight: .bold)
-                        Text(result.status.value1 == .pending ? "Staff must approve this request before the slot is confirmed." : "Your selected slot is confirmed and booked.").foregroundStyle(Color.swMuted)
+                        Label(result.pending ? "Booking request received" : "Space booked", systemImage: "checkmark.circle").brandFont(.title2, weight: .bold)
+                        Text(result.pending ? "Staff must approve this request before the slot is confirmed." : "Your selected slot is confirmed and booked.").foregroundStyle(Color.swMuted)
                         Text("Find your booking in Activity. Its reference and cancellation options are loaded from your account.").foregroundStyle(Color.swMuted)
                         Button("View bookings", action: viewActivity).buttonStyle(SWPrimary())
                         Button("Book another slot") { form.text = [:]; form.multiple = [:]; state.startAnother() }.frame(minHeight: 48)

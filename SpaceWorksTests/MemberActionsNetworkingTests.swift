@@ -69,7 +69,7 @@ final class MemberActionsNetworkingTests: XCTestCase {
             let renewal = try await service.renewMemberLoan(id: 7, requestID: 4); XCTAssertEqual(renewal.renewal_count, 2)
             let availability = try await service.bookingAvailability(slug: "fab-lab-kochi", token: token, start: now, end: now.addingTimeInterval(3600)); XCTAssertNil(availability.availability)
             let booked = try await service.createMemberBooking(slug: "fab-lab-kochi", token: token, input: .init(starts_at: now, ends_at: now.addingTimeInterval(3600)))
-            XCTAssertEqual(booked.status.value1, .pending)
+            XCTAssertTrue(booked.pending)
             let cancelledBooking = try await service.cancelMemberBooking(slug: "fab-lab-kochi", token: token)
             XCTAssertEqual(cancelledBooking.public_token, token); XCTAssertEqual(cancelledBooking.status.value1.rawValue, "cancelled"); XCTAssertFalse(cancelledBooking.can_cancel)
             let registered = try await service.registerMemberEvent(slug: "fab-lab-kochi", token: token, input: .init(ticket_type_id: 1)); XCTAssertEqual(registered.status.value1, .waitlisted)

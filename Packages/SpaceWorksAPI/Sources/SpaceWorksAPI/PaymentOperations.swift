@@ -9,6 +9,23 @@ public enum PaymentOperationFailure {
     }
 }
 
+/// The server selects the vendor; every documented variant names the charge it prepared.
+public extension Components.Schemas.MobilePaymentIntentResponse {
+    var paymentID: Int {
+        switch self {
+        case .stripe(let value): return value.payment_id
+        case .razorpay(let value): return value.payment_id
+        }
+    }
+    /// Required SDK values are present. Format checks happen at the native SDK boundary.
+    var hasCheckoutParameters: Bool {
+        switch self {
+        case .stripe(let value): return !value.client_secret.isEmpty && !value.publishable_key.isEmpty
+        case .razorpay(let value): return !value.key_id.isEmpty && !value.order_id.isEmpty && value.amount_minor > 0 && !value.currency.isEmpty
+        }
+    }
+}
+
 /// A download grant authorizes a documented API operation; it is not an arbitrary browser URL.
 public enum PaymentDownloadGrant {
     public static func token(from value: String, documentID: Int, origin: ServerOrigin) throws -> String {

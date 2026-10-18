@@ -287,10 +287,17 @@ enum PaymentCopy {
             completion(.unavailable("Checkout is not ready. Try again from payment details.")); return
         }
         while let parent = controller.parent { controller = parent }
-        // Current contract is Stripe-specific. No vendor inference or Razorpay field synthesis.
-        payments.presentStripe(clientSecret: intent.client_secret, publishableKey: intent.publishable_key,
-            customerID: intent.customer_id.flatMap { $0 }, ephemeralKey: intent.ephemeral_key.flatMap { $0 },
-            returnURL: URL(string: "spaceworks://payments/return"), isDemo: isDemo, from: controller, completion: completion)
+        // The server-selected vendor decides the SDK; the app never chooses or converts amounts.
+        switch intent {
+        case .stripe(let stripe):
+            payments.presentStripe(clientSecret: stripe.client_secret, publishableKey: stripe.publishable_key,
+                customerID: stripe.customer_id.flatMap { $0 }, ephemeralKey: stripe.ephemeral_key.flatMap { $0 },
+                returnURL: URL(string: "spaceworks://payments/return"), isDemo: isDemo, from: controller, completion: completion)
+        case .razorpay(let razorpay):
+            payments.presentRazorpay(keyID: razorpay.key_id, orderID: razorpay.order_id, amountMinor: Int64(razorpay.amount_minor),
+                currency: razorpay.currency, name: razorpay.name, description: razorpay.description,
+                isDemo: isDemo, from: controller, completion: completion)
+        }
     }
 }
 private struct PaymentPresentationAnchor: UIViewControllerRepresentable {

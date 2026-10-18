@@ -1,6 +1,19 @@
 import Foundation
 import OpenAPIRuntime
 
+/// The generated 201 body: a confirmed/pending status, optionally with the member's booking token.
+public typealias MemberBookingCreated = Operations.api_v1_public_spaces_book_create.Output.Created.Body.jsonPayload
+
+public extension MemberBookingCreated {
+    /// Pending approval is distinct from a confirmed booking in both documented response forms.
+    var pending: Bool {
+        switch self {
+        case .case1(let value): return value.status == .pending
+        case .case2(let value): return value.status == .pending
+        }
+    }
+}
+
 extension SpaceWorksService {
     public func memberBootstrap(slug: String) async throws -> Components.Schemas.TenantBootstrap {
         try await client.api_v1_bootstrap_retrieve(.init(query: .init(slug: slug))).ok.body.json
@@ -17,7 +30,7 @@ extension SpaceWorksService {
         try await client.api_v1_public_spaces_availability_retrieve(.init(path: .init(makerspace_slug: slug, public_token: token),
             query: .init(ends_at: end, starts_at: start))).ok.body.json
     }
-    public func createMemberBooking(slug: String, token: String, input: Components.Schemas.PublicBookingInput) async throws -> Components.Schemas.PublicBookingResponse {
+    public func createMemberBooking(slug: String, token: String, input: Components.Schemas.PublicBookingInput) async throws -> MemberBookingCreated {
         try await client.api_v1_public_spaces_book_create(.init(path: .init(makerspace_slug: slug, public_token: token), body: .json(input))).created.body.json
     }
     public func cancelMemberBooking(slug: String, token: String) async throws -> Components.Schemas.MemberBooking {

@@ -26,6 +26,11 @@
     "image_url": null,
     "status": "published",
     "organizers": [],
-    "series": null
+    "series": null,
+    "audience_label": null,
+    "participating_organizations": [],
+    "registration_count": null,
+    "show_registration_count": false,
+    "website": null
   }
 ]

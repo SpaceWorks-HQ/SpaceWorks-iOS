@@ -153,7 +153,7 @@ final class PaymentsState {
             let intent = try await repository.intent(paymentID: paymentID)
             guard matches(attempt) else { return nil }
             guard canRequest else { throw throttledCheckout }
-            guard intent.payment_id == paymentID, !intent.client_secret.isEmpty, !intent.publishable_key.isEmpty else {
+            guard intent.paymentID == paymentID, intent.hasCheckoutParameters else {
                 throw APIError(status: 0, code: "invalid_payment_setup", detail: String(localized: "Payment setup is unavailable. Contact your makerspace."))
             }
             checkout = .presenting(paymentID)

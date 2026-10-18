@@ -11,7 +11,8 @@
       "ends_at": "2026-10-20T11:00:00Z",
       "status": "confirmed",
       "cancellation_cutoff_at": "2026-10-19T09:00:00Z",
-      "can_cancel": true
+      "can_cancel": true,
+      "confirmation_available": false
     }
   ]
 }

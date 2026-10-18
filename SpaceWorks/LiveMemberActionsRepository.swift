@@ -30,7 +30,7 @@ struct LiveMemberActionsRepository: MemberActionsRepository {
     func availability(space: String, start: Date, end: Date) async throws -> Components.Schemas.PublicSpaceAvailability {
         try await checked { try await service.bookingAvailability(slug: slug, token: space, start: start, end: end) }
     }
-    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> Components.Schemas.PublicBookingResponse {
+    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> MemberBookingCreated {
         try await checked { try await service.createMemberBooking(slug: slug, token: space, input: input) }
     }
     func cancelBooking(token: String) async throws -> Components.Schemas.MemberBooking {

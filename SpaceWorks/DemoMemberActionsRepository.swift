@@ -27,7 +27,7 @@ actor DemoMemberStore {
         var value = try object(bookingsJSON); var rows = value["results"] as? [[String: Any]] ?? []
         let format = ISO8601DateFormatter()
         rows.insert(["public_token": UUID().uuidString, "space_name": "Workshop bench", "timezone": "Asia/Kolkata", "starts_at": format.string(from: input.starts_at),
-                     "ends_at": format.string(from: input.ends_at), "status": status, "cancellation_cutoff_at": format.string(from: input.starts_at), "can_cancel": true], at: 0)
+                     "ends_at": format.string(from: input.ends_at), "status": status, "cancellation_cutoff_at": format.string(from: input.starts_at), "can_cancel": true, "confirmation_available": false], at: 0)
         value["results"] = rows; value["count"] = rows.count; bookingsJSON = try json(value)
     }
     func registered(status: String) throws {
@@ -110,9 +110,9 @@ actor DemoMemberActionsRepository: MemberActionsRepository {
     func availability(space: String, start: Date, end: Date) async throws -> Components.Schemas.PublicSpaceAvailability {
         try check(); return .init(public_token: space, starts_at: start, ends_at: end, timezone: "Asia/Kolkata", opening_intervals: [.init(starts_at: start, ends_at: end)], availability: [])
     }
-    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> Components.Schemas.PublicBookingResponse {
-        try check(); let status: Components.Schemas.PublicBookingResponseStatusEnum = scenario == .pending ? .pending : .confirmed
-        try await store.booked(input, status: status.rawValue); return .init(status: .init(value1: status))
+    func book(space: String, input: Components.Schemas.PublicBookingInput) async throws -> MemberBookingCreated {
+        try check(); let pending = scenario == .pending
+        try await store.booked(input, status: pending ? "pending" : "confirmed"); return .case1(.init(status: pending ? .pending : .confirmed))
     }
     func cancelBooking(token: String) async throws -> Components.Schemas.MemberBooking { try check(); return try await store.cancelBooking(token) }
     func register(event: String, input: Components.Schemas.PublicEventRegistrationInput) async throws -> Components.Schemas.PublicEventRegistrationResponse {

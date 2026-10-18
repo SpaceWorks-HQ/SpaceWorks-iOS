@@ -23,7 +23,7 @@ protocol StaffRepository: Sendable {
     func kitPreview(body: Components.Schemas.KitPreviewInput) async throws -> Components.Schemas.KitPreview
     func events(page: Int) async throws -> Components.Schemas.EventListWithDefaults
     func resolveCheckIn(eventID: Int, body: Components.Schemas.EventCheckInResolveRequest) async throws -> Components.Schemas.EventCheckInResolveResponse
-    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventRegistrationAdmin
+    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventAttendanceResult
     func spaces(page: Int) async throws -> Components.Schemas.BookableSpaceListResponse
     func bookings(spaceID: Int, page: Int) async throws -> Components.Schemas.BookingListResponse
     func approveBooking(id: Int) async throws -> Components.Schemas.BookingAdmin
@@ -128,7 +128,7 @@ struct LiveStaffRepository: StaffRepository {
         try validate(result.next, path: "/api/v1/admin/makerspaces/\(makerspaceID)/events/", after: page); return result
     }
     func resolveCheckIn(eventID: Int, body: Components.Schemas.EventCheckInResolveRequest) async throws -> Components.Schemas.EventCheckInResolveResponse { try await checked { try await service.staffResolveCheckIn(eventID: eventID, body: body) } }
-    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventRegistrationAdmin { try await checked { try await service.staffMarkAttended(registrationID: registrationID, body: body) } }
+    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventAttendanceResult { try await checked { try await service.staffMarkAttended(registrationID: registrationID, body: body) } }
     func spaces(page: Int) async throws -> Components.Schemas.BookableSpaceListResponse {
         let result = try await checked { try await service.staffSpaces(makerspaceID: makerspaceID, page: page) }
         try validate(result.next, path: "/api/v1/admin/makerspaces/\(makerspaceID)/spaces/", after: page); return result

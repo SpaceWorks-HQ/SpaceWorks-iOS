@@ -107,8 +107,8 @@ enum NativePaymentInput {
         #endif
     }
 
-    /// Never call until the authoritative contract supplies server-selected Razorpay SDK parameters.
-    func presentRazorpay(keyID: String, orderID: String, amountMinor: Int64, currency: String, isDemo: Bool,
+    /// Server-selected Razorpay Order values. `amountMinor` is already in minor units; never rescale it.
+    func presentRazorpay(keyID: String, orderID: String, amountMinor: Int64, currency: String, name: String, description: String, isDemo: Bool,
                          from controller: UIViewController, completion: @escaping (NativePaymentOutcome) -> Void) {
         guard !isDemo else { completion(.unavailable("Demo mode does not open a payment provider.")); return }
         guard NativePaymentInput.razorpayIsValid(key: keyID, order: orderID, amount: amountMinor, currency: currency) else {
@@ -120,7 +120,8 @@ enum NativePaymentInput {
         razorpayCallbacks = delegate
         razorpay = Razorpay.RazorpayCheckout.initWithKey(keyID, andDelegateWithData: delegate)
         var options: [AnyHashable: Any] = ["key": keyID, "order_id": orderID, "amount": amountMinor,
-                                         "currency": currency, "name": Brand.appName]
+                                         "currency": currency, "name": name.isEmpty ? Brand.appName : name,
+                                         "description": description]
         if let color = accentHex(for: controller.traitCollection) { options["theme"] = ["color": color] }
         razorpay?.open(options, displayController: controller)
         #else

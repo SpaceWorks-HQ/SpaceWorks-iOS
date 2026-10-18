@@ -20,7 +20,7 @@ final class AccountOperationTests: XCTestCase {
         var object = try JSONSerialization.jsonObject(with: Data(value.utf8)) as! [String: Any]; object.merge(changes) { _, new in new }
         return String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
     }
-    private var me: String { #"{"id":51,"username":"meera","email":"meera@example.test","display_name":"Meera Nair","phone":"","email_verified":true,"role":"member","is_superuser":false,"must_change_password":false,"makerspaces":[]}"# }
+    private var me: String { #"{"session_authority":"member","id":51,"username":"meera","email":"meera@example.test","display_name":"Meera Nair","phone":"","email_verified":true,"role":"member","is_superuser":false,"must_change_password":false,"makerspaces":[]}"# }
     private func archiveBytes() throws -> Data {
         let object = try JSONSerialization.jsonObject(with: Data(DebugAccountFixtures.archive.utf8)) as! [String: String]
         return try XCTUnwrap(Data(base64Encoded: object["base64"]!))

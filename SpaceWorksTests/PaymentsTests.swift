@@ -19,14 +19,18 @@ private enum PaymentFixture {
         """
     }
     static let documents = #"{"count":0,"next":null,"previous":null,"results":[]}"#
+    static func razorpayIntent(id: Int = 501) throws -> Components.Schemas.MobilePaymentIntentResponse {
+        try decode("{\"vendor\":\"razorpay\",\"payment_id\":\(id),\"key_id\":\"rzp_test_fixture\",\"order_id\":\"order_fixture\",\"amount_minor\":25000,\"currency\":\"INR\",\"name\":\"Sample makerspace\",\"description\":\"Sample deposit\"}")
+    }
     static func intent(id: Int = 501) throws -> Components.Schemas.MobilePaymentIntentResponse {
-        try decode("{\"payment_id\":\(id),\"client_secret\":\"pi_fixture_secret_test\",\"publishable_key\":\"pk_test_fixture\"}")
+        try decode("{\"vendor\":\"stripe\",\"payment_id\":\(id),\"client_secret\":\"pi_fixture_secret_test\",\"publishable_key\":\"pk_test_fixture\"}")
     }
 }
 
 private actor PaymentTestRepository: PaymentRepository {
     var rows: [Components.Schemas.MemberPayment]
     var intentID = 501
+    var razorpay = false
     var failure: APIError?
     private var offline = false
     private(set) var listCalls = 0
@@ -37,6 +41,7 @@ private actor PaymentTestRepository: PaymentRepository {
     init(status: String = "pending", online: Bool = true) throws { rows = [try PaymentFixture.row(status: status, online: online)] }
     func configure(status: String) throws { rows = [try PaymentFixture.row(status: status)] }
     func configure(intentID: Int) { self.intentID = intentID }
+    func configureRazorpay() { razorpay = true }
     func configure(failure: APIError) { self.failure = failure }
     func configureOffline() { offline = true }
     func clearFailure() { failure = nil; offline = false }
@@ -51,7 +56,7 @@ private actor PaymentTestRepository: PaymentRepository {
         return rows
     }
     func intent(paymentID: Int) async throws -> Components.Schemas.MobilePaymentIntentResponse {
-        intentCalls += 1; return try PaymentFixture.intent(id: intentID)
+        intentCalls += 1; return try razorpay ? PaymentFixture.razorpayIntent(id: intentID) : PaymentFixture.intent(id: intentID)
     }
     func documents(page: Int) async throws -> Components.Schemas.DocumentPage {
         documentCalls += 1; requestedPages.append(page)
@@ -221,6 +226,17 @@ private actor PaymentTestRepository: PaymentRepository {
         XCTAssertNil(wrongPayment)
         XCTAssertFalse(state.busy)
     }
+    func testServerSelectedRazorpayIntentReachesPresentationWithItsExactOrder() async throws {
+        let repository = try PaymentTestRepository()
+        await repository.configureRazorpay()
+        let state = PaymentsState(repository: repository)
+        await state.refresh()
+        let prepared = await state.prepareCheckout(paymentID: 501)
+        guard case .razorpay(let razorpay)? = prepared?.1 else { return XCTFail("The server-selected Razorpay vendor must be preserved") }
+        XCTAssertEqual(razorpay.order_id, "order_fixture")
+        XCTAssertEqual(razorpay.amount_minor, 25000, "Minor units are passed through unchanged")
+        XCTAssertEqual(state.checkout, .presenting(501))
+    }
     func testLogoutClearsPaymentDataResetsSDKAndRejectsLateCallback() async throws {
         let repository = try PaymentTestRepository()
         var reset = false
@@ -319,12 +335,26 @@ final class PaymentOperationTests: XCTestCase {
             XCTAssertEqual(request.url?.path, "/api/v1/member/makerspaces/7/payments/501/mobile-intent")
             XCTAssertEqual(request.httpMethod, "POST")
             XCTAssertTrue(requestBody(request).isEmpty)
-            return (200, ["Content-Type": "application/json"], Data(#"{"payment_id":501,"client_secret":"pi_fixture_secret_test","publishable_key":"pk_test_fixture"}"#.utf8))
+            return (200, ["Content-Type": "application/json"], Data(#"{"vendor":"stripe","payment_id":501,"client_secret":"pi_fixture_secret_test","publishable_key":"pk_test_fixture"}"#.utf8))
         }
         let rows = try await service.memberPayments(makerspaceID: 7)
         XCTAssertEqual(rows.first?.id, 501)
         let intent = try await service.memberPaymentIntent(makerspaceID: 7, paymentID: 501)
-        XCTAssertEqual(intent.payment_id, 501)
+        XCTAssertEqual(intent.paymentID, 501)
+    }
+    func testRazorpayIntentDecodesTheVendorDiscriminatedGeneratedVariant() async throws {
+        let service = try await service { request in
+            self.assertScoped(request)
+            XCTAssertEqual(request.url?.path, "/api/v1/member/makerspaces/7/payments/501/mobile-intent")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertTrue(requestBody(request).isEmpty)
+            return (200, ["Content-Type": "application/json"], Data(#"{"vendor":"razorpay","payment_id":501,"key_id":"rzp_test_fixture","order_id":"order_fixture","amount_minor":25000,"currency":"INR","name":"Sample makerspace","description":"Sample deposit"}"#.utf8))
+        }
+        let intent = try await service.memberPaymentIntent(makerspaceID: 7, paymentID: 501)
+        guard case .razorpay(let value) = intent else { return XCTFail("Expected the Razorpay variant") }
+        XCTAssertEqual(value.key_id, "rzp_test_fixture"); XCTAssertEqual(value.currency, "INR")
+        XCTAssertTrue(intent.hasCheckoutParameters)
+        XCTAssertTrue(NativePaymentInput.razorpayIsValid(key: value.key_id, order: value.order_id, amount: Int64(value.amount_minor), currency: value.currency))
     }
     func testDocumentListUsesGeneratedPagingAndPDFRetainsRequiredAPIAuthentication() async throws {
         let service = try await service { request in

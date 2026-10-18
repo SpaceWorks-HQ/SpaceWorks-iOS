@@ -207,11 +207,11 @@ actor DemoStaffRepository: StaffRepository {
         let status = attended ? "attended" : scenario == .waitlisted ? "waitlisted" : "registered"
         return try decode(DebugStaffFixtures.checkin, changes: ["status": status, "confirmable": status == "registered"])
     }
-    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) throws -> Components.Schemas.EventRegistrationAdmin {
+    func markAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) throws -> Components.Schemas.EventAttendanceResult {
         try checked()
         if scenario == .attendanceConflict { throw APIError(status: 409, code: "changed", detail: String(localized: "This registration changed.")) }
         guard registrationID == 1101, !attended, scenario != .waitlisted else { throw APIError(status: 409, code: "changed", detail: String(localized: "This registration changed.")) }
-        attended = true; return try decode(DebugStaffFixtures.registration, changes: ["status": "attended"])
+        attended = true; return .EventRegistrationAdmin(try decode(DebugStaffFixtures.registration, changes: ["status": "attended"]))
     }
     func spaces(page: Int) throws -> Components.Schemas.BookableSpaceListResponse {
         let row: Components.Schemas.BookableSpaceAdmin = try decode(DebugStaffFixtures.space)

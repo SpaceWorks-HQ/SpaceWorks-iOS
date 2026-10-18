@@ -61,7 +61,7 @@ extension SpaceWorksService {
     public func staffResolveCheckIn(eventID: Int, body: Components.Schemas.EventCheckInResolveRequest) async throws -> Components.Schemas.EventCheckInResolveResponse {
         try await client.api_v1_admin_events_check_in_resolve_create(.init(path: .init(id: eventID), body: .json(body))).ok.body.json
     }
-    public func staffMarkAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventRegistrationAdmin {
+    public func staffMarkAttended(registrationID: Int, body: Components.Schemas.EventAttendanceMark) async throws -> Components.Schemas.EventAttendanceResult {
         try await client.api_v1_admin_event_registrations_mark_attended_create(.init(path: .init(id: registrationID), body: .json(body))).ok.body.json
     }
     public func staffSpaces(makerspaceID: Int, page: Int) async throws -> Components.Schemas.BookableSpaceListResponse {

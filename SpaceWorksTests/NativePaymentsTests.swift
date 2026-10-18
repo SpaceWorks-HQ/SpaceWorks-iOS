@@ -33,7 +33,7 @@ final class NativePaymentsTests: XCTestCase {
         let payments = NativePayments()
         var outcomes: [NativePaymentOutcome] = []
         payments.presentStripe(clientSecret: "pi_1_secret_1", publishableKey: "pk_test_public", isDemo: true, from: UIViewController()) { outcomes.append($0) }
-        payments.presentRazorpay(keyID: "rzp_test_public", orderID: "order_1", amountMinor: 500, currency: "INR", isDemo: true, from: UIViewController()) { outcomes.append($0) }
+        payments.presentRazorpay(keyID: "rzp_test_public", orderID: "order_1", amountMinor: 500, currency: "INR", name: "Sample makerspace", description: "Sample deposit", isDemo: true, from: UIViewController()) { outcomes.append($0) }
         XCTAssertEqual(outcomes, Array(repeating: .unavailable("Demo mode does not open a payment provider."), count: 2))
         XCTAssertFalse(payments.hasInFlightPayment)
     }

@@ -45,5 +45,9 @@
     "base_url": "https://demo.invalid",
     "publishable_key": "",
     "inventory_path": "/api/v1/public/fab-lab-kochi/inventory/"
+  },
+  "messaging": {
+    "sms": false,
+    "whatsapp": false
   }
 }
