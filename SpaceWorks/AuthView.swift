@@ -80,10 +80,15 @@ struct PasswordChangeView: View {
 }
 
 struct SWCard<Content: View>: View {
-    @ViewBuilder var content: Content
+    let contentPadding: CGFloat
+    let content: Content
+    init(contentPadding: CGFloat = 24, @ViewBuilder content: () -> Content) {
+        self.contentPadding = contentPadding
+        self.content = content()
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) { content }
-            .padding(24).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(contentPadding).frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.swPanel, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.swLine))
     }

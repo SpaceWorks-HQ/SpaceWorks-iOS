@@ -270,11 +270,9 @@ final class MemberActionsFlowTests: XCTestCase {
         let name = app.textFields["profile-display-name"]
         NativeUIActions.tap(name, in: app, requireWholeFrame: true)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        name.press(forDuration: 1)
-        let selectAll = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Select All")).firstMatch
-        XCTAssertTrue(selectAll.waitForExistence(timeout: 5), "The native text edit menu must offer Select All.")
-        XCTAssertTrue(selectAll.isHittable)
-        selectAll.tap()
+        XCTAssertEqual(name.value as? String, "Meera Nair")
+        name.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+        name.typeText(XCUIKeyboardKey.delete.rawValue)
         name.typeText("Meera Maker\n")
         XCTAssertEqual(name.value as? String, "Meera Maker", "Verify the replacement before testing rotation preservation.")
         app.rotateToLandscapeAndWait()

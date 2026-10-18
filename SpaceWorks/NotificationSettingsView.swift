@@ -8,7 +8,7 @@ struct NotificationSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                SWCard {
+                SWCard(contentPadding: dynamicTypeSize.isAccessibilitySize ? 12 : 24) {
                     Group {
                         if dynamicTypeSize.isAccessibilitySize {
                             VStack(alignment: .leading, spacing: 12) {
@@ -46,7 +46,7 @@ struct NotificationSettingsView: View {
                     if let error = state.error ?? state.registration.error { SWError(message: error) }
                 }
                 SWCard { Text("Choose which updates you receive in Communication preferences. Required safety messages remain available in your inbox.").foregroundStyle(Color.swMuted) }
-            }.padding(24).frame(maxWidth: 640).frame(maxWidth: .infinity)
+            }.padding(dynamicTypeSize.isAccessibilitySize ? 12 : 24).frame(maxWidth: 640).frame(maxWidth: .infinity)
         }.background(Color.swBg).navigationTitle("Notifications")
             .task { await state.prepare() }
     }
