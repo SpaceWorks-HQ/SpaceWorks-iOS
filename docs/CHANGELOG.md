@@ -46,6 +46,17 @@ passcode) lock per account using LocalAuthentication device-owner authentication
 it backgrounds and on a cold launch, shows a lock screen with Unlock and Sign out, and never stores
 biometric data. The Face ID purpose string is generated and checked in the Release audit.
 
+**D8 v2 PRD extras (parity with Android 8e86c52).** Home adds "Your activity" from the generated
+`my-usage` operation: loans, machine time, bookings, events attended and payments per currency, each
+series reduced to its declared x field and first measure with values written out; absent sections
+are hidden rather than shown as zero. Staff tools add "Today at a glance" from the generated
+dashboard: non-zero reported counters, the handover queue, outstanding payments per currency and
+report headlines (handover scope shows no analytics). Profile adds "Text and WhatsApp messages"
+when the bootstrap enables SMS or WhatsApp; opt-in needs an available, verified, unsuppressed
+channel, and a refusal shows the server detail and refetches. Sign-in adds "Restore a deleted
+account" by phone; it never returns a session. Swift's generator handles `NullEnum` without a
+mapping, and omitted dashboard counters decode as `nil` rather than the schema default.
+
 **D6 hardening.** The privacy manifest declares no tracking and the account-linked data the app
 sends for app functionality. New copy is seeded in the English catalog. Documentation records the
 owner inputs below.
@@ -72,6 +83,8 @@ Parity checklist (shared copy recorded for the Android session):
 - [x] Staff tools entry only for native staff with a staff action.
 - [x] Delete account: Check account obligations, Resolve these first, Open in the app, Open in the web console, Confirm it's you, Type DELETE to confirm, Delete account.
 - [x] Push/inbox/universal links follow the contract; unsupported links open the makerspace inbox.
+- [x] Your activity, Today at a glance, Text and WhatsApp messages and Restore a deleted account use the Android copy recorded in the shared notes.
+- [x] Optional app lock ("Require Face ID" / Touch ID / Optic ID / device passcode) is iOS-native; Android's equivalent is platform-specific.
 - [x] Light/dark, Dynamic Type headings and 48 pt actions on every new screen; phone and iPad widths constrained.
 
 ## C7 — Preserve independent push and pull-request validation (2026-10-18)
