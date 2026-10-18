@@ -1,5 +1,13 @@
 # Phase notes
 
+## C5 — Request the test profile orientation after native launch (2026-10-18)
+
+The exact `ed2aca4` full tablet-landscape profile failed all 37 UI journeys at their unchanged orientation guards: 34 launch checks and three later foreground rotations. Actual failure-time full-OS pixels stayed portrait. Attach/activation scene samples preceded the relevant request and cannot establish failure-time effective policy. A separate same-source fresh-runner diagnostic passed all 302 native cases and the existing regular-text dark sign-in journey: its portrait launch followed by a foreground landscape request produced actual landscape pixels, the required app frame and settled landscape scene samples. This does not explain the historical full-profile failure, including its three later foreground failures, or establish an app/OS cause.
+
+Move the existing single requested profile-orientation assignment from immediately before native launch to immediately after it, before the same ten-second actual-frame expectation. This is a bounded harness ordering experiment for the foreground application, without a second request, delay, retry, geometry override or app policy change. All profile appearance checks, later rotation guards, native actions, 302 native cases and 37 UI outcomes remain. No prior focused result substitutes for fresh complete validation; actual new-source landscape and all six-profile/native/Release/visual gates remain pending.
+
+Parity: test launch sequencing only; application, strings, navigation and Android behavior are unchanged.
+
 ## C4 — Read-only demo entry diagnostic checkpoint (2026-10-18)
 
 The exact `ed2aca4` normal-tablet run passed all 302 native cases and 36 of 37 UI cases. The deletion-blocker journey stopped during demo setup: after one native Explore activation, Continue as member remained absent through the existing bounded search. Actual full-OS recording stayed on Connect; the synthesized 50 ms tap was centered on the visible Explore label. Shallow accessibility snapshots contained no descendants. Neither an account deletion/payment defect nor the cause of the missing demo destination is established.

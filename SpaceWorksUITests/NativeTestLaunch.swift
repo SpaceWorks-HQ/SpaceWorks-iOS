@@ -47,8 +47,8 @@ extension XCUIApplication {
         let reduceMotion = profile == "large-tablet"
         launchEnvironment["SPACEWORKS_TEST_APPEARANCE"] = dark ? "dark" : "light"
         launchEnvironment["SPACEWORKS_TEST_REDUCE_MOTION"] = reduceMotion ? "1" : "0"
-        XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
         launch()
+        XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
         let orientation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             landscape ? self.frame.width > self.frame.height : self.frame.height > self.frame.width
         }, object: nil)
