@@ -43,14 +43,26 @@ struct AccountView: View {
                     NavigationLink("Preview account deletion") {
                         DemoDeletionView(onFix: onDemoFix.map { route in { blocker in route(blocker); dismiss() } }, onDelete: onDemoDelete)
                     }.frame(minHeight: 48).accessibilityIdentifier("account-delete-preview")
-                } else {
-                    Text("Account deletion isn't available on this server yet. Contact your makerspace for help.").foregroundStyle(Color.swMuted)
-                }
+                } else { liveDeletion }
                 #else
-                Text("Account deletion isn't available on this server yet. Contact your makerspace for help.").foregroundStyle(Color.swMuted)
+                liveDeletion
                 #endif
             }
         }.padding(24).frame(maxWidth: 900).frame(maxWidth: .infinity) }.background(Color.swBg).foregroundStyle(Color.swInk).tint(Color.swAccentInk).navigationTitle("Account and security").navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+extension AccountView {
+    @ViewBuilder var liveDeletion: some View {
+        if let make = state.makeDeletion, let deletion = make() {
+            NavigationLink {
+                AccountDeletionView(state: deletion, origin: state.deletionOrigin, memberships: state.deletionMemberships, openFix: state.openDeletionFix)
+            } label: {
+                AccountMenuRow(title: "Delete account", detail: String(localized: "Delete your whole account on this server"), icon: "trash")
+            }.accessibilityIdentifier("account-delete")
+        } else {
+            Text("Sign in again to delete your account.").foregroundStyle(Color.swMuted)
+        }
     }
 }
 

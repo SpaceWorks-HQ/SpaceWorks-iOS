@@ -13,6 +13,11 @@ final class AccountState {
     private(set) var exportEnabled: Bool
     let makerspaceName: String
     let currentDeviceGrantID: String?
+    /// Whole-account deletion is global; the authenticated owner supplies it and in-app blocker fixes.
+    @ObservationIgnored var makeDeletion: (@MainActor () -> AccountDeletionState?)?
+    @ObservationIgnored var deletionOrigin: ServerOrigin?
+    @ObservationIgnored var deletionMemberships: Set<Int> = []
+    @ObservationIgnored var openDeletionFix: ((MobileLink) -> Void)?
     private let beginSecurityEnrollment: (Components.Schemas.MFAChallengeResponse) async -> Void
     private let endSession: ([String], String?) async -> Void
     private let membershipEnded: () async -> Void

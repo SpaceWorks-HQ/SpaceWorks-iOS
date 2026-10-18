@@ -207,7 +207,10 @@ private struct MemberWorkspace: View {
         let actions = LiveMemberActionsRepository(service: auth.service, expectedCredentials: auth.acceptedCredentials, id: id, slug: slug,
             onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden)
         self.actions = actions
-        _account = State(initialValue: auth.accountState(makerspaceID: id))
+        let account = auth.accountState(makerspaceID: id)
+        // Deletion blockers in a current membership open the matching in-app task through validated routing.
+        account?.openDeletionFix = { [linkRouter] link in linkRouter.receive(link) }
+        _account = State(initialValue: account)
         // Native staff authority plus at least one staff action of this membership; the server still enforces each call.
         let membershipActions = Set(auth.selectedMembership?.actions ?? [])
         _staff = State(initialValue: auth.staffToolsAvailable && auth.selectedMembership?.id == id && !membershipActions.isDisjoint(with: StaffState.toolActions)

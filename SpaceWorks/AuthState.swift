@@ -370,14 +370,7 @@ final class AuthState {
         }
         busy = false
         guard identityGeneration == generation, user?.id == accountID else { return }
-        // The server already removed this device's grant and push destinations.
-        endingSession = true
-        detachNotifications()
-        clearLocalIdentity()
-        try? await service.refresh.install(nil)
-        try? await service.makerspace.select(nil, activeMemberships: [])
-        endingSession = false
-        error = String(localized: "Signed out on every device and browser.")
+        await endRevokedSession(message: String(localized: "Signed out on every device and browser."))
     }
 
     func changePassword(current: String, new: String, confirmation: String) async {
@@ -409,6 +402,7 @@ final class AuthState {
               makerspaceID == nil || memberships.contains(where: { $0.id == makerspaceID }) else { return nil }
         let generation = identityGeneration
         let name = memberships.first(where: { $0.id == makerspaceID })?.slug ?? ""
+        let deletionMemberships = Set(memberships.map(\.id))
         let repository = LiveAccountRepository(service: service, expectedCredentials: credentials, makerspaceID: makerspaceID, origin: origin,
             onUnauthorized: { [weak self] message in await self?.accountRefused(message, accountID: accountID, generation: generation) },
             onForbidden: { [weak self] in await self?.accountAuthorityChanged(accountID: accountID, generation: generation) })
@@ -438,8 +432,56 @@ final class AuthState {
                 if let ids = try? await self.freshMembershipIDs(), ids.contains(makerspaceID), self.user?.id == accountID {
                     await self.notifications?.registration.resumeMembership(makerspaceID, authorizedDirectMembershipIDs: ids)
                 }
-            })
+            }).withDeletion(origin: origin, memberships: deletionMemberships) { [weak self] in
+                guard let self, self.identityGeneration == generation, self.user?.id == accountID else { return nil }
+                return self.accountDeletion()
+            }
     }
+    /// Whole-account deletion for the current device session. Social proof uses the published native providers.
+    func accountDeletion() -> AccountDeletionState? {
+        guard let accountID = user?.id, let credentials = acceptedCredentials, stage == .signedIn else { return nil }
+        let generation = identityGeneration
+        let repository = LiveAccountDeletionRepository(service: service, expectedCredentials: credentials,
+            onUnauthorized: { [weak self] message in await self?.accountRefused(message, accountID: accountID, generation: generation) })
+        return AccountDeletionState(repository: repository, socialCredential: { [weak self] provider, nonce in
+            guard let self else { throw CancellationError() }
+            return try await self.reauthenticationCredential(provider: provider, nonce: nonce)
+        }, onDeleted: { [weak self] result, restorable in
+            guard let self, self.identityGeneration == generation, self.user?.id == accountID else { return }
+            let message = restorable
+                ? String(format: String(localized: "Your account was deleted. You can ask to restore it before %@ using password recovery."),
+                         result.purge_after.formatted(date: .abbreviated, time: .omitted))
+                : String(localized: "Your account was deleted.")
+            await self.endRevokedSession(message: message)
+        })
+    }
+
+    private func reauthenticationCredential(provider: String, nonce: String) async throws -> ProviderCredential {
+        switch provider {
+        case "google":
+            guard let clientID = googleClientID, let controller = NativePresentation.topController else { throw NativeIdentity.unavailable }
+            return try await NativeIdentity.google(clientID: clientID, nonce: nonce, presenting: controller)
+        case "apple":
+            guard appleEnabled, let window = NativePresentation.window else { throw NativeIdentity.unavailable }
+            let apple = AppleIdentity()
+            return try await apple.credential(nonce: nonce, anchor: window)
+        default:
+            guard let organization = organizationProviders.first(where: { $0.key == provider }), let window = NativePresentation.window else { throw NativeIdentity.unavailable }
+            return try await NativeOIDCSignIn().credential(issuer: organization.issuer, clientID: organization.client_id, nonce: nonce, anchor: window)
+        }
+    }
+
+    /// The server already revoked this device's grant and push destinations; clear local state only.
+    private func endRevokedSession(message: String) async {
+        endingSession = true
+        detachNotifications()
+        clearLocalIdentity()
+        try? await service.refresh.install(nil)
+        try? await service.makerspace.select(nil, activeMemberships: [])
+        endingSession = false
+        error = message
+    }
+
     private func accountRefused(_ message: String, accountID: Int, generation: Int) async {
         guard identityGeneration == generation, user?.id == accountID else { return }
         await invalidateSession(message: message)
