@@ -206,8 +206,11 @@ final class MemberActionsFlowTests: XCTestCase {
     }
     private func demo(_ arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + arguments; app.launchForDeviceProfile()
-        tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
-        let username = app.textFields["demo-username"]; tap(username, in: app)
+        tap(app.buttons["explore-demo"], in: app)
+        let member = app.buttons["Continue as member"]
+        XCTAssertTrue(member.waitForExistence(timeout: 5)); tap(member, in: app)
+        let username = app.textFields["demo-username"]
+        XCTAssertTrue(username.waitForExistence(timeout: 5)); tap(username, in: app)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5)); username.typeText("meera\n")
         app.secureTextFields["demo-password"].typeText("sample\n")
         tap(app.buttons["demo-sign-in"], in: app); tap(app.buttons["demo-space-0"], in: app)
@@ -270,11 +273,31 @@ final class MemberActionsFlowTests: XCTestCase {
         let name = app.textFields["profile-display-name"]
         NativeUIActions.tap(name, in: app, requireWholeFrame: true)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-        XCTAssertEqual(name.value as? String, "Meera Nair")
-        name.tap(withNumberOfTaps: 3, numberOfTouches: 1)
+        let done = app.navigationBars.buttons["profile-keyboard-done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5))
+        let original = "Meera Nair"
+        XCTAssertEqual(name.value as? String, original)
+        let frame = name.frame
+        XCTAssertTrue(name.isHittable)
+        XCTAssertTrue(frame.minX.isFinite && frame.minY.isFinite && frame.width.isFinite && frame.height.isFinite)
+        XCTAssertGreaterThan(frame.width, 44); XCTAssertGreaterThan(frame.height, 0)
+        // The field has 14-point content padding; activate its trailing editing interior.
+        let insertionPoint = CGPoint(x: frame.maxX - 22, y: frame.midY)
+        let viewport = visibleContent(containingScroll(name, app), app, gestureInset: 0).insetBy(dx: 2, dy: 2)
+        XCTAssertTrue(viewport.contains(insertionPoint))
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: insertionPoint.x - app.frame.minX, dy: insertionPoint.y - app.frame.minY)).tap()
         name.typeText(XCUIKeyboardKey.delete.rawValue)
-        name.typeText("Meera Maker\n")
+        XCTAssertEqual(name.value as? String, String(original.dropLast()), "The first native deletion must prove the insertion point is at the end.")
+        name.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: original.count - 1))
+        name.typeText("Meera Maker")
         XCTAssertEqual(name.value as? String, "Meera Maker", "Verify the replacement before testing rotation preservation.")
+        XCTAssertTrue(done.isEnabled && done.isHittable)
+        XCTAssertGreaterThan(done.frame.width, 0); XCTAssertGreaterThan(done.frame.height, 0)
+        XCTAssertTrue(app.frame.insetBy(dx: 2, dy: 2).contains(done.frame))
+        capture("Native profile keyboard action")
+        done.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertEqual(name.value as? String, "Meera Maker")
         app.rotateToLandscapeAndWait()
         XCTAssertGreaterThan(app.frame.width, app.frame.height); XCTAssertEqual(name.value as? String, "Meera Maker")
         tap(app.buttons["Save changes"], in: app); XCTAssertTrue(app.staticTexts["Profile saved."].waitForExistence(timeout: 5)); capture("Native profile saved landscape")

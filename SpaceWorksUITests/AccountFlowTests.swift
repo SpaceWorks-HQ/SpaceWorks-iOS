@@ -10,6 +10,7 @@ final class AccountFlowTests: XCTestCase {
         app.secureTextFields["demo-password"].typeText("sample\n"); tap(app.buttons["demo-sign-in"], in: app)
         if !withoutMakerspace {
         tap(app.buttons["demo-space-0"], in: app)
+        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 10))
         if app.tabBars.buttons["Profile"].exists { tap(app.tabBars.buttons["Profile"], in: app) }
         else {
             let profile = app.buttons["nav-Profile"]
@@ -136,7 +137,13 @@ final class AccountFlowTests: XCTestCase {
         NativeUIActions.tap(phone, in: app, requireWholeFrame: true)
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars.buttons["account-phone-keyboard-done"].waitForExistence(timeout: 5))
-        phone.typeText("9876543210")
+        var enteredPhone = ""
+        for digit in "9876543210" {
+            enteredPhone.append(digit)
+            phone.typeText(String(digit))
+            let accepted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", enteredPhone), object: phone)
+            XCTAssertEqual(XCTWaiter.wait(for: [accepted], timeout: 5), .completed, "Each intended native phone digit must be accepted before entering the next.")
+        }
         XCTAssertEqual(phone.value as? String, "9876543210")
         dismissAccountKeyboard("account-phone-keyboard-done", in: app); tap(app.buttons["account-phone-send"], in: app)
         let code = app.textFields["account-phone-code"]

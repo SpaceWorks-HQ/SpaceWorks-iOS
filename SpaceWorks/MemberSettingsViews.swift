@@ -37,7 +37,12 @@ struct ProfileEditorView: View {
         }.background(Color.swBg).navigationTitle("Profile details").scrollDismissesKeyboard(.interactively)
             .navigationBarBackButtonHidden(state.dirty || state.busy).interactiveDismissDisabled(state.dirty || state.busy)
             .toolbar {
-                ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("Done") { focusedField = nil } }
+                if focusedField != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { focusedField = nil }
+                            .accessibilityLabel(Text("Done")).accessibilityIdentifier("profile-keyboard-done")
+                    }
+                }
                 if state.dirty || state.busy { ToolbarItem(placement: .topBarLeading) { Button("Back") { wantsExit = true; discardConfirmation = true }.frame(minHeight: 48).disabled(state.busy) } }
             }
             .task { if !state.dirty { await state.load() } }
