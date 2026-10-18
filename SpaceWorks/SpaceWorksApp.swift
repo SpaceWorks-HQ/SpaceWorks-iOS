@@ -82,6 +82,9 @@ final class PreviewHealthProtocol: URLProtocol {
             case "/api/v1/auth/phone/login/start": body = #"{"detail":"If the number can sign in, a code was sent."}"#
             case "/api/v1/auth/phone/login/confirm": body = DebugAuthFixtures.tokens
             case "/api/v1/auth/logout-all": body = #"{"web_sessions":1,"devices":2}"#
+            case "/api/v1/member/makerspaces/7/my-usage", "/api/v1/member/makerspaces/8/my-usage": body = DebugAuthFixtures.usage
+            case "/api/v1/admin/makerspace/7/dashboard": body = DebugAuthFixtures.dashboard
+            case "/api/v1/me/messaging": body = DebugAuthFixtures.messaging
             case "/api/v1/auth/account/deletion":
                 body = deletion ? #"{"deleted_at":"2026-10-18T10:00:00Z","purge_after":"2027-01-16T10:00:00Z"}"#
                     : #"{"deletable":true,"restorable":true,"restore_reason":"","blockers":[],"reauth":{"required":true,"methods":["password"]}}"#

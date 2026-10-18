@@ -3,12 +3,14 @@ import SpaceWorksAPI
 
 struct StaffView: View {
     @Bindable var state: StaffState
+    var insights: InsightsState? = nil
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Staff tools").brandFont(.largeTitle, weight: .bold).accessibilityAddTraits(.isHeader)
                 Text("Review, hand over, and welcome people into your makerspace.").foregroundStyle(Color.swMuted)
                 if state.isDemo { Label("Demo staff tools · sample data", systemImage: "info.circle").foregroundStyle(Color.swMuted) }
+                if let insights, !state.isDemo { StaffGlanceSection(state: insights) }
                 SWCard {
                     if ["accept_request", "reject_request", "issue_request", "return_request"].contains(where: state.can) {
                         NavigationLink { StaffRequestsView(state: state) } label: { StaffMenuRow(title: Text("Requests and loans"), detail: "Review requests and guide equipment handovers", symbol: "shippingbox") }.accessibilityIdentifier("staff-requests")

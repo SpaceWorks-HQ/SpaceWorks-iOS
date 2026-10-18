@@ -198,6 +198,7 @@ private struct MemberWorkspace: View {
     @State private var payments: PaymentsState
     @State private var account: AccountState?
     @State private var staff: StaffState?
+    @State private var insights: InsightsState
     let actions: LiveMemberActionsRepository
     @State private var columns = NavigationSplitViewVisibility.automatic
     @State private var preferredCompactColumn = NavigationSplitViewColumn.detail
@@ -212,6 +213,8 @@ private struct MemberWorkspace: View {
         account?.openDeletionFix = { [linkRouter] link in linkRouter.receive(link) }
         _account = State(initialValue: account)
         // Native staff authority plus at least one staff action of this membership; the server still enforces each call.
+        _insights = State(initialValue: InsightsState(repository: LiveInsightsRepository(service: auth.service, expectedCredentials: auth.acceptedCredentials,
+            makerspaceID: id, onUnauthorized: failureHandlers.unauthorized, onForbidden: failureHandlers.forbidden)))
         let membershipActions = Set(auth.selectedMembership?.actions ?? [])
         _staff = State(initialValue: auth.staffToolsAvailable && auth.selectedMembership?.id == id && !membershipActions.isDisjoint(with: StaffState.toolActions)
             ? StaffState(repository: LiveStaffRepository(service: auth.service, expectedCredentials: auth.acceptedCredentials, makerspaceID: id, origin: origin,
@@ -262,13 +265,13 @@ private struct MemberWorkspace: View {
             columns = width >= 1000 ? .all : .detailOnly
         }
         }.task {
-            auth.registerPrivateHolder(privateHolderOwner) { [member, cart, drafts, capabilities, navigation, payments, account, staff] in
-                member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate()
+            auth.registerPrivateHolder(privateHolderOwner) { [member, cart, drafts, capabilities, navigation, payments, account, staff, insights] in
+                member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate(); insights.invalidate()
             }
             async let config: Void = capabilities.load(); await member.loadUnreadCount(); await config
         }.onDisappear {
             auth.unregisterPrivateHolder(privateHolderOwner)
-            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate()
+            member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate(); insights.invalidate()
         }
             .onChange(of: capabilities.selfService, initial: true) { _, _ in account?.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
             .onChange(of: capabilities.exports, initial: true) { _, _ in account?.updateCapabilities(selfService: capabilities.selfService, exports: capabilities.exports) }
@@ -291,9 +294,9 @@ private struct MemberWorkspace: View {
     }
     private func destination(_ tab: AppTab) -> some View {
         NavigationStack(path: navigation.path(tab)) {
-            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, payments: payments, account: account, staff: staff, linkRouter: linkRouter)
+            MemberScreen(state: state, auth: auth, member: member, tab: tab, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, payments: payments, account: account, staff: staff, insights: insights, linkRouter: linkRouter)
                 .navigationDestination(for: MemberRoute.self) { route in
-                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false, payments: payments, staff: staff, account: account) { await auth.foreground() }
+                    MemberRouteView(route: route, member: member, actions: actions, cart: cart, drafts: drafts, navigation: navigation, capabilities: capabilities, isDemo: false, payments: payments, staff: staff, account: account, insights: insights) { await auth.foreground() }
                 }
         }
     }
@@ -313,6 +316,7 @@ private struct MemberScreen: View {
     let payments: PaymentsState
     let account: AccountState?
     let staff: StaffState?
+    let insights: InsightsState
     let linkRouter: MobileLinkRouter
     @State private var accountForm: AccountAccessState?
     @State private var replayIntro = false
@@ -326,7 +330,7 @@ private struct MemberScreen: View {
             else if let legacy = MobileLink.legacy(text, origin: origin) { linkRouter.receive(legacy) }
             else if let destination = MobileLink.customDomain(text), let id = auth.selectedID { linkRouter.receive(MobileLink(makerspaceID: id, destination: destination)) }
             else { linkRouter.refuseURL() }
-        }) }
+        }, insights: insights) }
         else { ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                     SWCard {
@@ -340,6 +344,11 @@ private struct MemberScreen: View {
                         if let error = capabilities.error { SWError(message: error); Button("Retry account options") { Task { await capabilities.load() } }.frame(minHeight: 48) }
                         if capabilities.selfService { NavigationLink("Edit profile", value: MemberRoute.contact).frame(minHeight: 48) }
                         if capabilities.preferences { NavigationLink("Communication preferences", value: MemberRoute.preferences).frame(minHeight: 48) }
+                        if let messaging = capabilities.bootstrap?.messaging, messaging.sms || messaging.whatsapp {
+                            NavigationLink("Text and WhatsApp messages") {
+                                MessagingConsentView(state: insights, openAccount: account == nil ? nil : { navigation.open(.account, tab: .profile) })
+                            }.frame(minHeight: 48).accessibilityIdentifier("messaging-entry")
+                        }
                         if account != nil { NavigationLink("Account and security", value: MemberRoute.account).frame(minHeight: 48).accessibilityIdentifier("account-entry") }
                         NavigationLink("Payments", value: MemberRoute.payments).frame(minHeight: 48).accessibilityIdentifier("payments-entry")
                         if staff != nil { NavigationLink("Staff tools", value: MemberRoute.staff).frame(minHeight: 48).accessibilityIdentifier("staff-tools") }
@@ -373,7 +382,7 @@ private struct MemberScreen: View {
             Button("Sign out everywhere", role: .destructive) {
                 Task {
                     await auth.signOutEverywhere()
-                    if auth.stage != .signedIn { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate() }
+                    if auth.stage != .signedIn { member.invalidate(); cart.invalidate(); drafts.invalidate(); capabilities.invalidate(); navigation.invalidate(); payments.invalidate(); account?.invalidate(); staff?.invalidate(); insights.invalidate() }
                 }
             }
             Button("Cancel", role: .cancel) {}

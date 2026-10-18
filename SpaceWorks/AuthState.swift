@@ -234,6 +234,21 @@ final class AuthState {
         })
     }
 
+    /// Anonymous phone restore of a deleted account: a phone login code bound to a fresh challenge.
+    func accountRestore() -> AccountRestoreState {
+        let service = service
+        let attest = attest
+        return AccountRestoreState(begin: { phone in
+            let challenge = try await service.challenge(appID: Brand.bundleID, development: NativeAttestor.development)
+            let started = PhoneSignInState.Started(challenge: challenge.challenge, expires: Date().addingTimeInterval(TimeInterval(challenge.expires_in)))
+            try await service.phoneSignInStart(phone: phone, challenge: challenge.challenge)
+            return started
+        }, restore: { phone, code, password, challenge in
+            let proof = try await attest(challenge)
+            return try await service.restoreAccountByPhone(phone: phone, code: code, newPassword: password, challenge: challenge, attestationJSON: proof)
+        })
+    }
+
     private func completePhoneSignIn(phone: String, code: String, challenge: String) async throws {
         guard !busy, stage == .signIn else { throw CancellationError() }
         let feedbackGeneration = identityGeneration

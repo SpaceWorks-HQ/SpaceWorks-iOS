@@ -128,6 +128,7 @@ struct SignInView: View {
     @State private var showPassword = false
     @State private var passwordFocused = false
     @State private var accountForm: AccountAccessState?
+    @State private var restoreForm: AccountRestoreState?
     @Environment(\.dynamicTypeSize) private var typeSize
     var body: some View {
         GeometryReader { geometry in
@@ -188,6 +189,10 @@ struct SignInView: View {
                             }
                             }
                         }.disabled(auth.busy)
+                        if auth.phoneEnabled {
+                            Button("Restore a deleted account") { restoreForm = auth.accountRestore() }
+                                .frame(minHeight: 48).disabled(auth.busy).accessibilityIdentifier("restore-account")
+                        }
                         if !state.locked { Button("Change server") { state.changeServer() }.frame(minHeight: 48).disabled(auth.busy) }
                     }.frame(maxWidth: 460)
                     if geometry.size.width >= 960 && geometry.size.height >= 600 && !typeSize.isAccessibilitySize {
@@ -203,6 +208,7 @@ struct SignInView: View {
             }.background(Color.swBg).scrollDismissesKeyboard(.interactively).accessibilityIdentifier("sign-in-scroll")
         }
         .sheet(item: $accountForm) { form in AccountAccessView(form: form) { auth.username = form.email; accountForm = nil } }
+        .sheet(item: $restoreForm) { form in AccountRestoreView(form: form) }
     }
     private func field<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {

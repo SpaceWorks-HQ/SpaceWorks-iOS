@@ -14,6 +14,7 @@ struct MemberRouteView: View {
     var payments: PaymentsState? = nil
     var staff: StaffState? = nil
     var account: AccountState? = nil
+    var insights: InsightsState? = nil
     #if DEBUG
     var onDemoDelete: (() -> Void)? = nil
     var onDemoFix: ((DemoDeletionState.Blocker) -> Void)? = nil
@@ -43,7 +44,7 @@ struct MemberRouteView: View {
                 #endif
             } else { disabledFeature("Sign in again to manage this account.") }
         case .staff:
-            if let staff { StaffView(state: staff) }
+            if let staff { StaffView(state: staff, insights: insights) }
             else { disabledFeature("Staff tools require an authorized native staff session.") }
         case .payments:
             if let payments { PaymentsView(state: payments) }

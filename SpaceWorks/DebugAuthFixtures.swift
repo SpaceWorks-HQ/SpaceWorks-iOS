@@ -23,6 +23,12 @@ enum DebugAuthFixtures {
         let value = minimum.map { "\"\($0)\"" } ?? "null"
         return #"{"email_enabled":false,"public_image_max_bytes":10485760,"password_login":{"member":true},"native":{"min_app_version":{"android":null,"ios":"# + value + #"},"providers":{"password":true,"phone":true,"google":null,"apple":null,"oidc":[]}}}"#
     }
+    static let chartSpec = #"{"series":["issued_count"],"x":{"field":"period","kind":"time"},"values":[{"field":"issued_count","unit":"loans"}],"currency_field":null,"partition":null,"negatives":"clip","truncation":null,"alt_template":"Loans by month"}"#
+    static var usage: String {
+        #"{"usage_available":true,"loans":{"count":3,"returned_count":2,"currently_out":1,"monthly":{"rows":[{"period":"2026-09","issued_count":2,"return_events":1},{"period":"2026-10","issued_count":1,"return_events":1}],"chart_spec":"# + chartSpec + #"}},"payments":{"paid_by_currency":{"inr":"1250.00"},"outstanding_by_currency":{"inr":"250.00"},"totals":{"rows":[],"chart_spec":"# + chartSpec + #"}}}"#
+    }
+    static let dashboard = #"{"scope_mode":"full","pending_requests":2,"awaiting_issue":0,"queue_tiles":{"ready_to_issue":1,"due_returns":3,"pickups":0},"widgets":[],"outstanding_by_currency":{"inr":"250.00"}}"#
+    static let messaging = #"{"sms":{"available":true,"consented":false,"phone_verified":false,"phone_masked":"","suppressed":false},"whatsapp":{"available":false,"consented":false,"phone_verified":false,"phone_masked":"","suppressed":false}}"#
     static let enrollment = #"{"secret":"TESTAUTHENTICATORKEY","provisioning_uri":"otpauth://totp/SpaceWorks:maker?secret=TESTAUTHENTICATORKEY&issuer=SpaceWorks","qr_data_url":""}"#
 }
 #endif

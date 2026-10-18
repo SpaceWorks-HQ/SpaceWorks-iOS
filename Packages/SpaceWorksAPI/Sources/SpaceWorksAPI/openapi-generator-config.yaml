@@ -118,3 +118,9 @@ filter:
     - api_v1_auth_reauth_social_start_create
     - api_v1_auth_reauth_social_complete_create
     - api_v1_auth_reauth_social_factor_create
+
+    - api_v1_member_makerspaces_my_usage_retrieve
+    - api_v1_admin_makerspace_dashboard_retrieve
+    - api_v1_me_messaging_retrieve
+    - api_v1_me_messaging_consent_create
+    - api_v1_auth_account_restore_phone_create

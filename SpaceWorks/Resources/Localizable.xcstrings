@@ -210,6 +210,17 @@
         }
       }
     },
+    "Account restored": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account restored"
+          }
+        }
+      }
+    },
     "Action preview result": {
       "extractionState": "manual",
       "localizations": {
@@ -239,6 +250,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Active loans"
+          }
+        }
+      }
+    },
+    "Active prints": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active prints"
+          }
+        }
+      }
+    },
+    "Activity details aren't available for this makerspace.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activity details aren't available for this makerspace."
           }
         }
       }
@@ -628,6 +661,17 @@
         }
       }
     },
+    "Awaiting issue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Awaiting issue"
+          }
+        }
+      }
+    },
     "Back": {
       "extractionState": "manual",
       "localizations": {
@@ -793,6 +837,17 @@
         }
       }
     },
+    "Borrowed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrowed"
+          }
+        }
+      }
+    },
     "Borrower": {
       "extractionState": "manual",
       "localizations": {
@@ -833,6 +888,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Browse inventory"
+          }
+        }
+      }
+    },
+    "By month": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By month"
           }
         }
       }
@@ -1515,6 +1581,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose up to 99 of each item."
+          }
+        }
+      }
+    },
+    "Choose whether this makerspace can reach you by text message or WhatsApp. App notifications and email are set separately.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose whether this makerspace can reach you by text message or WhatsApp. App notifications and email are set separately."
           }
         }
       }
@@ -2531,6 +2608,17 @@
         }
       }
     },
+    "Due back": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Due back"
+          }
+        }
+      }
+    },
     "Due date": {
       "extractionState": "manual",
       "localizations": {
@@ -2758,6 +2846,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Enter code manually"
+          }
+        }
+      }
+    },
+    "Enter matching new passwords.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter matching new passwords."
+          }
+        }
+      }
+    },
+    "Enter the code we sent and choose a new password.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the code we sent and choose a new password."
+          }
+        }
+      }
+    },
+    "Enter the phone number on the deleted account. If it can still be restored, we'll text a code.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the phone number on the deleted account. If it can still be restored, we'll text a code."
           }
         }
       }
@@ -3015,6 +3136,17 @@
         }
       }
     },
+    "Events attended": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Events attended"
+          }
+        }
+      }
+    },
     "Evidence photo": {
       "extractionState": "manual",
       "localizations": {
@@ -3099,6 +3231,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Failed"
+          }
+        }
+      }
+    },
+    "Failed emails": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed emails"
           }
         }
       }
@@ -3235,6 +3378,17 @@
         }
       }
     },
+    "Handover queue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handover queue"
+          }
+        }
+      }
+    },
     "Hardware requests": {
       "extractionState": "manual",
       "localizations": {
@@ -3264,6 +3418,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hidden"
+          }
+        }
+      }
+    },
+    "Hours": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hours"
           }
         }
       }
@@ -3862,6 +4027,17 @@
         }
       }
     },
+    "Loading activity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading activity"
+          }
+        }
+      }
+    },
     "Loading booking…": {
       "extractionState": "manual",
       "localizations": {
@@ -3957,6 +4133,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading…"
+          }
+        }
+      }
+    },
+    "Loans": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loans"
+          }
+        }
+      }
+    },
+    "Low stock": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Low stock"
+          }
+        }
+      }
+    },
+    "Machine time": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Machine time"
+          }
+        }
+      }
+    },
+    "Maintenance overdue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance overdue"
           }
         }
       }
@@ -4115,6 +4335,17 @@
         }
       }
     },
+    "Messages to this number are paused after a STOP reply. Contact your makerspace to resume them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Messages to this number are paused after a STOP reply. Contact your makerspace to resume them."
+          }
+        }
+      }
+    },
     "Missing": {
       "extractionState": "manual",
       "localizations": {
@@ -4155,6 +4386,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "More sessions are available in your makerspace's web portal."
+          }
+        }
+      }
+    },
+    "Most used machines": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Most used machines"
           }
         }
       }
@@ -4232,6 +4474,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No"
+          }
+        }
+      }
+    },
+    "No activity in this period yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No activity in this period yet."
           }
         }
       }
@@ -4331,6 +4584,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing here yet."
+          }
+        }
+      }
+    },
+    "Nothing needs your attention right now.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing needs your attention right now."
           }
         }
       }
@@ -4456,6 +4720,17 @@
         }
       }
     },
+    "Open Account and security": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Account and security"
+          }
+        }
+      }
+    },
     "Open Inventory, search or filter, then choose an item. Add the items you need and review quantities before submitting your request. Staff confirm availability, collection and borrowing terms.": {
       "extractionState": "manual",
       "localizations": {
@@ -4555,6 +4830,17 @@
         }
       }
     },
+    "Open problem reports": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open problem reports"
+          }
+        }
+      }
+    },
     "Open sample updates from your makerspaces. Changes stay in this preview.": {
       "extractionState": "manual",
       "localizations": {
@@ -4639,6 +4925,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Opening your update…"
+          }
+        }
+      }
+    },
+    "Out now": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Out now"
+          }
+        }
+      }
+    },
+    "Outstanding": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outstanding"
+          }
+        }
+      }
+    },
+    "Outstanding payments": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outstanding payments"
           }
         }
       }
@@ -4929,6 +5248,28 @@
         }
       }
     },
+    "Pending bookings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending bookings"
+          }
+        }
+      }
+    },
+    "Pending event registrations": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending event registrations"
+          }
+        }
+      }
+    },
     "Pending payment": {
       "extractionState": "manual",
       "localizations": {
@@ -4936,6 +5277,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pending payment"
+          }
+        }
+      }
+    },
+    "Pending payments": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending payments"
+          }
+        }
+      }
+    },
+    "Pending prints": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending prints"
+          }
+        }
+      }
+    },
+    "Pending requests": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pending requests"
           }
         }
       }
@@ -5046,6 +5420,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Photograph the equipment and its condition. Avoid faces or unrelated personal information."
+          }
+        }
+      }
+    },
+    "Pickups": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pickups"
           }
         }
       }
@@ -5259,6 +5644,17 @@
         }
       }
     },
+    "Prints awaiting collection": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prints awaiting collection"
+          }
+        }
+      }
+    },
     "Privacy and help": {
       "extractionState": "manual",
       "localizations": {
@@ -5369,6 +5765,17 @@
         }
       }
     },
+    "Ready to issue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ready to issue"
+          }
+        }
+      }
+    },
     "Reason": {
       "extractionState": "manual",
       "localizations": {
@@ -5431,6 +5838,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record return"
+          }
+        }
+      }
+    },
+    "Refresh activity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh activity"
+          }
+        }
+      }
+    },
+    "Refresh dashboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh dashboard"
           }
         }
       }
@@ -5743,6 +6172,17 @@
         }
       }
     },
+    "Reports": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reports"
+          }
+        }
+      }
+    },
     "Request an export of your personal data held by this makerspace. Keep downloaded files somewhere private.": {
       "extractionState": "manual",
       "localizations": {
@@ -5992,6 +6432,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resolve these first"
+          }
+        }
+      }
+    },
+    "Restore a deleted account": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore a deleted account"
           }
         }
       }
@@ -6645,6 +7096,17 @@
         }
       }
     },
+    "Sign in with your new password. Memberships, sessions and notifications stay off until your makerspace restores them.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in with your new password. Memberships, sessions and notifications stay off until your makerspace restores them."
+          }
+        }
+      }
+    },
     "Sign out": {
       "extractionState": "manual",
       "localizations": {
@@ -6964,6 +7426,17 @@
         }
       }
     },
+    "Stocktakes awaiting approval": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stocktakes awaiting approval"
+          }
+        }
+      }
+    },
     "Stop renewal": {
       "extractionState": "manual",
       "localizations": {
@@ -7004,6 +7477,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tell your makerspace why"
+          }
+        }
+      }
+    },
+    "Text and WhatsApp messages": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text and WhatsApp messages"
+          }
+        }
+      }
+    },
+    "Text messages (SMS)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text messages (SMS)"
           }
         }
       }
@@ -7514,6 +8009,17 @@
         }
       }
     },
+    "This makerspace doesn't send these messages.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This makerspace doesn't send these messages."
+          }
+        }
+      }
+    },
     "This makerspace doesn't share booked times. Your request is checked when submitted.": {
       "extractionState": "manual",
       "localizations": {
@@ -7811,6 +8317,17 @@
         }
       }
     },
+    "Today at a glance": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today at a glance"
+          }
+        }
+      }
+    },
     "Too many requests. Try again later.": {
       "extractionState": "manual",
       "localizations": {
@@ -8071,6 +8588,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Upcoming bookings"
+          }
+        }
+      }
+    },
+    "Upcoming events": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upcoming events"
           }
         }
       }
@@ -8482,6 +9010,17 @@
         }
       }
     },
+    "Verify your phone number in Account and security before turning this on.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verify your phone number in Account and security before turning this on."
+          }
+        }
+      }
+    },
     "View availability": {
       "extractionState": "manual",
       "localizations": {
@@ -8559,6 +9098,17 @@
         }
       }
     },
+    "Warranty expiring": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warranty expiring"
+          }
+        }
+      }
+    },
     "We sent a verification code to your phone.": {
       "extractionState": "manual",
       "localizations": {
@@ -8610,6 +9160,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "What are you making? (optional)"
+          }
+        }
+      }
+    },
+    "WhatsApp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WhatsApp"
           }
         }
       }
@@ -8764,6 +9325,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your account was deleted. You can ask to restore it before %@ using password recovery."
+          }
+        }
+      }
+    },
+    "Your activity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your activity"
           }
         }
       }

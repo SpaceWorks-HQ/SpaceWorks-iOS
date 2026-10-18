@@ -14,6 +14,7 @@ struct MemberContent: View {
     var paymentsAvailable = false
     var guidanceBookingsEnabled = true
     var openLink: ((String) -> Void)? = nil
+    var insights: InsightsState? = nil
     @State private var showCard = false
     @State private var renewal: Components.Schemas.MemberLoanActivity?
     @Environment(\.dynamicTypeSize) private var textSize
@@ -61,8 +62,9 @@ struct MemberContent: View {
                                 notices
                             }
                         }
+                        if tab == .home, let insights { UsageSection(state: insights) }
                     }.padding(24).frame(maxWidth: 1040, alignment: .leading).frame(maxWidth: .infinity)
-                }.refreshable { await state.loadHome() }
+                }.refreshable { await state.loadHome(); if tab == .home { await insights?.refreshUsage() } }
             }
         }.background(Color.swBg)
             .task(id: tab) {
