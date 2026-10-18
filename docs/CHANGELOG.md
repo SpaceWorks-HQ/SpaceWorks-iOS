@@ -1,5 +1,15 @@
 # Phase notes
 
+## C4 — Read-only demo entry diagnostic checkpoint (2026-10-18)
+
+The exact `ed2aca4` normal-tablet run passed all 302 native cases and 36 of 37 UI cases. The deletion-blocker journey stopped during demo setup: after one native Explore activation, Continue as member remained absent through the existing bounded search. Actual full-OS recording stayed on Connect; the synthesized 50 ms tap was centered on the visible Explore label. Shallow accessibility snapshots contained no descendants. Neither an account deletion/payment defect nor the cause of the missing demo destination is established.
+
+Add a third, explicitly opted-in setup diagnostic for tablet and that same existing journey, mutually exclusive with orientation/export diagnostics. Default push/PR two-profile and manual six-profile validation keep all 302 native and 37 UI cases. The test scheme defaults its setup flag to the literal false; only an explicit true diagnostic passes the additional app flag. Debug code then records fixed enum events and the demo-entry boolean around the existing action, state transition, welcome appearance, disappearance and exit. No account/form values, IDs or raw app state are logged. Diagnostic-only pre/post action pixels and frames supplement the narrow log. A fixed-subsystem collector has a 60-second process bound and archives source/profile/run-attempt status with its exit code or error kind, without raw exceptions or environment contents. Absence of events is interpretable only after collection success is verified. Existing task ownership, callbacks, gestures, waits, assertions and Release behavior remain unchanged. This checkpoint supplies missing observation, not a product fix or final acceptance.
+
+Actual Debug metadata also records the integer GitHub run attempt. Evidence artifact names retain their original first-attempt form and add an attempt suffix only for later attempts. Immutable earlier artifacts are neither overwritten nor deleted; no retry is initiated by this change.
+
+Parity: no screen, text, authority or Android behavior changes. Actual native compilation, diagnostic trace and fresh complete validation remain pending.
+
 ## C3 — Guard native navigation readiness geometry (2026-10-18)
 
 In the historical `775f298` tablet-landscape Guide journey, XCTest exposed infinite origins and zero sizes for the native window and Activity target while evaluating a raw `isHittable` predicate. Actual full-OS frames showed the sidebar and Activity row; no persistent missing content or product navigation cause was established. The shared test readiness predicate now requires finite, positive app and target frames before querying native enabled/hittable state. Apply that same predicate to the eight existing sidebar helpers and its failed-readiness diagnostic. Every existing three/ten-second wait, single native sidebar/item activation, content gesture bound and guide/account/member/staff/payment outcome remains unchanged. No app code, timeout extension, synthetic navigation or repeated input is added; fresh native proof remains required.

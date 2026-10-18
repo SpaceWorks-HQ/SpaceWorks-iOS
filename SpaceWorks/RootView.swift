@@ -1,5 +1,8 @@
 import SwiftUI
 import SpaceWorksAPI
+#if DEBUG
+import OSLog
+#endif
 
 struct RootView: View {
     @State private var state = AppState()
@@ -15,7 +18,13 @@ struct RootView: View {
                 IntroductionView { introComplete = true }
             } else {
             #if DEBUG
-            if exploringDemo { DemoRoot { exploringDemo = false } }
+            if exploringDemo {
+                DemoRoot {
+                    NativeDemoEntryDiagnostics.record(.rootExitInvoked, exploringDemo: exploringDemo)
+                    exploringDemo = false
+                    NativeDemoEntryDiagnostics.record(.rootExitCompleted, exploringDemo: exploringDemo)
+                }
+            }
             else { liveContent }
             #else
             liveContent
@@ -49,6 +58,11 @@ struct RootView: View {
             await state.restore()
         }
         .onChange(of: linkRouter.revision) { _, _ in Task { await linkRouter.process() } }
+        #if DEBUG
+        .onChange(of: exploringDemo) { _, value in
+            NativeDemoEntryDiagnostics.record(.rootStateChanged, exploringDemo: value)
+        }
+        #endif
         .onOpenURL { url in
             #if DEBUG
             guard !exploringDemo else { return }
@@ -85,7 +99,11 @@ struct RootView: View {
             }
             #if DEBUG
             if state.screen == .connect {
-                Button("Explore demo") { exploringDemo = true }.frame(minHeight: 48).accessibilityIdentifier("explore-demo")
+                Button("Explore demo") {
+                    NativeDemoEntryDiagnostics.record(.exploreActionEntered, exploringDemo: exploringDemo)
+                    exploringDemo = true
+                    NativeDemoEntryDiagnostics.record(.exploreActionCompleted, exploringDemo: exploringDemo)
+                }.frame(minHeight: 48).accessibilityIdentifier("explore-demo")
                     .frame(maxWidth: .infinity).background(Color.swSurface)
             }
             #endif
@@ -345,3 +363,27 @@ private struct MemberScreen: View {
         }
     }
 }
+
+#if DEBUG
+/// Explicit diagnostic observation only: fixed events/booleans, never account or form data.
+@MainActor enum NativeDemoEntryDiagnostics {
+    enum Event: String {
+        case exploreActionEntered = "explore-action-entered"
+        case exploreActionCompleted = "explore-action-completed"
+        case rootStateChanged = "root-state-changed"
+        case demoRootAppeared = "demo-root-appeared"
+        case demoRootDisappeared = "demo-root-disappeared"
+        case welcomeAppeared = "welcome-appeared"
+        case exitButtonInvoked = "exit-button-invoked"
+        case rootExitInvoked = "root-exit-invoked"
+        case rootExitCompleted = "root-exit-completed"
+    }
+    private static let logger = Logger(subsystem: "org.spaceworks.demo-entry-diagnostics", category: "entry")
+    static func record(_ event: Event, exploringDemo: Bool? = nil) {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("--ui-testing"), arguments.contains("--ui-demo-entry-diagnostics") else { return }
+        let state = exploringDemo.map { $0 ? "true" : "false" } ?? "not-applicable"
+        logger.notice("SpaceWorksDemoEntry event=\(event.rawValue, privacy: .public) exploringDemo=\(state, privacy: .public)")
+    }
+}
+#endif

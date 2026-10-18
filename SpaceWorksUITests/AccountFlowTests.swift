@@ -4,8 +4,16 @@ final class AccountFlowTests: XCTestCase {
     override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
     private func tap(_ element: XCUIElement, in app: XCUIApplication) { NativeUIActions.tap(element, in: app) }
     private func account(extra: [String] = [], withoutMakerspace: Bool = false) -> XCUIApplication {
-        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launchForDeviceProfile()
-        tap(app.buttons["explore-demo"], in: app); tap(app.buttons["Continue as member"], in: app)
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra
+        if ProcessInfo.processInfo.environment["SPACEWORKS_SETUP_DIAGNOSTIC"] == "true" {
+            app.launchArguments.append("--ui-demo-entry-diagnostics")
+        }
+        app.launchForDeviceProfile()
+        let explore = app.buttons["explore-demo"]
+        recordDemoEntry("before native Explore", element: explore, in: app)
+        tap(explore, in: app)
+        recordDemoEntry("after native Explore", element: explore, in: app)
+        tap(app.buttons["Continue as member"], in: app)
         let username = app.textFields["demo-username"]; tap(username, in: app); username.typeText("member\n")
         app.secureTextFields["demo-password"].typeText("sample\n"); tap(app.buttons["demo-sign-in"], in: app)
         if !withoutMakerspace {
@@ -37,6 +45,16 @@ final class AccountFlowTests: XCTestCase {
         XCTAssertTrue(entry.waitForNonExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars["Account and security"].waitForExistence(timeout: 5))
         return app
+    }
+    private func recordDemoEntry(_ phase: String, element: XCUIElement, in app: XCUIApplication) {
+        guard ProcessInfo.processInfo.environment["SPACEWORKS_SETUP_DIAGNOSTIC"] == "true" else { return }
+        let exists = element.exists
+        print("SpaceWorksDemoEntryTest \(phase) appFrame=\(app.frame) exploreExists=\(exists) exploreFrame=\(exists ? String(describing: element.frame) : "unavailable")")
+        XCTContext.runActivity(named: "Demo entry " + phase) { activity in
+            let pixels = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            pixels.name = "Demo entry " + phase; pixels.lifetime = .keepAlways
+            activity.add(pixels)
+        }
     }
     private func confirmNativeDialog(_ title: String, action label: String, in app: XCUIApplication) {
         if title == "Leave this makerspace?" || title == "Cancel membership renewal?" {

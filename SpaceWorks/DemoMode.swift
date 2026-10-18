@@ -103,7 +103,10 @@ struct DemoRoot: View {
             HStack {
                 Text("Demo mode · sample data").brandFont(.caption, weight: .bold)
                 Spacer()
-                Button { session.reset(); exit() } label: {
+                Button {
+                    NativeDemoEntryDiagnostics.record(.exitButtonInvoked)
+                    session.reset(); exit()
+                } label: {
                     Label("Exit demo", systemImage: "xmark").labelStyle(.iconOnly)
                         .font(.title3).frame(minWidth: 48, minHeight: 48)
                         .contentShape(Rectangle())
@@ -121,7 +124,8 @@ struct DemoRoot: View {
             .safeAreaInset(edge: .bottom) { MobileLinkNotice(router: linkRouter) }
             .onChange(of: linkRouter.revision) { _, _ in Task { await linkRouter.process() } }
             .onChange(of: session.stage) { _, _ in bindRouting() }
-            .onDisappear { linkRouter.reset() }
+            .onAppear { NativeDemoEntryDiagnostics.record(.demoRootAppeared) }
+            .onDisappear { linkRouter.reset(); NativeDemoEntryDiagnostics.record(.demoRootDisappeared) }
     }
     private func bindRouting() {
         guard session.stage == .shell else { linkRouter.unbind(); return }
@@ -153,6 +157,7 @@ struct DemoAuthView: View {
                     switch session.stage {
                     case .welcome:
                         Text("Make yourself at home.").brandFont(.largeTitle, weight: .bold)
+                            .onAppear { NativeDemoEntryDiagnostics.record(.welcomeAppeared) }
                         Text("Explore sample makerspaces and complete app flows. Nothing is sent to a server.").foregroundStyle(Color.swMuted)
                         Picker("Demo role", selection: $session.role) { ForEach(DemoSession.Role.allCases, id: \.self) { Text(LocalizedStringKey($0.rawValue)) } }
                             .pickerStyle(.segmented).accessibilityIdentifier("demo-role")
