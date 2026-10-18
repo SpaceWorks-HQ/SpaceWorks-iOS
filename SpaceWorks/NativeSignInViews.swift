@@ -120,6 +120,11 @@ struct PhoneSignInView: View {
                         Text("Verification code").brandFont(.headline)
                         TextField("Verification code", text: $form.code)
                             .textContentType(.oneTimeCode).keyboardType(.numberPad).focused($focused)
+                            .submitLabel(.go).onSubmit { Task { await form.verify() } }
+                            // A complete code (typed or filled from Messages) verifies once; the button stays as a fallback.
+                            .onChange(of: form.code) { _, value in
+                                if value.count == 6, value.allSatisfy({ $0.isASCII && $0.isNumber }), !form.busy { focused = false; Task { await form.verify() } }
+                            }
                             .padding(16).background(Color.swBg, in: RoundedRectangle(cornerRadius: 10))
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.swOutline)).accessibilityIdentifier("phone-code")
                         if let error = form.error { SWError(message: error) }

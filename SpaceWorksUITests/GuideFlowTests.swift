@@ -22,10 +22,11 @@ final class GuideFlowTests: XCTestCase {
         if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
             let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
             let sidebarReady = XCTNSPredicateExpectation(predicate: readiness, object: sidebar)
-            XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
+            // Tablet accessibility evaluation can be slow; match the ten-second sidebar bound used elsewhere.
+            XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 10), .completed)
             sidebar.tap()
             let opened = XCTNSPredicateExpectation(predicate: readiness, object: target)
-            XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
+            XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 10), .completed)
         }
         tap(target, in: app)
     }
