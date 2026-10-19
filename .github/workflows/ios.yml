@@ -2,50 +2,265 @@ name: iOS
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      orientation_diagnostic:
+        description: Read-only tablet landscape diagnostic (one existing UI journey; not final acceptance)
+        type: boolean
+        default: false
+      export_diagnostic:
+        description: Read-only large phone and tablet export diagnostic (one existing UI journey; not final acceptance)
+        type: boolean
+        default: false
+      setup_diagnostic:
+        description: Read-only tablet demo-entry diagnostic (one existing UI journey; not final acceptance)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: ios-${{ github.ref }}
+  group: ios-${{ github.event_name == 'workflow_dispatch' && format('full-{0}', github.run_id) || format('{0}-{1}-{2}', github.event_name, github.event.pull_request.head.repo.full_name || github.repository, github.head_ref || github.ref_name) }}
   cancel-in-progress: true
 jobs:
   build-and-test:
     runs-on: macos-15
-    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      ORIENTATION_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.orientation_diagnostic && 'true' || 'false' }}
+      EXPORT_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.export_diagnostic && 'true' || 'false' }}
+      SETUP_DIAGNOSTIC: ${{ github.event_name == 'workflow_dispatch' && inputs.setup_diagnostic && 'true' || 'false' }}
+    timeout-minutes: 120
+    name: Build and test (${{ matrix.device }})
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        device: ${{ fromJSON(github.event_name == 'workflow_dispatch' && (inputs.setup_diagnostic && '["tablet"]' || inputs.export_diagnostic && '["large","tablet"]' || inputs.orientation_diagnostic && '["tablet-landscape"]' || '["compact","phone","large","tablet","tablet-landscape","large-tablet"]') || '["phone","tablet"]') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream and actual focused47 job
         with:
           submodules: recursive
+          persist-credentials: false
+      - name: Validate diagnostic selection
+        run: |
+          diagnostics=0
+          for flag in "$ORIENTATION_DIAGNOSTIC" "$EXPORT_DIAGNOSTIC" "$SETUP_DIAGNOSTIC"; do
+            if [ "$flag" = true ]; then diagnostics=$((diagnostics + 1)); fi
+          done
+          if [ "$diagnostics" -gt 1 ]; then
+            echo "Select at most one explicit diagnostic purpose."
+            exit 1
+          fi
+      - name: Verify pinned Xcode and SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-version
       - name: Install project and icon generators
-        run: brew install xcodegen librsvg
+        run: |
+          brew install xcodegen librsvg
+          python3 scripts/check_build_tools.py
+      - name: Restore Swift package sources
+        id: package-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: SourcePackages
+          key: ${{ runner.os }}-${{ runner.arch }}-spm-v2-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-spm-v2-
+            ${{ runner.os }}-${{ runner.arch }}-spm-
+      - name: Identify Xcode build cache
+        id: xcode-cache
+        shell: bash
+        run: |
+          XCODE_BUILD=$(xcodebuild -version | tr '\n' '-' | tr -cd '[:alnum:].-')
+          SIM_SDK_BUILD=$(xcrun --sdk iphonesimulator --show-sdk-build-version)
+          DEVICE_SDK_BUILD=$(xcrun --sdk iphoneos --show-sdk-build-version)
+          echo "identity=$XCODE_BUILD-$SIM_SDK_BUILD-$DEVICE_SDK_BUILD" >> "$GITHUB_OUTPUT"
+      - name: Cache compiled dependencies and build intermediates
+        id: compiled-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            DerivedData/Build
+            DerivedData/ModuleCache.noindex
+            DerivedData/SDKStatCaches.noindex
+          key: ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-${{ matrix.device }}-${{ github.sha }}
+          restore-keys: |
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-${{ matrix.device }}-
+            ios-build-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode-cache.outputs.identity }}-${{ hashFiles('project.yml', 'Packages/**/Package.swift', 'Dependencies/Package.resolved') }}-
       - name: Generate and validate source inputs
         run: |
           python3 scripts/generate.py
           python3 -m unittest discover -s scripts/tests -v
           python3 scripts/lint.py
           xcodegen generate
-      - name: Select available iPhone simulator
+          python3 scripts/dependency_lock.py stage
+      - name: Select phone or tablet simulator
         run: |
-          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for r,v in d["devices"].items() if "iOS" in r for x in v if "iPhone" in x["name"]))')
-          echo "SIMULATOR_ID=$DEVICE" >> "$GITHUB_ENV"
-      - name: Compile and test on simulator
+          python3 scripts/device-matrix.py '${{ matrix.device }}'
+      - name: Compile app and native test bundles
         run: |
           set -o pipefail
-          xcodebuild test -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee build.log
+          xcodebuild build-for-testing -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" "SPACEWORKS_SETUP_DIAGNOSTIC=$SETUP_DIAGNOSTIC" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= | tee build.log
+      - name: Verify reviewed dependency lock
+        run: python3 scripts/dependency_lock.py check
+      - name: Inspect actual built Debug bundle metadata
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, plistlib, subprocess
+          app = pathlib.Path('DerivedData/Build/Products/Debug-iphonesimulator/SpaceWorks.app')
+          info = plistlib.loads((app / 'Info.plist').read_bytes())
+          source = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          required = {'UIInterfaceOrientationPortrait', 'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'}
+          orientations = {key: value for key, value in info.items() if key.startswith('UISupportedInterfaceOrientations')}
+          scene = info.get('UIApplicationSceneManifest', {})
+          validations = {
+              'source_matches_checkout': source == os.environ['GITHUB_SHA'],
+              'single_scene_explicit': scene.get('UIApplicationSupportsMultipleScenes') is False,
+              'phone_and_tablet_families': set(info.get('UIDeviceFamily', [])) == {1, 2},
+              'phone_orientations': required <= set(info.get('UISupportedInterfaceOrientations~iphone', info.get('UISupportedInterfaceOrientations', []))),
+              'tablet_orientations': required <= set(info.get('UISupportedInterfaceOrientations~ipad', []))}
+          diagnostic = os.environ['ORIENTATION_DIAGNOSTIC'] == 'true'
+          export_diagnostic = os.environ['EXPORT_DIAGNOSTIC'] == 'true'
+          setup_diagnostic = os.environ['SETUP_DIAGNOSTIC'] == 'true'
+          assert sum([diagnostic, export_diagnostic, setup_diagnostic]) <= 1
+          run_attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
+          assert run_attempt >= 1
+          dependency_lock = json.loads(pathlib.Path('dependency-lock-validation.json').read_text(encoding='utf-8'))
+          report = {'dependency_lock': dependency_lock, 'kind': 'setup-diagnostic-built-debug-metadata' if setup_diagnostic else 'export-diagnostic-built-debug-metadata' if export_diagnostic else 'orientation-diagnostic-built-debug-metadata' if diagnostic else 'canonical-built-debug-metadata', 'source_sha': source, 'run_attempt': run_attempt,
+                    'purpose': 'read-only-demo-entry-diagnostic' if setup_diagnostic else 'read-only-native-export-diagnostic' if export_diagnostic else 'read-only-orientation-diagnostic' if diagnostic else 'complete-native-validation',
+                    'ui_selection': 'SpaceWorksUITests/AccountFlowTests/testDeletionBlockerOpensCurrentMakerspacePaymentFlow' if setup_diagnostic else 'SpaceWorksUITests/AccountFlowTests/testLargestTextLandscapeExportCanReachNativeShare' if export_diagnostic else 'SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel' if diagnostic else 'SpaceWorksUITests',
+                    'profile': os.environ['DEVICE_PROFILE'], 'bundle_id': info.get('CFBundleIdentifier'),
+                    'sdk': info.get('DTSDKName'), 'device_families': info.get('UIDeviceFamily'),
+                    'fonts': info.get('UIAppFonts', []), 'scene_manifest': scene,
+                    'orientations': orientations, 'validations': validations}
+          pathlib.Path('validation-debug-bundle.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          assert all(validations.values()), validations
+          PY
+      - name: Run native state and API tests
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -resultBundlePath NativeTestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" "SPACEWORKS_SETUP_DIAGNOSTIC=$SETUP_DIAGNOSTIC" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= -only-testing:SpaceWorksTests | tee -a build.log
+      - name: Run native UI journeys
+        run: |
+          set -o pipefail
+          UI_SELECTION=SpaceWorksUITests
+          if [ "$SETUP_DIAGNOSTIC" = true ]; then
+            UI_SELECTION=SpaceWorksUITests/AccountFlowTests/testDeletionBlockerOpensCurrentMakerspacePaymentFlow
+          elif [ "$EXPORT_DIAGNOSTIC" = true ]; then
+            UI_SELECTION=SpaceWorksUITests/AccountFlowTests/testLargestTextLandscapeExportCanReachNativeShare
+          elif [ "$ORIENTATION_DIAGNOSTIC" = true ]; then
+            UI_SELECTION=SpaceWorksUITests/MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel
+          fi
+          xcodebuild test-without-building -project SpaceWorks.xcodeproj -scheme SpaceWorks -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -resultBundlePath TestResults.xcresult -skipPackagePluginValidation "SPACEWORKS_TEST_PROFILE=$DEVICE_PROFILE" "SPACEWORKS_SETUP_DIAGNOSTIC=$SETUP_DIAGNOSTIC" ONLY_ACTIVE_ARCH=YES CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= "-only-testing:$UI_SELECTION" | tee -a build.log
       - name: Export UI screenshots
         if: always()
         run: |
           if [ -d TestResults.xcresult ]; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path TestAttachments || true
           fi
+      - name: Compile unsigned Release for a physical iOS device
+        if: success() && matrix.device == 'phone'
+        run: |
+          set -o pipefail
+          xcodebuild build -project SpaceWorks.xcodeproj -scheme SpaceWorks -configuration Release -destination 'generic/platform=iOS' -derivedDataPath DerivedData -clonedSourcePackagesDirPath SourcePackages -disableAutomaticPackageResolution -onlyUsePackageVersionsFromResolvedFile -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tee release-build.log
+      - name: Audit unsigned Release bundle resources
+        if: success() && matrix.device == 'phone'
+        run: |
+          python3 scripts/audit_bundle.py DerivedData/Build/Products/Release-iphoneos/SpaceWorks.app
+          python3 scripts/dependency_lock.py check
+      - name: Collect read-only native orientation diagnostics
+        if: always()
+        run: |
+          if [ -n "$SIMULATOR_ID" ]; then
+            xcrun simctl spawn "$SIMULATOR_ID" log show --last 120m --style compact --info --predicate 'subsystem == "org.spaceworks.orientation-diagnostics" AND category == "orientation"' > orientation-system.log 2>&1 || true
+          fi
+      - name: Collect bounded native presentation service metadata
+        if: always() && env.EXPORT_DIAGNOSTIC == 'true'
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, re, subprocess
+          predicate = '(process == "SpaceWorks" OR process CONTAINS[c] "ShareSheet" OR process == "sharingd" OR process CONTAINS[c] "Activity" OR subsystem CONTAINS[c] "Share")'
+          report = {'kind': 'redacted-native-presentation-service-metadata', 'purpose': 'read-only-native-export-diagnostic', 'source_sha': os.environ['GITHUB_SHA'], 'profile': os.environ['DEVICE_PROFILE'], 'window_minutes': 20, 'raw_messages_retained': False, 'records': []}
+          try:
+              result = subprocess.run(['xcrun', 'simctl', 'spawn', os.environ['SIMULATOR_ID'], 'log', 'show', '--last', '20m', '--style', 'json', '--info', '--predicate', predicate], capture_output=True, text=True, timeout=60)
+              report['collection_exit_code'] = result.returncode
+              entries = json.loads(result.stdout) if result.returncode == 0 else []
+              report['matched_events'] = len(entries)
+              for event in entries[-10000:]:
+                  message = event.get('eventMessage', '')
+                  classifications = [word for word in ['error', 'fault', 'crash', 'termination', 'dismiss', 'load', 'invalid', 'interrupt', 'connection', 'present', 'activity', 'extension'] if word in message.lower()]
+                  if not classifications:
+                      continue
+                  # Export only fixed classifications/numeric error codes and log metadata.
+                  # Never retain arbitrary app/system messages, archive paths or user text.
+                  domains = sorted(set(re.findall(r'\b(?:NSCocoaErrorDomain|NSPOSIXErrorDomain|NSOSStatusErrorDomain|NSMachErrorDomain|RBSRequestErrorDomain|RBSAssertionErrorDomain)\b', message)))
+                  codes = sorted(set(re.findall(r'\bCode\s*=\s*(-?\d+)\b', message)))
+                  report['records'].append({'timestamp': event.get('timestamp'), 'process': pathlib.PurePosixPath(event.get('processImagePath', '')).name, 'subsystem': event.get('subsystem'), 'category': event.get('category'), 'message_type': event.get('messageType'), 'classifications': classifications, 'error_domains': domains, 'error_codes': codes})
+              report['truncated_to_last_events'] = len(entries) > 10000
+          except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError) as error:
+              report['collection_error_kind'] = type(error).__name__
+          pathlib.Path('native-presentation-service-metadata.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: Collect read-only demo entry diagnostics
+        if: always() && env.SETUP_DIAGNOSTIC == 'true'
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          log = pathlib.Path('demo-entry-system.log')
+          log.write_text('', encoding='utf-8')
+          report = {'kind': 'demo-entry-diagnostic-collection-status', 'source_sha': os.environ['GITHUB_SHA'], 'profile': os.environ.get('DEVICE_PROFILE'), 'run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']), 'window_minutes': 20, 'timeout_seconds': 60, 'collection_success': False}
+          simulator = os.environ.get('SIMULATOR_ID')
+          if not simulator:
+              report['error_kind'] = 'MissingSimulator'
+          else:
+              try:
+                  result = subprocess.run(['xcrun', 'simctl', 'spawn', simulator, 'log', 'show', '--last', '20m', '--style', 'compact', '--info', '--predicate', 'subsystem == "org.spaceworks.demo-entry-diagnostics" AND category == "entry"'], capture_output=True, text=True, timeout=60)
+                  log.write_text(result.stdout, encoding='utf-8')
+                  report['collection_exit_code'] = result.returncode
+                  report['collection_success'] = result.returncode == 0
+              except (subprocess.TimeoutExpired, OSError) as error:
+                  report['error_kind'] = type(error).__name__
+          pathlib.Path('demo-entry-collection.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          PY
       - name: Archive validation evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ios-validation
+          name: ${{ env.SETUP_DIAGNOSTIC == 'true' && 'ios-setup-diagnostic' || env.EXPORT_DIAGNOSTIC == 'true' && 'ios-export-diagnostic' || env.ORIENTATION_DIAGNOSTIC == 'true' && 'ios-orientation-diagnostic' || 'ios-validation' }}-${{ matrix.device }}${{ github.run_attempt > 1 && format('-attempt-{0}', github.run_attempt) || '' }}
           path: |
+            NativeTestResults.xcresult
             TestResults.xcresult
             TestAttachments
             build.log
+            release-build.log
+            validation-device.json
+            validation-bundle.json
+            validation-debug-bundle.json
+            dependency-lock-validation.json
+            build-tools.json
+            Dependencies/Package.resolved
+            orientation-system.log
+            demo-entry-system.log
+            demo-entry-collection.json
+            native-presentation-service-metadata.json
             DerivedData/Build/Intermediates.noindex/BuildToolPluginIntermediates/**/GeneratedSources/*.swift
             SpaceWorks.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
           retention-days: 7
+      - name: Save Swift package sources after validation
+        if: always() && !cancelled() && steps.package-cache.outputs.cache-primary-key != '' && steps.package-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: SourcePackages
+          key: ${{ steps.package-cache.outputs.cache-primary-key }}
+      - name: Save compiler cache after validation
+        if: always() && !cancelled() && steps.compiled-cache.outputs.cache-primary-key != '' && steps.compiled-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            DerivedData/Build
+            DerivedData/ModuleCache.noindex
+            DerivedData/SDKStatCaches.noindex
+          key: ${{ steps.compiled-cache.outputs.cache-primary-key }}

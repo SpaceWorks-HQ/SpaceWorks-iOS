@@ -1,0 +1,87 @@
+import XCTest
+
+final class NotificationsFlowTests: XCTestCase {
+    override func setUp() { continueAfterFailure = false; XCUIDevice.shared.orientation = .portrait }
+    private func tap(_ element: XCUIElement, _ app: XCUIApplication) { NativeUIActions.tap(element, in: app) }
+    private func tab(_ app: XCUIApplication, _ name: String) {
+        if app.tabBars.buttons[name].exists { tap(app.tabBars.buttons[name], app); return }
+        let item = app.buttons["nav-\(name)"]
+        let readiness = NativeUIActions.readiness(in: app)
+        let ready = XCTNSPredicateExpectation(predicate: readiness, object: item)
+        if XCTWaiter.wait(for: [ready], timeout: 3) != .completed {
+            let sidebar = app.navigationBars.buttons.matching(NSPredicate(format: "label ==[c] %@ OR label ==[c] %@", "Show Sidebar", "Toggle Sidebar")).firstMatch
+            let sidebarReady = XCTNSPredicateExpectation(predicate: readiness, object: sidebar)
+            XCTAssertEqual(XCTWaiter.wait(for: [sidebarReady], timeout: 3), .completed)
+            sidebar.tap()
+            let opened = XCTNSPredicateExpectation(predicate: readiness, object: item)
+            XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 3), .completed)
+        }
+        tap(item, app)
+    }
+    private func notifications(extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication(); app.launchArguments = ["--ui-testing"] + extra; app.launchForDeviceProfile()
+        tap(app.buttons["explore-demo"], app); tap(app.buttons["Continue as member"], app)
+        let username = app.textFields["demo-username"]; tap(username, app); username.typeText("meera\n")
+        app.secureTextFields["demo-password"].typeText("sample\n")
+        tap(app.buttons["demo-sign-in"], app); tap(app.buttons["demo-space-0"], app)
+        XCTAssertTrue(app.staticTexts["Welcome back, Meera Nair."].waitForExistence(timeout: 10))
+        tab(app, "Profile"); tap(app.descendants(matching: .any)["notifications-entry"].firstMatch, app)
+        return app
+    }
+    private func capture(_ name: String) {
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); image.name = name; image.lifetime = .keepAlways; add(image)
+    }
+    func testLargestTextPermissionDeniedAndUnauthorizedTapHaveRecoverableInAppStates() {
+        let app = notifications(extra: ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"])
+        XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
+        capture("Native notification heading")
+        NativeUIActions.tap(app.switches["Preview permission denied"], in: app, requireWholeFrame: true)
+        XCTAssertTrue(app.staticTexts["Notifications are off for this device."].exists)
+        tap(app.buttons["Open system settings"], app)
+        XCTAssertTrue(app.staticTexts["notification-preview-feedback"].exists); XCTAssertEqual(app.state, .runningForeground)
+        NativeUIActions.tap(app.switches["Preview permission denied"], in: app, requireWholeFrame: true)
+        tap(app.buttons["enable-demo-notifications"], app)
+        tap(app.buttons["demo-push-denied"], app)
+        XCTAssertTrue(app.staticTexts["mobile-link-error"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["mobile-link-error"].label, "This makerspace isn't available to your account.")
+        capture("Notification permission and authorization refusal")
+        tap(app.buttons["Dismiss"], app)
+        XCTAssertTrue(app.buttons["demo-push-product"].exists)
+        tap(app.buttons["demo-push-other-space"], app)
+        XCTAssertTrue(app.buttons["Mark all as read"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Maker Space Bengaluru"].exists)
+        let unread = app.staticTexts.matching(NSPredicate(format: "identifier BEGINSWITH %@", "inbox-unread-")).firstMatch
+        XCTAssertTrue(unread.waitForExistence(timeout: 8))
+        XCTAssertEqual(unread.label, "Unread")
+        let heading = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "inbox-heading-")).firstMatch
+        XCTAssertTrue(heading.waitForExistence(timeout: 8))
+        // Reveal the actual containing title/status group with the existing helper.
+        // This group has no action handler; the native tap does not mark it read.
+        NativeUIActions.tap(heading, in: app, requireWholeFrame: true)
+        let title = app.staticTexts["Your kit is ready"].firstMatch
+        XCTAssertTrue(title.exists)
+        let readiness = NativeUIActions.readiness(in: app)
+        let top = app.navigationBars.allElementsBoundByIndex.filter { readiness.evaluate(with: $0) }.map { $0.frame.maxY }.max() ?? app.frame.minY
+        let bottom = app.tabBars.allElementsBoundByIndex.filter { readiness.evaluate(with: $0) }.map { $0.frame.minY }.min() ?? app.frame.maxY
+        let viewport = CGRect(x: app.frame.minX, y: top, width: app.frame.width, height: max(0, bottom - top)).insetBy(dx: 2, dy: 2)
+        for element in [title, unread] {
+            XCTAssertTrue(readiness.evaluate(with: element))
+            XCTAssertTrue(viewport.contains(element.frame), "The whole Inbox title and unread status must be visible.")
+        }
+        capture("Native unread Inbox heading at largest text")
+    }
+    func testNotificationRefetchOpensProductAndAnotherAuthorizedMakerspaceInboxAcrossRotation() {
+        let app = notifications(); tap(app.buttons["enable-demo-notifications"], app)
+        tap(app.buttons["demo-push-product"], app)
+        XCTAssertTrue(app.staticTexts["Digital multimeter"].firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Add to request"].exists); capture("Authorized notification opens fresh inventory detail")
+        tab(app, "Profile")
+        if !app.buttons["demo-push-other-space"].exists { tap(app.descendants(matching: .any)["notifications-entry"].firstMatch, app) }
+        tap(app.buttons["demo-push-other-space"], app)
+        XCTAssertTrue(app.buttons["Mark all as read"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Maker Space Bengaluru"].exists)
+        app.rotateToLandscapeAndWait(timeout: 5)
+        XCTAssertGreaterThan(app.frame.width, app.frame.height)
+        capture("Notification switches authorized makerspace then opens Inbox landscape")
+    }
+}

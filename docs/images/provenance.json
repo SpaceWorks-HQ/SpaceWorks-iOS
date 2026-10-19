@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "capture_source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+  "capture_run": 39101474324,
+  "purpose": "original historical UI gallery; not final whole-matrix acceptance",
+  "global_matrix_acceptance": false,
+  "assets": [
+    {
+      "destination": "docs/images/onboarding.png",
+      "sha256": "ed8c8b903a5df85fc537e6e339e728ed718a2bee8d9cc35446425d3e0bedee3a",
+      "type": "screenshot",
+      "source": {
+        "source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+        "run": 39101474324,
+        "artifact_id": 12127604558,
+        "job_id": 117598452693,
+        "profile": "phone",
+        "test": "MainFlowTests/testOptionalIntroductionCompletesAndStaysDismissed()",
+        "prefix": "Introduction first page",
+        "artifact_path": "TestAttachments/87627424-90AB-403D-8D6F-D798D2405105.png",
+        "profile_job_conclusion": "success"
+      }
+    },
+    {
+      "destination": "docs/images/inventory.png",
+      "sha256": "b4c9afdc9a910b13c42fccbf3f4db89a70fa4c4a0f0c09ecee872c0985b820f1",
+      "type": "screenshot",
+      "source": {
+        "source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+        "run": 39101474324,
+        "artifact_id": 12127604558,
+        "job_id": 117598452693,
+        "profile": "phone",
+        "test": "MemberFlowTests/testMemberInventorySearchDetailAndInboxRead()",
+        "prefix": "Inventory item detail",
+        "artifact_path": "TestAttachments/E2A582ED-9855-424D-8902-76B4C18F52BA.png",
+        "profile_job_conclusion": "success"
+      }
+    },
+    {
+      "destination": "docs/images/request-review.png",
+      "sha256": "2942ef27d9d453fc970f0fb1ff6dc5c747c414437ebd44e17583b2adcc983bbf",
+      "type": "screenshot",
+      "source": {
+        "source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+        "run": 39101474324,
+        "artifact_id": 12127604558,
+        "job_id": 117598452693,
+        "profile": "phone",
+        "test": "MemberActionsFlowTests/testReviewedRequestSubmissionAndExplicitLoanRenewal()",
+        "prefix": "Request review before submission",
+        "artifact_path": "TestAttachments/E3C3EF7B-8585-40F3-B56F-784E7A8C1B8E.png",
+        "profile_job_conclusion": "success"
+      }
+    },
+    {
+      "destination": "docs/images/ipad-sign-in.png",
+      "sha256": "925594035350e06e3be63b1fbab9d33dc0d3558f6c213463f73afa1862e6d9e7",
+      "type": "screenshot",
+      "source": {
+        "source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+        "run": 39101474324,
+        "artifact_id": 12127624212,
+        "job_id": 117598452666,
+        "profile": "large-tablet",
+        "test": "MainFlowTests/testRegularTextDarkLandscapeSignInUsesNativeBrandPanel()",
+        "prefix": "Sign in regular text dark landscape",
+        "artifact_path": "TestAttachments/626DECD9-917A-4023-97D0-03F5D17257A3.png",
+        "profile_job_conclusion": "success"
+      }
+    },
+    {
+      "destination": "docs/images/ipad-profile.png",
+      "sha256": "b58c096b43f07b1707bb156530eb5d60e34801337455a06116e6a282a07026c9",
+      "type": "screenshot",
+      "source": {
+        "source_sha": "775f2980d2da7c8a1412024b003d485fe33cc2b7",
+        "run": 39101474324,
+        "artifact_id": 12127624212,
+        "job_id": 117598452666,
+        "profile": "large-tablet",
+        "test": "MemberActionsFlowTests/testProfileDraftSurvivesRotationAndOptionalPreferencesCanChange()",
+        "prefix": "Native profile saved landscape",
+        "artifact_path": "TestAttachments/D584002F-5404-4D46-952C-E07052407DF8.png",
+        "profile_job_conclusion": "success"
+      }
+    },
+    {
+      "destination": "docs/images/spaceworks-icon.png",
+      "sha256": "1b145ed6fe56fccd266c1e705c15f818b4b8e31311ce84d30d369ae332375dd5",
+      "type": "logo",
+      "source": {
+        "repository": "design",
+        "commit": "fd28f825086a2cac7fa297881f1860b9d332db69",
+        "path": "logo/app-icon.png"
+      }
+    }
+  ]
+}

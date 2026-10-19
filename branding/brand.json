@@ -7,5 +7,7 @@
   "support_url": null,
   "privacy_url": null,
   "theme_tokens": "design/tokens/tokens.json",
-  "app_icon": "branding/app-icon.svg"
+  "app_icon": "branding/app-icon.svg",
+  "aps_environment": null,
+  "associated_domains": []
 }

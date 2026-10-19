@@ -15,3 +15,18 @@ google-services.json
 *.mobileprovision
 *.xcresult/
 __pycache__/
+/validation-device.json
+/TestAttachments/
+/build.log
+/SourcePackages/
+/release-build.log
+
+# Private deployment inputs; templates remain reviewable.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+/dependency-lock-validation.json
+/build-tools.json

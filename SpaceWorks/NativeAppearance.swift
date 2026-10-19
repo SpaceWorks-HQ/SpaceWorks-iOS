@@ -1,6 +1,6 @@
 import UIKit
 
-/// Native bars use the same adaptive semantic assets as SwiftUI content.
+/// Keep modern system navigation materials; older bars use adaptive semantic assets.
 @MainActor
 enum NativeAppearance {
     static func color(_ role: String) -> UIColor {
@@ -30,12 +30,23 @@ enum NativeAppearance {
             layout.normal.titleTextAttributes = [.foregroundColor: color("muted")]
             layout.selected.iconColor = color("accent-ink")
             layout.selected.titleTextAttributes = [.foregroundColor: color("accent-ink")]
+            for state in [layout.normal, layout.selected] {
+                state.badgeBackgroundColor = color("danger")
+                state.badgeTextAttributes = [.foregroundColor: color("bg")]
+            }
         }
         return appearance
     }
 
     static func apply() {
         let navigation = UINavigationBar.appearance()
+        // UIKit supplies Liquid Glass and scroll-edge treatment on iOS 26.
+        // Custom appearance backgrounds can cover those system materials (Apple TN3106).
+        if #available(iOS 26, *) {
+            navigation.tintColor = color("accent-ink")
+            UITabBar.appearance().tintColor = color("accent-ink")
+            return
+        }
         let navigationStyle = self.navigation()
         navigation.standardAppearance = navigationStyle
         navigation.scrollEdgeAppearance = navigationStyle

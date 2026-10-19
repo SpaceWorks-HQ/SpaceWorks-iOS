@@ -5,10 +5,12 @@ Run before xcodegen generate, and again automatically before app builds.
 """
 import argparse
 import hashlib
+import importlib.util
 import json
 import pathlib
 import plistlib
 import re
+import shutil
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -29,6 +31,37 @@ def inside(relative):
 
 def generate(raster=True):
     brand = json.loads((ROOT / "branding/brand.json").read_text())
+    links_spec = importlib.util.spec_from_file_location("spaceworks_brand_links", ROOT / "scripts/brand_links.py")
+    links_module = importlib.util.module_from_spec(links_spec)
+    links_spec.loader.exec_module(links_module)
+    # Validate destinations before writing any generated output. Only these optional
+    # external links are normalized; the deployment origin has its own strict policy.
+    brand.update(links_module.validated_links(brand))
+    artwork_spec = importlib.util.spec_from_file_location("spaceworks_artwork", ROOT / "scripts/brand_artwork.py")
+    artwork_module = importlib.util.module_from_spec(artwork_spec)
+    artwork_spec.loader.exec_module(artwork_module)
+    selected_artwork = artwork_module.selected_artwork(ROOT, brand)
+    artwork_flags = artwork_module.artwork_flags(brand)
+    icon_source = inside(brand["app_icon"])
+    theme_source = inside(brand["theme_tokens"])
+    if not icon_source.is_file() or icon_source.suffix.lower() != ".svg":
+        raise ValueError("app_icon must name a repository-local SVG file")
+    try:
+        if ET.parse(icon_source).getroot().tag.split("}")[-1] != "svg":
+            raise ValueError("app_icon must contain SVG artwork")
+    except (ET.ParseError, OSError) as error:
+        raise ValueError("app_icon must contain valid SVG artwork") from error
+    if not theme_source.is_file():
+        raise ValueError("theme_tokens must name a repository-local JSON file")
+    tokens = json.loads(theme_source.read_text(encoding="utf-8"))
+    if not isinstance(tokens, dict) or any(not isinstance(tokens.get(mode), dict) or not tokens[mode] for mode in ["light", "dark"]):
+        raise ValueError("theme_tokens requires nonempty light and dark semantic roles")
+    if set(tokens["light"]) != set(tokens["dark"]):
+        raise ValueError("Light and dark semantic roles must match")
+    for mode in ["light", "dark"]:
+        for role, color in tokens[mode].items():
+            if not isinstance(color, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+                raise ValueError(f"Invalid token {mode}.{role}")
     for key in ["ios_bundle_id", "ios_team_id"]:
         if not re.fullmatch(r"[A-Za-z0-9.-]*", brand[key]):
             raise ValueError(f"Invalid {key}")
@@ -43,18 +76,50 @@ def generate(raster=True):
           + f"BRAND_BUNDLE_ID = {brand['ios_bundle_id']}\n"
           + f"BRAND_DISPLAY_NAME = {brand['app_name']}\n"
           + f"BRAND_TEAM_ID = {brand['ios_team_id']}\n")
+    capability_spec = importlib.util.spec_from_file_location("spaceworks_capabilities", ROOT / "scripts/mobile_capabilities.py")
+    capability_module = importlib.util.module_from_spec(capability_spec)
+    capability_spec.loader.exec_module(capability_module)
+    deployment = capability_module.capabilities(brand, "Release")
+    push_configured = "aps-environment" in deployment
     swift_literal = lambda value: "nil" if value is None else json.dumps(value, ensure_ascii=False)
     write(ROOT / "SpaceWorks/Generated/Brand.swift", "// Generated. Do not edit.\nimport Foundation\nenum Brand {\n"
           + "\n".join(f"    static let {name}: String{'?' if key in ['server_url', 'support_url', 'privacy_url'] else ''} = {swift_literal(brand[key])}"
                       for name, key in [("appName", "app_name"), ("bundleID", "ios_bundle_id"), ("serverURL", "server_url"), ("supportURL", "support_url"), ("privacyURL", "privacy_url")])
+          + "\n" + "\n".join(f"    static let {name} = {str(value).lower()}" for name, value in artwork_flags.items())
+          + "\n    static let pushConfigured = " + str(push_configured).lower()
+          + "\n    #if DEBUG\n    static let pushEnvironment = \"development\"\n    #else\n    static let pushEnvironment = \"production\"\n    #endif\n"
+          + "    static let associatedDomains: [String] = " + json.dumps(brand.get("associated_domains", []))
           + "\n}\n")
     for mode in ["Debug", "Release"]:
         info = {"CFBundleDisplayName": brand["app_name"], "UILaunchScreen": {}, "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": False}}
+        info["UISupportedInterfaceOrientations"] = ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+        info["UISupportedInterfaceOrientations~ipad"] = info["UISupportedInterfaceOrientations"] + ["UIInterfaceOrientationPortraitUpsideDown"]
+        info["UIAppFonts"] = ["Gilroy-Regular.ttf", "Gilroy-Medium.ttf", "Gilroy-SemiBold.ttf", "Gilroy-Bold.ttf", "Unbounded-Variable.ttf"]
+        info["NSCameraUsageDescription"] = "Scan member and event codes or photograph handover evidence when you choose to."
+        info["NSFaceIDUsageDescription"] = "Unlock your makerspace account when you turn on app lock."
+        schemes = ["spaceworks"]
+        google_scheme = brand.get("google_reversed_client_id")
+        if google_scheme is not None:
+            if not re.fullmatch(r"com\.googleusercontent\.apps\.[A-Za-z0-9.-]+", google_scheme):
+                raise ValueError("Invalid Google reversed client ID")
+            schemes.append(google_scheme)
+        info["CFBundleURLTypes"] = [{"CFBundleURLName": brand["ios_bundle_id"], "CFBundleURLSchemes": schemes}]
         if mode == "Debug":
             info["NSAppTransportSecurity"] = {"NSAllowsLocalNetworking": True}
         target = ROOT / f"SpaceWorks/Generated/Info-{mode}.plist"
         target.write_bytes(plistlib.dumps(info))
-    tokens = json.loads(inside(brand["theme_tokens"]).read_text())
+        entitlements = {
+            "com.apple.developer.devicecheck.appattest-environment": "development" if mode == "Debug" else "production",
+            "com.apple.developer.applesignin": ["Default"]}
+        entitlements.update(capability_module.capabilities(brand, mode))
+        (ROOT / f"SpaceWorks/Generated/Attestation-{mode}.entitlements").write_bytes(plistlib.dumps(entitlements))
+    # Simulator Keychain requires an effective signed app identity, even without an owner team.
+    # This local-only identity is never used in a physical-device build or release archive.
+    simulator_identity = "LOCALCI." + brand["ios_bundle_id"]
+    (ROOT / "SpaceWorks/Generated/Simulator.entitlements").write_bytes(plistlib.dumps({
+        "application-identifier": simulator_identity,
+        "keychain-access-groups": [simulator_identity], "get-task-allow": True}))
+    # Theme input was parsed and validated before generated output writes.
     if set(tokens["light"]) != set(tokens["dark"]):
         raise ValueError("Light and dark semantic roles must match")
     assets = ROOT / "SpaceWorks/Assets.xcassets"
@@ -75,6 +140,31 @@ def generate(raster=True):
             colors.append(entry)
         write(assets / f"{role}.colorset/Contents.json", json.dumps({"colors": colors, "info": {"author": "xcode", "version": 1}}, indent=2))
     write(ROOT / "SpaceWorks/Generated/Theme.swift", "// Generated from semantic tokens, both appearances.\nimport SwiftUI\nextension Color {\n" + "\n".join(declarations) + "\n}\n")
+    motion_spec = importlib.util.spec_from_file_location("spaceworks_motion", ROOT / "scripts/generate_motion.py")
+    motion_module = importlib.util.module_from_spec(motion_spec)
+    motion_spec.loader.exec_module(motion_module)
+    motion_module.generate_motion(ROOT)
+    fixture_spec = importlib.util.spec_from_file_location("spaceworks_fixtures", ROOT / "scripts/generate_member_fixtures.py")
+    fixture_module = importlib.util.module_from_spec(fixture_spec)
+    fixture_spec.loader.exec_module(fixture_module)
+    fixture_module.generate_member_fixtures(ROOT)
+    staff_spec = importlib.util.spec_from_file_location("spaceworks_staff_fixtures", ROOT / "scripts/generate_staff_fixtures.py")
+    staff_module = importlib.util.module_from_spec(staff_spec)
+    staff_spec.loader.exec_module(staff_module)
+    staff_module.generate_staff_fixtures(ROOT)
+    account_spec = importlib.util.spec_from_file_location("spaceworks_account_fixtures", ROOT / "scripts/generate_account_fixtures.py")
+    account_module = importlib.util.module_from_spec(account_spec)
+    account_spec.loader.exec_module(account_module)
+    account_module.generate_account_fixtures(ROOT)
+    for asset in ["Wordmark", "BrandStacked", "BrandSymbol"]:
+        target = assets / f"{asset}.imageset"
+        target.mkdir(parents=True, exist_ok=True)
+        for selected_asset, name, master in selected_artwork:
+            if selected_asset == asset:
+                shutil.copyfile(master, target / name)
+        write(target / "Contents.json", json.dumps({"images": [{"idiom": "universal", "filename": "light.png"},
+            {"idiom": "universal", "filename": "dark.png", "appearances": [{"appearance": "luminosity", "value": "dark"}]}],
+            "info": {"author": "xcode", "version": 1}}))
     icon = assets / "AppIcon.appiconset"
     icon.mkdir(parents=True, exist_ok=True)
     if raster:
@@ -94,8 +184,17 @@ def generate(raster=True):
     # JSON representation so that DeviceRefresh remains a generated Codable object. No fields,
     # operations or response schemas are changed, and the authoritative source stays untouched.
     document = json.loads(schema.read_bytes())
-    content = document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"]
-    document["paths"]["/api/v1/auth/device/refresh"]["post"]["requestBody"]["content"] = {"application/json": content["application/json"]}
+    for operations in document["paths"].values():
+        for operation in operations.values():
+            if not isinstance(operation, dict):
+                continue
+            content = operation.get("requestBody", {}).get("content", {})
+            if "application/json" in content:
+                operation["requestBody"]["content"] = {"application/json": content["application/json"]}
+            elif content and not any("/" in media for media in content) and not operation["requestBody"].get("required", False):
+                # A few optional empty POST bodies use schema keys instead of media types.
+                # Select their documented no-body form; preserve the immutable source and every DTO.
+                del operation["requestBody"]
     write(ROOT / "Packages/SpaceWorksAPI/Sources/SpaceWorksAPI/openapi.json", json.dumps(document, ensure_ascii=False, indent=2) + "\n")
 
 

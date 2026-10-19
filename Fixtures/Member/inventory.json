@@ -1,0 +1,172 @@
+{
+  "count": 12,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "name": "Digital multimeter",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Electronics",
+      "category_slug": "electronics",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 2,
+      "name": "Arduino starter kit",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Electronics",
+      "category_slug": "electronics",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Limited"
+      },
+      "image_url": null
+    },
+    {
+      "id": 3,
+      "name": "Precision screwdriver set",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Hand tools",
+      "category_slug": "hand-tools",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": null,
+      "image_url": null
+    },
+    {
+      "id": 4,
+      "name": "Cordless drill",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Hand tools",
+      "category_slug": "hand-tools",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 5,
+      "name": "Soldering station",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Electronics",
+      "category_slug": "electronics",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 6,
+      "name": "Safety goggles",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Safety",
+      "category_slug": "safety",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 7,
+      "name": "Raspberry Pi kit",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Electronics",
+      "category_slug": "electronics",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 8,
+      "name": "Woodworking clamps",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Hand tools",
+      "category_slug": "hand-tools",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 9,
+      "name": "Digital caliper",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Measuring",
+      "category_slug": "measuring",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 10,
+      "name": "Heat gun",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Hand tools",
+      "category_slug": "hand-tools",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 11,
+      "name": "Cutting mat",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Fabrication",
+      "category_slug": "fabrication",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    },
+    {
+      "id": 12,
+      "name": "Bench power supply",
+      "description": "Ready for your next workshop project. Ask staff if you need a quick introduction.",
+      "category_id": 1,
+      "category_name": "Electronics",
+      "category_slug": "electronics",
+      "borrowing_terms": "Bring it back in its case, clean and complete. Your makerspace confirms the loan and due date.",
+      "availability": {
+        "mode": "status_only",
+        "label": "Available"
+      },
+      "image_url": null
+    }
+  ]
+}

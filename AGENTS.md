@@ -16,3 +16,30 @@
    A phase with failing or skipped tests is not done.
 6. Secrets: none in the repo, ever. No analytics or third-party SDKs beyond §6 without asking.
 7. Accessibility and dark mode are part of "done" in every phase, not a final polish pass.
+
+## Branch delivery workflow
+
+The owner merged the A0 foundation and subsequently updated the delivery workflow:
+
+- Start ongoing work from `dev`, commit there, and push to `origin/dev`.
+- Consolidate on `dev` without new feature branches or pull requests. The owner's latest instruction uses the already-open iOS [pull request #4](https://github.com/SpaceWorks-HQ/SpaceWorks-iOS/pull/4): after the required repository native/CI, unsigned Release and actual visual gates pass, merge that exact reviewed head into `main` through the existing pull request. Keep `dev` and preserve phase commits.
+- Retire obsolete work branches only after their work is safely retained. Preserve the owner's configured commit identity and the required Codex co-author trailer.
+
+## Complete-build execution addendum (owner, 2026-10-16; delivery updated 2026-10-18)
+
+The owner requested the remaining phases as one batch, with Android and iOS agents in parallel.
+Implement each phase sequentially on `dev`, with phase commits, tests, CI evidence, and a changelog
+parity checklist. A green phase may proceed without an intermediate merge. Consolidate the batch
+on `dev`, complete the required repository validation and actual visual review, then merge the tested
+work into `main` through the already-open iOS pull request #4 under the owner's latest instruction.
+Keep `dev` and phase commits; do not create another pull request or feature branch for this batch.
+Follow the branch delivery policy above. Preserve `docs/PRD.md`
+byte-for-byte.
+Phone and tablet layouts, portrait/landscape, light/dark and largest Dynamic Type are now in scope.
+Use generated contract operations only. Record missing backend contracts as `backend-request`
+issues and continue independent work when prerequisites permit. Local Docker is the development API;
+development attestation and local HTTP must remain Debug-only. Store credentials only in Keychain.
+
+Mobile-specific onboarding/auth UX and motion belong in `docs/mobile-auth-ux-spec.md` and
+`tokens/mobile-motion.json` in this repository. Do not push mobile implementation/spec additions
+to the Design repository. The Design submodule supplies the existing brand masters and colors.

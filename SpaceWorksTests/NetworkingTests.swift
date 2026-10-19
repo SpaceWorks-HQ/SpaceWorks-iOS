@@ -1,5 +1,7 @@
 import XCTest
 import Foundation
+import HTTPTypes
+import OpenAPIRuntime
 import SpaceWorksAPI
 
 final class StubProtocol: URLProtocol {
@@ -74,6 +76,7 @@ final class NetworkingTests: XCTestCase {
             return (200, self.json, Data(#"{"status":"ok"}"#.utf8))
         }
         try await client.makerspace.select(7, activeMemberships: [7])
+        let oldCredentials = await client.refresh.snapshot()
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<24 {
                 group.addTask {
@@ -86,9 +89,49 @@ final class NetworkingTests: XCTestCase {
         }
         XCTAssertEqual(counter.value, 1)
         // A late response rejected with the old access token must not rotate again.
-        let recovered = try await client.refresh.recover(rejectedAccess: "old-access")
+        let recovered = try await client.refresh.recover(rejected: oldCredentials)
         XCTAssertEqual(recovered.refresh, "new-refresh")
         XCTAssertEqual(counter.value, 1)
+    }
+
+    func testDelayed401CannotReplayMutationUnderNewAccountWithSameMakerspace() async throws {
+        let gate = NetworkEpochGate(); let calls = LockedCounter(); let rotations = LockedCounter()
+        let refresh = RefreshCoordinator(pair: TokenPair(access: "old-account", refresh: "old-refresh"), rotate: { _ in rotations.increment(); return TokenPair(access: "rotated", refresh: "rotated-refresh") })
+        let makerspace = MakerspaceContext(); try await makerspace.select(7, activeMemberships: [7])
+        let middleware = SessionMiddleware(refresh: refresh, makerspace: makerspace)
+        let request = HTTPRequest(method: .post, scheme: "https", authority: "spaceworks.example", path: "/api/v1/mutation/")
+        let task = Task {
+            try await middleware.intercept(request, body: nil, baseURL: self.origin.url, operationID: "mutation") { sent, _, _ in
+                calls.increment(); XCTAssertEqual(sent.headerFields[.authorization], "Bearer old-account")
+                await gate.arrive()
+                return (HTTPResponse(status: .unauthorized), nil)
+            }
+        }
+        await gate.waitUntilEntered()
+        try await refresh.install(nil)
+        try await makerspace.select(nil, activeMemberships: [])
+        try await refresh.install(TokenPair(access: "new-account", refresh: "new-refresh"))
+        try await makerspace.select(7, activeMemberships: [7])
+        await gate.release()
+        do { _ = try await task.value; XCTFail("Old mutation must not retry under another installed session") } catch {}
+        XCTAssertEqual(calls.value, 1); XCTAssertEqual(rotations.value, 0)
+        let current = await refresh.current(); XCTAssertEqual(current?.access, "new-account")
+    }
+
+    func testQueuedScopedOperationCannotFirstSendAsAnotherInstalledAccount() async throws {
+        let gate = NetworkEpochGate(); let calls = LockedCounter()
+        let client = service(tokens: TokenPair(access: "old", refresh: "old-refresh")) { _ in
+            calls.increment(); return (200, self.json, Data(#"{"status":"ok"}"#.utf8))
+        }
+        try await client.makerspace.select(7, activeMemberships: [7])
+        let task = Task { try await client.withMakerspace(7) { await gate.arrive(); try await client.health() } }
+        await gate.waitUntilEntered()
+        try await client.refresh.install(nil)
+        try await client.refresh.install(TokenPair(access: "new", refresh: "new-refresh"))
+        try await client.makerspace.select(7, activeMemberships: [7])
+        await gate.release()
+        do { try await task.value; XCTFail("Queued old operation must be cancelled before transport") } catch {}
+        XCTAssertEqual(calls.value, 0)
     }
 
     func testRefreshFailureSignsOutWithoutReusingRefreshToken() async throws {
@@ -119,6 +162,24 @@ final class NetworkingTests: XCTestCase {
         XCTAssertEqual(counter.value, 1)
     }
 
+    func testMissingInvalidAndNonFiniteRetryAfterUseFiniteConservativeThrottleDeadline() async throws {
+        for header in [nil, "NaN", "Infinity", "-Infinity", "not a date"] as [String?] {
+            let before = Date(); let counter = LockedCounter()
+            let client = service { _ in
+                counter.increment(); var headers = self.json
+                if let header { headers["Retry-After"] = header }
+                return (429, headers, Data(#"{"detail":"Wait before retrying."}"#.utf8))
+            }
+            do { try await client.health(); XCTFail("Expected throttling") }
+            catch {
+                let deadline = try XCTUnwrap(APIError.retryDeadline(error))
+                XCTAssertTrue(deadline.timeIntervalSinceReferenceDate.isFinite)
+                XCTAssertGreaterThan(deadline.timeIntervalSince(before), 59)
+                XCTAssertLessThan(deadline.timeIntervalSinceNow, 61)
+            }
+            XCTAssertEqual(counter.value, 1)
+        }
+    }
     func testErrorFallbacksAndSpecialCodes() async throws {
         for (status, text) in [(400, "Check the details and try again."), (401, "Please sign in again."), (403, "You do not have permission to do this."), (404, "This item wasn't found."), (409, "This changed. Refresh and try again."), (429, "Too many requests. Try again later."), (503, "The server is unavailable. Try again later.")] {
             let client = service { _ in (status, self.json, Data(#"{"detail":" ","code":"unknown"}"#.utf8)) }
@@ -134,6 +195,7 @@ final class NetworkingTests: XCTestCase {
         for (status, body, expected) in [
             (403, #"{"detail":"Membership is inactive."}"#, "Membership is inactive."),
             (400, #"{"email":["Enter a valid email."],"name":["This field is required."]}"#, "email: Enter a valid email.\nname: This field is required."),
+            (400, #"{"custom_answers":{"voltage":["Enter a number."],"name":"Required."}}"#, "custom_answers.name: Required.\ncustom_answers.voltage: Enter a number."),
             (403, #"{"code":"device_superadmin_not_supported"}"#, "Use the web console")
         ] {
             let client = service { _ in (status, self.json, Data(body.utf8)) }
@@ -181,7 +243,7 @@ private final class LockedCounter: @unchecked Sendable {
     var value: Int { lock.lock(); defer { lock.unlock() }; return count }
 }
 
-private func requestBody(_ request: URLRequest) -> Data {
+func requestBody(_ request: URLRequest) -> Data {
     if let data = request.httpBody { return data }
     guard let stream = request.httpBodyStream else { return Data() }
     stream.open(); defer { stream.close() }
@@ -193,4 +255,13 @@ private func requestBody(_ request: URLRequest) -> Data {
         result.append(contentsOf: buffer.prefix(n))
     }
     return result
+}
+
+private actor NetworkEpochGate {
+    private var entered = false
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var observer: CheckedContinuation<Void, Never>?
+    func arrive() async { entered = true; observer?.resume(); observer = nil; await withCheckedContinuation { continuation = $0 } }
+    func waitUntilEntered() async { if !entered { await withCheckedContinuation { observer = $0 } } }
+    func release() { continuation?.resume(); continuation = nil }
 }

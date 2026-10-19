@@ -1,0 +1,12 @@
+{
+  "versions": {
+    "xcodegen": "2.46.0",
+    "librsvg": "2.62.3"
+  },
+  "provenance": {
+    "source_sha": "47e1880a5c7fe549608e2a38cba789d47cf152dc",
+    "run": 39100123222,
+    "job": 117594513500,
+    "evidence": "Published Install project and icon generators job log; Cellar version paths. Same versions also appear in the 775f298 full-phone prefix."
+  }
+}

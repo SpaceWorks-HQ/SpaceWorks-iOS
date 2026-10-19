@@ -1,0 +1,19 @@
+// English fallback copy only. Server-provided details remain verbatim.
+"Check the details and try again." = "Check the details and try again.";
+"Couldn't connect. Try again." = "Couldn't connect. Try again.";
+"Enter a valid HTTPS server URL." = "Enter a valid HTTPS server URL.";
+"Finish this payment on the web." = "Finish this payment on the web.";
+"Notifications could not be registered. Your inbox is still available." = "Notifications could not be registered. Your inbox is still available.";
+"Online payment is unavailable. Try again later or pay at the desk." = "Online payment is unavailable. Try again later or pay at the desk.";
+"Please sign in again." = "Please sign in again.";
+"Select an active makerspace membership." = "Select an active makerspace membership.";
+"Sign in to continue." = "Sign in to continue.";
+"The server is unavailable. Try again later." = "The server is unavailable. Try again later.";
+"The server returned an invalid next page." = "The server returned an invalid next page.";
+"This changed. Refresh and try again." = "This changed. Refresh and try again.";
+"This document link expired. Try again to request a new link." = "This document link expired. Try again to request a new link.";
+"This document link is unavailable. Request a new link and try again." = "This document link is unavailable. Request a new link and try again.";
+"This item wasn't found." = "This item wasn't found.";
+"Too many requests. Try again later." = "Too many requests. Try again later.";
+"Use the web console" = "Use the web console";
+"You do not have permission to do this." = "You do not have permission to do this.";

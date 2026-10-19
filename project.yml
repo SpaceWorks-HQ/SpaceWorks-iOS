@@ -1,5 +1,6 @@
 name: SpaceWorks
 options:
+  developmentLanguage: en
   minimumXcodeGenVersion: 2.42.0
   deploymentTarget:
     iOS: '17.0'
@@ -9,12 +10,25 @@ configFiles:
 settings:
   base:
     SWIFT_VERSION: '5.0'
+    SPACEWORKS_TEST_PROFILE: phone
+    SPACEWORKS_SETUP_DIAGNOSTIC: "false"
+    SWIFT_EMIT_LOC_STRINGS: YES
     CODE_SIGN_STYLE: Automatic
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 0.1.0
     GENERATE_INFOPLIST_FILE: YES
     ENABLE_USER_SCRIPT_SANDBOXING: NO
+    TARGETED_DEVICE_FAMILY: '1,2'
 packages:
+  Stripe:
+    url: https://github.com/stripe/stripe-ios.git
+    exactVersion: 26.14.0
+  Razorpay:
+    url: https://github.com/razorpay/razorpay-pod.git
+    exactVersion: 1.5.8
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS.git
+    exactVersion: 10.0.0
   SpaceWorksAPI:
     path: Packages/SpaceWorksAPI
 targets:
@@ -26,19 +40,30 @@ targets:
         excludes: [Generated/Info-Debug.plist, Generated/Info-Release.plist]
     dependencies:
       - package: SpaceWorksAPI
+      - package: GoogleSignIn
+        product: GoogleSignIn
+      - package: Stripe
+        product: StripePaymentSheet
+      - package: Stripe
+        product: StripePayments
+      - package: Razorpay
+        product: RazorpayCheckout
     settings:
       configs:
         Debug:
           INFOPLIST_FILE: SpaceWorks/Generated/Info-Debug.plist
+          CODE_SIGN_ENTITLEMENTS: SpaceWorks/Generated/Attestation-Debug.entitlements
         Release:
           INFOPLIST_FILE: SpaceWorks/Generated/Info-Release.plist
+          CODE_SIGN_ENTITLEMENTS: SpaceWorks/Generated/Attestation-Release.entitlements
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(BRAND_BUNDLE_ID)
         DEVELOPMENT_TEAM: $(BRAND_TEAM_ID)
         INFOPLIST_KEY_CFBundleDisplayName: $(BRAND_DISPLAY_NAME)
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        'CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]': SpaceWorks/Generated/Simulator.entitlements
     preBuildScripts:
       - name: Generate branding and semantic theme
         script: python3 "$SRCROOT/scripts/generate.py"
@@ -71,4 +96,7 @@ schemes:
         SpaceWorksUITests: [test]
     test:
       gatherCoverageData: true
+      environmentVariables:
+        SPACEWORKS_TEST_PROFILE: $(SPACEWORKS_TEST_PROFILE)
+        SPACEWORKS_SETUP_DIAGNOSTIC: $(SPACEWORKS_SETUP_DIAGNOSTIC)
       targets: [SpaceWorksTests, SpaceWorksUITests]

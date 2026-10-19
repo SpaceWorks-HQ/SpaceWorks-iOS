@@ -1,0 +1,15 @@
+[
+  {
+    "public_token": "00000000-0000-0000-0000-000000000031",
+    "name": "Electronics workbench",
+    "kind": "bench",
+    "description": "A focused workbench with power, task lighting and room for your project.",
+    "capacity": 2,
+    "location": "Ground floor",
+    "image_url": "",
+    "approval_mode": "instant",
+    "custom_form": null,
+    "show_public_availability": true,
+    "show_public_booker_names": false
+  }
+]
